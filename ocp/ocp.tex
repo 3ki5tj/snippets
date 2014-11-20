@@ -1,0 +1,114 @@
+\documentclass[12pt]{article}
+
+\usepackage{amsmath}
+
+\newcommand{\vct}[1]{\mathbf{#1}}
+\providecommand{\vr}{} % clear \vr
+\renewcommand{\vr}{\vct{r}}
+\newcommand{\vk}{\vct{k}}
+\newcommand{\vR}{\vct{R}}
+\newcommand{\erf}{\mathrm{erf}}
+
+\begin{document}
+
+\section{Method}
+
+\subsection{Integral equation}
+
+The Ornstein-Zernike (OZ) relation is
+\begin{equation}
+  t(\vr) = \rho \, (c * h)(\vr)
+         = \rho \, [c * (t + c)] (\vr),
+  \label{eq:oz}
+\end{equation}
+%
+where $(c * h)(\vr) = \int c(\vr') \, h(\vr - \vr') \, d\vr'$
+is the convolution of $c(\vr)$ and $h(\vr)$.
+%
+In the Fourier space
+\begin{equation}
+  \tilde{t}(\vk) = \rho \, \tilde{c}(\vk) \, [\tilde{t}(\vk) + \tilde{c}(\vk)]
+                 = \frac{ \rho \, \tilde{c}^2(\vk) }
+                        { 1 - \rho \tilde{c}(\vk)    }.
+  \label{eq:ozk}
+\end{equation}
+
+The closure is
+\begin{equation}
+  c(\vr) = \exp[-\beta \, \phi(\vr) + t(\vr) + B(\vr)] - t(\vr) - 1,
+  \label{eq:closure}
+\end{equation}
+where $B(\vr)$ is the bridge function,
+which vanishes in the hypernetted-chain (HNC) case.
+
+
+\subsection{Long-range interaction}
+
+For the electrostatic interaction,
+$c(\vr)$ and $t(\vr)$ are long-ranged,
+but their sum $h(\vr) = c(\vr) + t(\vr)$ is short-ranged.
+%
+Suppose we can identify the long-ranged component $\psi(\vr)$ in $t(\vr)$,
+then the long-ranged component in $c(\vr)$ must be $-\psi(\vr)$.
+%
+Then we can define a new set of short-ranged functions
+%
+\begin{align}
+  c_h(\vr)     &\equiv  c(\vr) + \psi(\vr), \label{eq:ch} \\
+  t_h(\vr)     &\equiv  t(\vr) - \psi(\vr), \label{eq:th} \\
+  \phi_h(\vr)  &\equiv  \phi(\vr) - \beta^{-1} \, \psi(\vr),
+\end{align}
+%
+where $\psi(\vr)$ is the long-ranged component.
+
+
+In terms of the new functions, we have
+\begin{align}
+  \tilde{t}_h(\vk) &= \frac{ \rho \, [ \tilde{c}_h(\vk) - \tilde{\psi}(\vk) ]^2 }
+                           { 1 - \rho \, [\tilde{c}_h(\vk) - \tilde{\psi}(\vk) ] }
+                      -\tilde{\psi}(\vk),
+  \label{eq:ozk_short}
+ \\
+  c_h(\vr) &= \exp[-\beta \, \phi_h(\vr) + t_h(\vr) + B(\vr)] - t_h(\vr) - 1,
+  \label{eq:closure_short}
+\end{align}
+%
+Since now $c_h(\vr)$ and $t_h(\vr)$,
+\eqref{eq:ozk_short} and \eqref{eq:closure_short}
+can be solved more efficiently than
+\eqref{eq:ozk} and \eqref{eq:closure}.
+
+
+
+\subsection{Long-range component}
+
+We should choose $\psi(\vr)$ such that $c_h(\vr)$ and $t_h(\vr)$ are short-ranged.
+%
+At a long distance, we have
+\[
+  c(\vr) \approx f(\vr)
+         = e^{-\beta \phi(\vr)} - 1
+         \approx -\beta \phi(\vr).
+\]
+Thus, in order for $c_h(\vr)$, defined in \eqref{eq:ch}, to vanish at a long distance,
+we must have
+\begin{equation}
+  \psi(\vr) \approx \beta \phi(\vr)
+            = \beta/r,
+  \qquad \mbox{for $r \rightarrow \infty$}.
+\label{eq:longrangelimit}
+\end{equation}
+
+In practice, we borrow the solution of Ewald sum, and set
+\[
+  \psi(\vr) = \beta \frac{ \erf\left[ r/(\sqrt{2} a) \right] }{ r }.
+\]
+The Fourier transform is known:
+\[
+  \tilde{\psi}(\vk) = \beta \frac{ 4 \pi \exp(-k^2 a^2/2) } { k^2 }.
+\]
+Since $\erf(x) \rightarrow 1$ for a large $x$,
+\eqref{eq:longrangelimit} is satisfied.
+
+
+\end{document}

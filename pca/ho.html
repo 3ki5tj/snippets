@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title> Harmonic Oscillator </title>
+  <link rel="stylesheet" type="text/css" href="./css/default.css" />
+  <script type="text/javascript" src="./js/dygraph-combined.js"></script>
+  <script type="text/javascript" src="./js/util.js"></script>
+  <script type="text/javascript" src="./js/mtrand.js"></script>
+  <script type="text/javascript" src="./js/lu.js"></script>
+  <script type="text/javascript" src="./js/eig.js"></script>
+  <script type="text/javascript" src="./js/ho.js"></script>
+</head>
+<body>
+
+<h2 class="center">
+  Principle component analysis (PCA) for a harmonic-oscillator chain
+</h2>
+
+<form>
+  Number of particles
+  <span class="math"><i>N</i></span>:
+  <input type="text" size="6" value="21" id="npt"
+    onChange="changeparams()">.
+  <br>
+
+  Mass distribution:
+  <select id="massdistr" onChange="changeparams()">
+    <option value="uniform" selected>Uniform</option>
+    <option value="triangular">Triangular</option>
+  </select>.
+  &nbsp;
+
+  Distribution slope,
+  <span class="math"><i>M</i></span>:
+  <input type="text" size="6" value="1.0" id="massslope"
+    onChange="changeparams()">.
+  <br>
+
+  <small>
+    If the slope is positive, the mass increases from 1 to
+    <span class="math"><i>M</i> + 1</span> in the middle,
+    and then decreases back to 1.
+    If it is negative, the mass decreases from
+    <span class="math"><i>M</i> + 1</span> to 1 in the middle,
+    and then increases back to
+    <span class="math"><i>M</i> + 1</span>.
+  </small>
+  <br>
+
+  Frequency of adding small-world springs between nonadjacent particles:
+  <input type="text" size="6" value="0.0" id="fsmallworld"
+    onChange="changeparams()"> (between 0 and 1).
+  <br>
+
+  Stiffness of small-world springs:
+  <input type="text" size="6" value="1.0" id="ksmallworld"
+    onChange="changeparams()">.
+  <br>
+
+  Number of molecular dynamics (MD) steps per second:
+  <input type="text" size="16" value="20000"
+    id="nstepspersec" onChange="changeparams()">.
+  <br>
+
+  MD time step:
+  <input type="text" size="6" value="0.005" id="mddt"
+    onChange="changeparams()">.
+  <br>
+
+  Number of equilibration steps:
+  <input type="text" size="16" value="10000" id="nstequiv">.
+  <br>
+
+  Temperature:
+  <input type="text" size="6" value="1.0" id="temp"
+    onChange="changeparams()">.
+  &nbsp;
+
+  Thermostat time step:
+  <input type="text" size="6" value="0.01" id="thermostatdt"
+    onChange="changeparams()">.
+  <br>
+
+  Use the Andersen thermostat:
+  <input type="checkbox" size="6" id="useAndersen"
+    onChange="changeparams()">.
+  <br>
+
+  Collect sample every
+  <input type="text" size="6" value="10" id="nstsamp"
+    onChange="changeparams()"> MD steps.
+  <br>
+
+  <input type="button" value="Start simulation"
+    id="start" class="largebtn" onclick="startmd()">
+
+  <input type="button" value="Stop"
+    id="start" class="largebtn" onclick="stopmd()">
+
+  <input type="reset" value="Reset"
+    id="reset" class="largebtn">
+  <br>
+
+  <div id="posplot" class="plot"></div>
+
+  <div id="info"></div>
+
+  <hr>
+
+  Do PCA every
+  <input type="text" size="6" value="100000" id="nstpca"> MD steps.
+  <br>
+
+  <div id="omgplot" class="plot"></div>
+
+  Plot the first
+  <input type="text" size="6" value="5" id="nmodesplot"> modes.
+  <br>
+
+  <div id="modesplot" class="plot"></div>
+
+  <hr>
+
+  <div>
+  The equivalent C code: <a href="ho.c">ho.c</a>.
+  </div>
+
+  <div>
+    <small>
+      <a href="https://copy.com/2goW9gfPkJQgYTW4">Link</a>
+      to the source code.
+    </small>
+  </div>
+
+</form>
+
+</body>
+</html>

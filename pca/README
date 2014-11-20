@@ -1,0 +1,13 @@
+Principle component analysis
+
+
+One dimensional harmonic-oscillator chain
+==========================================
+
+Compile and run
+----------------
+Enter
+
+  make && ./ho
+
+
