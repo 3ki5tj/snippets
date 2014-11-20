@@ -20,7 +20,7 @@ function mtscramble(seed)
     // mr->arr[k] = (mr->arr[k] + seed) * 22695477ul + 1ul;
     mtarr[k] = (mtarr[k] + seed) * 314159265 + 1;
   }
-  mtidx = MT_N; // request for an update
+  mtidx = MT_N; // request an update
   mtonce = 1; // scrambled
 }
 

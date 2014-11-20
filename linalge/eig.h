@@ -181,11 +181,11 @@ static void eigsort(double *d, double *v, int n)
   double max, tmp;
 
   for (i = 0; i < n - 1; i++) {
-    /* search the maximal eigenvalue */
+    /* find the largest eigenvalue */
     for (max = d[i], im = i, j = i + 1; j < n; j++) {
       if (d[j] > max) max = d[im = j];
     }
-    if (im != i) { /* change column im and i */
+    if (im != i) { /* swap columns im and i */
       tmp = d[i], d[i] = d[im], d[im] = tmp;
       for (j = 0; j < n; j++)
         tmp = v[j*n + i], v[j*n + i] = v[j*n + im], v[j*n + im] = tmp;

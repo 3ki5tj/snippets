@@ -12,7 +12,7 @@ function tridiag(m, d, e, n)
   var i, j, k;
   var H, sigma, p, K;
 
-  // use d[i] to indicate if the i'th Householder transformation is performed
+  // use d[i] to show if the i'th Householder transformation is performed
   for (i = 0; i < n; i++) d[i] = 0;
 
   // n-2 Householder transformations
@@ -23,7 +23,7 @@ function tridiag(m, d, e, n)
     e[i] = -sigma; // P m[i] = - sigma e1
     H += sigma*m[i*n+i+1]; // H= (1/2) |u|^2 = |m[i]|^2 + sigma x1
 
-    // To avoid singularity due to (partially) diagonal matrix as input
+    // avoid singularity due to (partially) diagonal matrix as input
     if (Math.abs(sigma) <= Math.abs(m[i*n+i])*1e-14) {
       e[i] = m[i*n+i+1];
       continue;
@@ -51,7 +51,7 @@ function tridiag(m, d, e, n)
       for (k = j; k < n; k++)
         m[j*n + k] -= e[j]*m[i*n + k] + m[i*n + j]*e[k];
 
-    d[i] = 1; // indicate that the transformation is performed
+    d[i] = 1; // show that the transformation is performed
   }
   if ( n > 1 ) e[n - 2] = m[(n - 2)*n + n - 1]; // for i == n-2
   e[n - 1] = 0;
@@ -173,11 +173,11 @@ function eigsort(d, v, n)
   var max, tmp;
 
   for (i = 0; i < n - 1; i++) {
-    /* search the maximal eigenvalue */
+    // find the largest eigenvalue
     for (max = d[i], im = i, j = i + 1; j < n; j++) {
       if (d[j] > max) max = d[im = j];
     }
-    if (im != i) { /* change column im and i */
+    if (im != i) { // exchange columns im and i
       tmp = d[i], d[i] = d[im], d[im] = tmp;
       for (j = 0; j < n; j++)
         tmp = v[j*n + i], v[j*n + i] = v[j*n + im], v[j*n + im] = tmp;

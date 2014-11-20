@@ -19,7 +19,7 @@ $(pdffigs): %.pdf: %.gp
 
 clean:
 	$(RM) *.aux *.bbl *.blg *.log *.dvi *.out \
-	      *Notes.bib *~
+	      *Notes.bib *~ .*.un~
 	rstrip.py
 
 $(prj)doc.zip: $(prj).tex $(prj).pdf liquid.bib \

@@ -35,7 +35,7 @@ In the Fourier space
 
 The closure is
 \begin{equation}
-  c(\vr) = \exp[-\beta \, \phi(\vr) + t(\vr) + B(\vr)] - t(\vr) - 1,
+  c(\vr) = \exp[-\beta \, u(\vr) + t(\vr) + B(\vr)] - t(\vr) - 1,
   \label{eq:closure}
 \end{equation}
 where $B(\vr)$ is the bridge function,
@@ -54,9 +54,9 @@ then the long-ranged component in $c(\vr)$ must be $-\psi(\vr)$.
 Then we can define a new set of short-ranged functions
 %
 \begin{align}
-  c_h(\vr)     &\equiv  c(\vr) + \psi(\vr), \label{eq:ch} \\
-  t_h(\vr)     &\equiv  t(\vr) - \psi(\vr), \label{eq:th} \\
-  \phi_h(\vr)  &\equiv  \phi(\vr) - \beta^{-1} \, \psi(\vr),
+  c_s(\vr)    &\equiv   c(\vr) + \psi(\vr), \label{eq:ch} \\
+  t_s(\vr)    &\equiv   t(\vr) - \psi(\vr), \label{eq:th} \\
+  u_s(\vr)    &\equiv   u(\vr) - \beta^{-1} \, \psi(\vr),
 \end{align}
 %
 where $\psi(\vr)$ is the long-ranged component.
@@ -64,16 +64,16 @@ where $\psi(\vr)$ is the long-ranged component.
 
 In terms of the new functions, we have
 \begin{align}
-  \tilde{t}_h(\vk) &= \frac{ \rho \, [ \tilde{c}_h(\vk) - \tilde{\psi}(\vk) ]^2 }
-                           { 1 - \rho \, [\tilde{c}_h(\vk) - \tilde{\psi}(\vk) ] }
+  \tilde{t}_s(\vk) &= \frac{ \rho \, [ \tilde{c}_s(\vk) - \tilde{\psi}(\vk) ]^2 }
+                           { 1 - \rho \, [\tilde{c}_s(\vk) - \tilde{\psi}(\vk) ] }
                       -\tilde{\psi}(\vk),
   \label{eq:ozk_short}
  \\
-  c_h(\vr) &= \exp[-\beta \, \phi_h(\vr) + t_h(\vr) + B(\vr)] - t_h(\vr) - 1,
+  c_s(\vr) &= \exp[-\beta \, u_s(\vr) + t_s(\vr) + B(\vr)] - t_s(\vr) - 1,
   \label{eq:closure_short}
 \end{align}
 %
-Since now $c_h(\vr)$ and $t_h(\vr)$,
+Since now $c_s(\vr)$ and $t_s(\vr)$,
 \eqref{eq:ozk_short} and \eqref{eq:closure_short}
 can be solved more efficiently than
 \eqref{eq:ozk} and \eqref{eq:closure}.
@@ -82,18 +82,18 @@ can be solved more efficiently than
 
 \subsection{Long-range component}
 
-We should choose $\psi(\vr)$ such that $c_h(\vr)$ and $t_h(\vr)$ are short-ranged.
+We should choose $\psi(\vr)$ such that $c_s(\vr)$ and $t_s(\vr)$ are short-ranged.
 %
 At a long distance, we have
 \[
   c(\vr) \approx f(\vr)
-         = e^{-\beta \phi(\vr)} - 1
-         \approx -\beta \phi(\vr).
+         = e^{-\beta u(\vr)} - 1
+         \approx -\beta u(\vr).
 \]
-Thus, in order for $c_h(\vr)$, defined in \eqref{eq:ch}, to vanish at a long distance,
+Thus, in order for $c_s(\vr)$, defined in \eqref{eq:ch}, to vanish at a long distance,
 we must have
 \begin{equation}
-  \psi(\vr) \approx \beta \phi(\vr)
+  \psi(\vr) \approx \beta u(\vr)
             = \beta/r,
   \qquad \mbox{for $r \rightarrow \infty$}.
 \label{eq:longrangelimit}
