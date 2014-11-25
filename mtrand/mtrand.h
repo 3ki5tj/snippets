@@ -6,15 +6,21 @@
 #include <string.h>
 #include <math.h>
 
+
+
 /* Mersenne Twister was developed by Makoto Matsumoto and Takuji Nishimura */
 #define MT_N 624
 #define MT_M 397
 #define MT_UMASK 0x80000000u /* most significant w-r bits */
 #define MT_LMASK 0x7fffffffu /* least significant r bits */
 
+
+
 int mtonce = 0;
 int mtidx = MT_N;
 unsigned long mtarr[MT_N] = {5491};
+
+
 
 /* scramble the random number state */
 __inline static void mtscramble(unsigned seed)
@@ -30,6 +36,8 @@ __inline static void mtscramble(unsigned seed)
   mtidx = MT_N; /* request for an update */
   mtonce = 1; /* scrambled */
 }
+
+
 
 /* return an unsigned random number */
 __inline static unsigned mtrand(void)
@@ -63,6 +71,7 @@ __inline static unsigned mtrand(void)
 }
 
 
+
 __inline static double rand01(void)
 {
   return mtrand() / 4294967296.0;
@@ -71,7 +80,7 @@ __inline static double rand01(void)
 
 
 /* Gaussian distribution with zero mean and unit variance
- * using ratio method */
+ * using the ratio method */
 __inline double gaussrand(void)
 {
   double x, y, u, v, q;

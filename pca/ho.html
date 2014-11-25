@@ -24,6 +24,11 @@
     onchange="changeparams()">.
   <br>
 
+
+
+  <div class="panel">
+  <div class="panel-title">Masses of particles</div>
+
   Mass distribution:
   <select id="massdistr" onchange="changeparams()">
     <option value="uniform" selected>Uniform</option>
@@ -47,6 +52,24 @@
     <span class="math"><i>M</i> + 1</span>.
   </small>
   <br>
+  </div>
+
+
+
+  <div class="panel">
+  <div class="panel-title">Force field</div>
+
+  Quartic component
+  [<span class="math"><i>U</i>(<i>x</i>)
+    =
+    &frac14;&thinsp;<i>a</i>&thinsp;(<i>x</i>&#178; &minus; <i>b</i>&#178;)&#178;</span>]:
+  <span class="math"><i>a</i></span>
+  <input type="text" size="6" value="0.0" id="quartic_a"
+    onchange="changeparams()">.
+  <span class="math"><i>b</i></span>
+  <input type="text" size="6" value="0.0" id="quartic_b"
+    onchange="changeparams()">.
+  <br>
 
   Frequency of adding small-world springs between nonadjacent particles:
   <input type="text" size="6" value="0.0" id="fsmallworld"
@@ -57,8 +80,14 @@
   <input type="text" size="6" value="1.0" id="ksmallworld"
     onchange="changeparams()">.
   <br>
+  </div>
 
-  Number of molecular dynamics (MD) steps per second:
+
+
+  <div class="panel">
+  <div class="panel-title">Molecular dynamics (MD)</div>
+
+  Number of MD steps per second:
   <input type="text" size="16" value="20000"
     id="nstepspersec" onchange="changeparams()">.
   <br>
@@ -71,6 +100,12 @@
   Number of equilibration steps:
   <input type="text" size="16" value="10000" id="nstequiv">.
   <br>
+  </div>
+
+
+
+  <div class="panel">
+  <div class="panel-title">Thermostat</div>
 
   Temperature:
   <input type="text" size="6" value="1.0" id="temp"
@@ -89,11 +124,9 @@
     <option value="vrescale">Velocity rescaling (with velocity swaps, still not ergodic!)</option>
   </select>
   <br>
+  </div>
 
-  Collect sample every
-  <input type="text" size="6" value="10" id="nstsamp"
-    onchange="changeparams()"> MD steps.
-  <br>
+
 
   <input type="button" value="Start simulation"
     id="start" class="largebtn" onclick="startmd()">
@@ -111,19 +144,33 @@
 
   <hr>
 
+
+
+  <div class="panel">
+  <div class="panel-title">Principle component analysis (PCA)</div>
+
   Do PCA every
   <input type="text" size="6" value="100000" id="nstpca"> MD steps.
   <br>
 
-  <div id="omgplot" class="plot"></div>
+  Collect sample every
+  <input type="text" size="6" value="10" id="nstsamp"
+    onchange="changeparams()"> MD steps.
+  <br>
 
   Plot the first
   <input type="text" size="6" value="5" id="nmodesplot"> modes.
   <br>
+  </div>
+
+
+  <div id="omgplot" class="plot"></div>
 
   <div id="modesplot" class="plot"></div>
 
   <hr>
+
+
 
   <div>
   The equivalent C code: <a href="ho.c">ho.c</a>.

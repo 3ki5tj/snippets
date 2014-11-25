@@ -15,9 +15,14 @@
 #define N 3
 #endif
 
-#ifndef ANDERSEN
-#define ANDERSEN 0
+#ifndef THERMOSTAT
+#define THERMOSTAT LANGEVIN
 #endif
+
+
+
+enum { ANDERSEN, LANGEVIN, VRESCALE };
+
 
 
 double hess[N];
@@ -29,7 +34,10 @@ double trigmass = 9; /* triangular mass distribution */
 double temp = 1; /* temperature */
 double dt = 0.005; /* time step for molecular dynamics */
 double tstatdt = 0.01; /* thermostat time step */
-int useandersen = ANDERSEN; /* use the Andersen thermostat */
+int thermostat = LANGEVIN;
+
+double quartic_a = 0.0;
+double quartic_b = 1.0;
 
 double fsmallworld = 0.0; /* frequency of adding small-world springs */
 double ksmallworld = 1.0; /* stiffness of small-world springs */
@@ -79,26 +87,30 @@ static void initff(void)
 
 
 
+static double getpairpot(double x, double k, double a, double b, double *df)
+{
+  double dx2 = x*x - b*b;
+  *df = k * x + a * dx2 * x;
+  return 0.5 * k * x * x + 0.25 * a * dx2 * dx2;
+}
+
+
+
 /* compute the force, return the energy */
 static double force(void)
 {
   int i, j;
-  double dx, k, U = 0;
+  double df, U = 0;
 
   for ( i = 0; i < N; i++ ) f[i] = 0;
 
   if ( N == 1 ) {
-    dx = -x[0];
-    k = hess[0];
-    f[0] = k * dx;
-    U = .5 * k * dx * dx;
+    U = getpairpot(-x[0], hess[0], quartic_a, quartic_b, &f[0]);
   } else {
     for ( i = 0; i < N - 1; i++ ) { /* loop over springs */
-      dx = x[i+1] - x[i];
-      k = hess[i];
-      f[i]   += k * dx;
-      f[i+1] -= k * dx;
-      U += .5 * k * dx * dx;
+      U += getpairpot(x[i+1] -x[i], hess[i], quartic_a, quartic_b, &df);
+      f[i]   += df;
+      f[i+1] -= df;
     }
 
     // force from small-world springs
@@ -106,11 +118,9 @@ static double force(void)
       for ( i = 0; i < N; i++ ) {
         for ( j = i + 2; j < N; j++ ) {
           if ( smallworld[i][j] ) {
-            dx = x[j] - x[i];
-            k = ksmallworld;
-            f[i] += k * dx;
-            f[j] -= k * dx;
-            U += .5 * k * dx * dx;
+            U += getpairpot(x[j] -x[i], ksmallworld, quartic_a, quartic_b, &df);
+            f[i] += df;
+            f[j] -= df;
           }
         }
       }
@@ -247,7 +257,7 @@ static void domd(void)
   rmcom(x);
   rmcom(v);
 
-  dof = ( useandersen || N == 1 ) ? N : N - 1;
+  dof = ( thermostat == ANDERSEN || N == 1 ) ? N : N - 1;
   Ep = force();
   for ( t = 1; t <= nsteps; t += 1 ) {
     /* integrate Newton's equation of motion */
@@ -263,17 +273,19 @@ static void domd(void)
     }
 
     /* apply the thermostat */
-    if ( useandersen || N == 1 ) {
+    if ( thermostat == ANDERSEN || N == 1 ) {
       Ek = andersen();
-    } else {
+    } else if ( thermostat == LANGEVIN ) {
       Ek = langevin(tstatdt);
+    } else if ( thermostat == VRESCALE ) {
+      Ek = vrescale(tstatdt, dof);
     }
 
     smT += 2*Ek/dof;
     smU += Ep/N;
 
     if ( t > nstequiv && t % nstsamp == 0 ) {
-      if ( N > 1 && !useandersen ) rmcom(v);
+      if ( N > 1 && thermostat != ANDERSEN ) rmcom(v);
       if ( N > 1 ) rmcom(x);
       sample();
     }

@@ -30,7 +30,6 @@ th {
 }
 
 option {
-  /*background-color: red;*/
   padding: 3pt;
 }
 
@@ -61,5 +60,25 @@ textarea {
 }
 
 hr {
+  color: #eeeeee;
   margin: 30px;
+}
+
+div.panel {
+  background-color: #eeeeee;
+  padding: 5px 20px;
+  margin: 5px 0px 10px 0px;
+  border: 3px double #e0e0e0;
+  border-radius: 10px;
+}
+
+.panel-title {
+  background-color: #f0f0f0;
+  text-align: center;
+  font-family: Verdana, Helvetica, Arial, sans-serif;
+  font-weight: bold;
+  padding: 2px;
+  margin: 5px 10px 15px 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
 }

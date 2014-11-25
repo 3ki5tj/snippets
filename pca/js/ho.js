@@ -11,6 +11,9 @@ var dt = 0.005; // time step for molecular dynamics
 var thdt = 0.01; // thermostat dt
 var thermostat = "Langevin"; // thermostat type
 
+var quartic_a = 0.0;
+var quartic_b = 0.0;
+
 var fsmallworld = 0.0;
 var ksmallworld = 1.0;
 var smallworld;
@@ -60,6 +63,8 @@ function getparams()
   thdt = get_float("thermostatdt", 0.01);
   thermostat = grab("thermostat").value;
   nstsamp = get_int("nstsamp", 10);
+  quartic_a = get_float("quartic_a", 0.0);
+  quartic_b = get_float("quartic_b", 0.0);
 }
 
 
@@ -101,26 +106,33 @@ function initff()
 
 
 
+function getpairpot(x, k, a, b)
+{
+  var dx2 = x*x - b*b;
+  return [0.5 * k * x * x + 0.25 * a * dx2 * dx2,
+          k * x + a * dx2 * x];
+}
+
+
+
 /* compute the force, return the energy */
 function force()
 {
   var i, j;
-  var dx, k, U = 0;
+  var U = 0, tmp;
 
   for ( i = 0; i < N; i++ ) f[i] = 0;
 
   if ( N == 1 ) {
-    dx = -x[0];
-    k = hess[0];
-    f[0] = k * dx;
-    U = .5 * k * dx * dx;
+    tmp = getpairpot(-x[0], hess[0], quartic_a, quartic_b);
+    U = tmp[0];
+    f[0] = tmp[1];
   } else {
     for ( i = 0; i < N - 1; i++ ) { // loop over springs
-      dx = x[i+1] - x[i];
-      k = hess[i];
-      f[i]   += k * dx;
-      f[i+1] -= k * dx;
-      U += .5 * k * dx * dx;
+      tmp = getpairpot(x[i+1]-x[i], hess[i], quartic_a, quartic_b);
+      U       += tmp[0];
+      f[i]    += tmp[1];
+      f[i+1]  -= tmp[1];
     }
 
     // compute the force from small-world springs
@@ -128,11 +140,10 @@ function force()
       for ( i = 0; i < N; i++ ) {
         for ( j = i + 2; j < N; j++ ) {
           if ( smallworld[i*N + j] ) {
-            dx = x[j] - x[i];
-            k = ksmallworld;
-            f[i] += k * dx;
-            f[j] -= k * dx;
-            U += .5 * k * dx * dx;
+            tmp = getpairpot(x[j]-x[i], ksmallworld, quartic_a, quartic_b);
+            U       += tmp[0];
+            f[i]    += tmp[1];
+            f[i+1]  -= tmp[1];
           }
         }
       }
