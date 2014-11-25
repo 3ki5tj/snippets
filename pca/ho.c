@@ -8,8 +8,8 @@
 
 
 
-/* you can change the number of oscillators by defining N in compiling
- * icc -DN=4 ho.c
+/* To change the number of oscillators, define N in compiling
+ *    icc -DN=4 ho.c
  * */
 #ifndef N
 #define N 3
@@ -21,7 +21,7 @@
 
 
 
-enum { ANDERSEN, LANGEVIN, VRESCALE };
+enum { ANDERSEN, LANGEVIN, RANDOM_COLLISION_MC, RANDOM_COLLISION_LANGEVIN, VRESCALE };
 
 
 
@@ -30,11 +30,11 @@ double mass[N];
 double x[N];
 double v[N];
 double f[N];
-double trigmass = 9; /* triangular mass distribution */
+double trigmass = 0; /* triangular mass distribution */
 double temp = 1; /* temperature */
 double dt = 0.005; /* time step for molecular dynamics */
 double tstatdt = 0.01; /* thermostat time step */
-int thermostat = LANGEVIN;
+int thermostat = THERMOSTAT;
 
 double quartic_a = 0.0;
 double quartic_b = 1.0;
@@ -108,7 +108,7 @@ static double force(void)
     U = getpairpot(-x[0], hess[0], quartic_a, quartic_b, &f[0]);
   } else {
     for ( i = 0; i < N - 1; i++ ) { /* loop over springs */
-      U += getpairpot(x[i+1] -x[i], hess[i], quartic_a, quartic_b, &df);
+      U += getpairpot(x[i+1] - x[i], hess[i], quartic_a, quartic_b, &df);
       f[i]   += df;
       f[i+1] -= df;
     }
@@ -118,7 +118,7 @@ static double force(void)
       for ( i = 0; i < N; i++ ) {
         for ( j = i + 2; j < N; j++ ) {
           if ( smallworld[i][j] ) {
-            U += getpairpot(x[j] -x[i], ksmallworld, quartic_a, quartic_b, &df);
+            U += getpairpot(x[j] - x[i], ksmallworld, quartic_a, quartic_b, &df);
             f[i] += df;
             f[j] -= df;
           }
@@ -174,23 +174,66 @@ static double langevin(double thdt)
 
 
 
+/* randomly collide two particles */
+static double random_collision_mc(void)
+{
+  int i, j;
+  double m, frac, vi, vj, dv, r, amp;
+
+  i = (int) (N * rand01());
+  j = ((int) ((N - 1) * rand01()) + i + 1) % N;
+
+  frac = mass[i] / (mass[i] + mass[j]);
+  m = mass[j] * frac;
+
+  amp = sqrt(2 * temp / m);
+  dv = (rand01()*2 - 1) * amp;
+  /* distribute dv to i and j such that
+   * mass[i] * v[i] + mass[j] * v[j] is conserved */
+  vi = v[i] + dv * (1 - frac);
+  vj = v[j] - dv * frac;
+  r = .5 * mass[i] * (vi*vi - v[i]*v[i])
+    + .5 * mass[j] * (vj*vj - v[j]*v[j]);
+  if ( r < 0 || rand01() < exp(-r/temp) ) {
+    v[i] = vi;
+    v[j] = vj;
+  }
+  return getEk(v);
+}
+
+
+
+
+/* randomly collide two particles */
+static double random_collision_langevin(double thdt)
+{
+  int i, j;
+  double m, frac, vij, dv;
+
+  i = (int) (N * rand01());
+  j = ((int) ((N - 1) * rand01()) + i + 1) % N;
+
+  frac = mass[i] / (mass[i] + mass[j]);
+  m = mass[j] * frac;
+  vij = v[i] - v[j];
+
+  /* do a step of Langevin equation */
+  dv = (-thdt * vij + sqrt(2*temp*thdt) * gaussrand()) / m;
+  /* distribute dv to i and j such that
+   * mass[i] * v[i] + mass[j] * v[j] is conserved */
+  v[i] += dv * (1 - frac);
+  v[j] -= dv * frac;
+  return getEk(v);
+}
+
+
+
 /* velocity rescaling thermostat
  * do not use, not ergodic! */
 static double vrescale(double thdt, int dof)
 {
-  int i, j;
+  int i;
   double ekav = .5f*temp*dof, ek1, ek2, s, amp;
-
-  /* hack: randomly swap two velocities to increase the randomness
-   * for a complex system, we shouldn't need this */
-  if ( rand01() < 0.0 ) {
-    double tmp;
-    i = (int) (N * rand01());
-    j = ((int) ((N - 1) * rand01()) + i + 1) % N;
-    tmp = mass[i] * v[i];
-    v[i] = v[j] * mass[j] / mass[i];
-    v[j] = tmp / mass[j];
-  }
 
   /* normal velocity rescaling */
   for ( ek1 = 0, i = 0; i < N; i++ )
@@ -277,8 +320,15 @@ static void domd(void)
       Ek = andersen();
     } else if ( thermostat == LANGEVIN ) {
       Ek = langevin(tstatdt);
+    } else if ( thermostat == RANDOM_COLLISION_MC ) {
+      Ek = random_collision_mc();
+    } else if ( thermostat == RANDOM_COLLISION_LANGEVIN ) {
+      Ek = random_collision_langevin(tstatdt);
     } else if ( thermostat == VRESCALE ) {
       Ek = vrescale(tstatdt, dof);
+    } else {
+      fprintf(stderr, "unknown thermostat %d\n", thermostat);
+      exit(1);
     }
 
     smT += 2*Ek/dof;

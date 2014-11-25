@@ -8,7 +8,7 @@ var v;
 var f;
 var temp = 1; // temperature
 var dt = 0.005; // time step for molecular dynamics
-var thdt = 0.01; // thermostat dt
+var thdt = 0.01; // thermostat time step
 var thermostat = "Langevin"; // thermostat type
 
 var quartic_a = 0.0;
@@ -195,6 +195,59 @@ function langevin(thdt)
 
 
 
+/* randomly collide two particles */
+function random_collision_MC()
+{
+  var m, frac, vi, vj, dv, r, amp;
+
+  var i = Math.floor(N * rand01());
+  var j = (Math.floor((N - 1) * rand01()) + i + 1) % N;
+
+  frac = mass[i] / (mass[i] + mass[j]);
+  m = mass[j] * frac;
+
+  amp = Math.sqrt(2 * temp / m);
+  dv = (rand01()*2 - 1) * amp;
+  /* distribute dv to i and j such that
+   * mass[i] * v[i] + mass[j] * v[j] is conserved */
+  vi = v[i] + dv * (1 - frac);
+  vj = v[j] - dv * frac;
+  r = .5 * mass[i] * (vi*vi - v[i]*v[i])
+    + .5 * mass[j] * (vj*vj - v[j]*v[j]);
+  if ( r < 0 || rand01() < Math.exp(-r/temp) ) {
+    v[i] = vi;
+    v[j] = vj;
+  }
+  return getEk(v);
+}
+
+
+
+
+/* randomly collide two particles */
+function random_collision_langevin(thdt)
+{
+  var m, frac, vij, dv;
+
+  var i = Math.floor(N * rand01());
+  var j = (Math.floor((N - 1) * rand01()) + i + 1) % N;
+
+  frac = mass[i] / (mass[i] + mass[j]);
+  m = mass[j] * frac;
+  vij = v[i] - v[j];
+
+  /* do a step of Langevin equation */
+  dv = (-thdt * vij + Math.sqrt(2*temp*thdt) * gaussrand()) / m;
+  /* distribute dv to i and j such that
+   * mass[i] * v[i] + mass[j] * v[j] is conserved */
+  v[i] += dv * (1 - frac);
+  v[j] -= dv * frac;
+  //console.log(i, j, dv, frac, m, temp, thdt, vij);
+  return getEk(v);
+}
+
+
+
 /* velocity rescaling thermostat
  * do not use, not ergodic! */
 function vrescale(thdt, dof)
@@ -204,6 +257,7 @@ function vrescale(thdt, dof)
 
   // hack: randomly swap two velocities to increase the randomness
   // for a complex system, we shouldn't need this
+  // it is not ergodic, even with this hack
   if ( rand01() < 0.1 ) {
     i = Math.floor(N * rand01());
     j = (Math.floor((N - 1) * rand01()) + i + 1) % N;
@@ -303,6 +357,10 @@ function domd()
       Ek = andersen();
     } else if ( thermostat == "Langevin" ) {
       Ek = langevin(thdt);
+    } else if ( thermostat == "random_collision_MC" ) {
+      Ek = random_collision_MC();
+    } else if ( thermostat == "random_collision_Langevin" ) {
+      Ek = random_collision_langevin(thdt);
     } else if ( thermostat == "vrescale" ) {
       Ek = vrescale(thdt, dof);
     } else {
