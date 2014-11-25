@@ -68,6 +68,8 @@ __inline static double rand01(void)
   return mtrand() / 4294967296.0;
 }
 
+
+
 /* Gaussian distribution with zero mean and unit variance
  * using ratio method */
 __inline double gaussrand(void)

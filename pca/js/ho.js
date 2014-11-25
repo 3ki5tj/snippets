@@ -9,7 +9,7 @@ var f;
 var temp = 1; // temperature
 var dt = 0.005; // time step for molecular dynamics
 var thdt = 0.01; // thermostat dt
-var useAndersen = 0; // use the Andersen thermostat
+var thermostat = "Langevin"; // thermostat type
 
 var fsmallworld = 0.0;
 var ksmallworld = 1.0;
@@ -58,7 +58,7 @@ function getparams()
   mddt = get_float("mddt", 0.005);
   temp = get_float("temp", 1.0);
   thdt = get_float("thermostatdt", 0.01);
-  useAndersen =  grab("useAndersen").checked;
+  thermostat = grab("thermostat").value;
   nstsamp = get_int("nstsamp", 10);
 }
 
@@ -95,8 +95,8 @@ function initff()
     } else {
       mass[i] = 1;
     }
-    //console.log("mass " + i + ": " + mass[i]);
   }
+  console.log("mass: ", mass);
 }
 
 
@@ -162,7 +162,30 @@ function rmcom(arr)
 
 
 
-/* velocity rescaling thermostat */
+function getEk(vel)
+{
+  var ek = 0;
+
+  for ( var i = 0; i < N; i++ )
+    ek += .5 * mass[i] * vel[i] * vel[i];
+  return ek;
+}
+
+
+
+/* Langevin-like thermostat */
+function langevin(thdt)
+{
+  for ( var i = 0; i < N; i++ )
+    v[i] += (-thdt * v[i] + Math.sqrt(2*temp*thdt) * gaussrand())/mass[i];
+  rmcom(v);
+  return getEk(v);
+}
+
+
+
+/* velocity rescaling thermostat
+ * do not use, not ergodic! */
 function vrescale(thdt, dof)
 {
   var i, j;
@@ -244,7 +267,7 @@ function domd()
   var Ep, Ek;
   var i, dof, istep;
 
-  dof = ( useAndersen || N == 1 ) ? N : N - 1;
+  dof = ( thermostat == "Andersen" || N == 1 ) ? N : N - 1;
   for ( Ek = 0, i = 0; i < N; i++ )
     Ek += .5 * mass[i] * v[i] * v[i];
   Ep = force();
@@ -265,10 +288,14 @@ function domd()
     }
 
     /* apply the thermostat */
-    if ( useAndersen || N == 1 ) {
+    if ( thermostat == "Andersen" || N == 1 ) {
       Ek = andersen();
-    } else {
+    } else if ( thermostat == "Langevin" ) {
+      Ek = langevin(thdt);
+    } else if ( thermostat == "vrescale" ) {
       Ek = vrescale(thdt, dof);
+    } else {
+      throw new Error("Unknown thermostat " + thermostat);
     }
 
     if ( mdstep <= nstequiv ) continue;
@@ -277,10 +304,14 @@ function domd()
     smU += Ep/N;
     smcnt += 1;
 
-    if ( mdstep % nstsamp == 0 ) sample();
+    if ( mdstep % nstsamp == 0 ) {
+      if ( N > 1  && thermostat != "Andersen" ) rmcom(v);
+      if ( N > 1 ) rmcom(x);
+      sample();
+    }
   }
   if ( N > 1 ) rmcom(x);
-  if ( !useAndersen && N > 1 ) rmcom(v);
+  if ( thermostat != "Andersen" && N > 1 ) rmcom(v);
   return "" + mdstep + " steps, " + nsamps + " samples, "
       + "Ek " + roundto(Ek, 2) + ", Ep " + roundto(Ep, 2)
       + ", Ek + Ep " + roundto(Ek + Ep, 2)
@@ -378,10 +409,6 @@ function pca()
     }
   }
 
-  //if ( useAndersen ) {
-  //  luinv(varqq, invvarqq, N, 1e-14);
-  //  prmat(invvarqq, "varqq^{-1}");
-  //}
   return [omgs, modes]
 }
 
@@ -454,7 +481,7 @@ function updateomgplot(omgs)
 
 
 /* update the modes plot */
-function updatemodesplot(modes)
+function updatemodesplot(omgs, modes)
 {
   var i, j;
 
@@ -463,7 +490,7 @@ function updatemodesplot(modes)
 
   dat = "<i>x</i>,";
   for ( j = 0; j < nmodes; j++ )
-    dat += "Mode " + (j+1) + ",";
+    dat += "Mode " + (j+1) + "(<i>&omega;</i> = " + roundto(omgs[j], 4) + "),";
   dat += "Zero\n";
   for ( i = 0; i < N; i++ ) {
     dat += "" + (i+1) + ",";
@@ -505,7 +532,7 @@ function pulse()
     omgs = pair[0];
     modes = pair[1];
     updateomgplot(omgs);
-    updatemodesplot(modes);
+    updatemodesplot(omgs, modes);
   }
 }
 

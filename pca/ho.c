@@ -7,7 +7,17 @@
 #include "lu.h" /* LU decomposition */
 
 
-#define N 13
+
+/* you can change the number of oscillators by defining N in compiling
+ * icc -DN=4 ho.c
+ * */
+#ifndef N
+#define N 3
+#endif
+
+#ifndef ANDERSEN
+#define ANDERSEN 0
+#endif
 
 
 double hess[N];
@@ -15,18 +25,18 @@ double mass[N];
 double x[N];
 double v[N];
 double f[N];
-double trigmass = 0; /* triangular mass distribution */
+double trigmass = 9; /* triangular mass distribution */
 double temp = 1; /* temperature */
 double dt = 0.005; /* time step for molecular dynamics */
 double tstatdt = 0.01; /* thermostat time step */
-int useandersen = 0; /* use the Andersen thermostat */
+int useandersen = ANDERSEN; /* use the Andersen thermostat */
 
 double fsmallworld = 0.0; /* frequency of adding small-world springs */
 double ksmallworld = 1.0; /* stiffness of small-world springs */
 int smallworld[N][N];
 
-long long nsteps = 1000000; /* number of molecular dynamics steps */
-long long nstblah = 100000; /* frequency of reporting */
+long long nsteps = 100000000; /* number of molecular dynamics steps */
+long long nstblah = 1000000; /* frequency of reporting */
 long long nstequiv = 10000; /* number of steps for equilibration */
 
 int nstsamp = 10; /* frequency of sampling */
@@ -129,7 +139,33 @@ static void rmcom(double *arr)
 
 
 
-/* velocity rescaling thermostat */
+static double getEk(double *vel)
+{
+  int i;
+  double ek = 0;
+
+  for ( i = 0; i < N; i++ )
+    ek += .5 * mass[i] * vel[i] * vel[i];
+  return ek;
+}
+
+
+
+/* Langevin-like thermostat */
+static double langevin(double thdt)
+{
+  int i;
+
+  for ( i = 0; i < N; i++ )
+    v[i] += (-thdt * v[i] + sqrt(2*temp*thdt) * gaussrand()) / mass[i];
+  rmcom(v);
+  return getEk(v);
+}
+
+
+
+/* velocity rescaling thermostat
+ * do not use, not ergodic! */
 static double vrescale(double thdt, int dof)
 {
   int i, j;
@@ -137,7 +173,7 @@ static double vrescale(double thdt, int dof)
 
   /* hack: randomly swap two velocities to increase the randomness
    * for a complex system, we shouldn't need this */
-  if ( rand01() < 0.1 ) {
+  if ( rand01() < 0.0 ) {
     double tmp;
     i = (int) (N * rand01());
     j = ((int) ((N - 1) * rand01()) + i + 1) % N;
@@ -150,7 +186,7 @@ static double vrescale(double thdt, int dof)
   for ( ek1 = 0, i = 0; i < N; i++ )
     ek1 += .5 * mass[i] * v[i] * v[i];
   amp = 2*sqrt(ek1*ekav*thdt/dof);
-  ek2 = ek1 + (ekav - ek1)*thdt + (amp*gaussrand());
+  ek2 = ek1 + (ekav - ek1)*thdt + amp*gaussrand();
   if (ek2 < 1e-6) ek2 = 1e-6;
   s = sqrt(ek2/ek1);
   for (i = 0; i < N; i++)
@@ -230,7 +266,7 @@ static void domd(void)
     if ( useandersen || N == 1 ) {
       Ek = andersen();
     } else {
-      Ek = vrescale(tstatdt, dof);
+      Ek = langevin(tstatdt);
     }
 
     smT += 2*Ek/dof;
@@ -301,10 +337,8 @@ static void pca(void)
   prvec(eval, "eigenvalues (omega^(-2))");
   prmat(evec, "eigenvectors");
 
-  if ( useandersen ) {
-    luinv((double *) c, (double *) invc, N, DBL_MIN);
-    prmat(invc, "c^{-1}");
-  }
+  // luinv((double *) c, (double *) invc, N, DBL_MIN);
+  // prmat(invc, "c^{-1}");
 }
 
 

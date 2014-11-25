@@ -21,11 +21,11 @@
   Number of particles
   <span class="math"><i>N</i></span>:
   <input type="text" size="6" value="21" id="npt"
-    onChange="changeparams()">.
+    onchange="changeparams()">.
   <br>
 
   Mass distribution:
-  <select id="massdistr" onChange="changeparams()">
+  <select id="massdistr" onchange="changeparams()">
     <option value="uniform" selected>Uniform</option>
     <option value="triangular">Triangular</option>
   </select>.
@@ -34,7 +34,7 @@
   Distribution slope,
   <span class="math"><i>M</i></span>:
   <input type="text" size="6" value="1.0" id="massslope"
-    onChange="changeparams()">.
+    onchange="changeparams()">.
   <br>
 
   <small>
@@ -50,22 +50,22 @@
 
   Frequency of adding small-world springs between nonadjacent particles:
   <input type="text" size="6" value="0.0" id="fsmallworld"
-    onChange="changeparams()"> (between 0 and 1).
+    onchange="changeparams()"> (between 0 and 1).
   <br>
 
   Stiffness of small-world springs:
   <input type="text" size="6" value="1.0" id="ksmallworld"
-    onChange="changeparams()">.
+    onchange="changeparams()">.
   <br>
 
   Number of molecular dynamics (MD) steps per second:
   <input type="text" size="16" value="20000"
-    id="nstepspersec" onChange="changeparams()">.
+    id="nstepspersec" onchange="changeparams()">.
   <br>
 
   MD time step:
   <input type="text" size="6" value="0.005" id="mddt"
-    onChange="changeparams()">.
+    onchange="changeparams()">.
   <br>
 
   Number of equilibration steps:
@@ -74,22 +74,25 @@
 
   Temperature:
   <input type="text" size="6" value="1.0" id="temp"
-    onChange="changeparams()">.
+    onchange="changeparams()">.
   &nbsp;
 
   Thermostat time step:
   <input type="text" size="6" value="0.01" id="thermostatdt"
-    onChange="changeparams()">.
+    onchange="changeparams()">.
   <br>
 
-  Use the Andersen thermostat:
-  <input type="checkbox" size="6" id="useAndersen"
-    onChange="changeparams()">.
+  Thermostat:
+  <select type="select" id="thermostat" onchange="changeparams()">
+    <option value="Andersen">Andersen</option>
+    <option value="Langevin" selected>Langevin</option>
+    <option value="vrescale">Velocity rescaling (with velocity swaps, still not ergodic!)</option>
+  </select>
   <br>
 
   Collect sample every
   <input type="text" size="6" value="10" id="nstsamp"
-    onChange="changeparams()"> MD steps.
+    onchange="changeparams()"> MD steps.
   <br>
 
   <input type="button" value="Start simulation"
@@ -128,8 +131,8 @@
 
   <div>
     <small>
-      <a href="https://copy.com/2goW9gfPkJQgYTW4">Link</a>
-      to the source code.
+      <a href="https://www.dropbox.com/sh/onk84wg8typmwa4/AAC9yedXDUt7DmrfBYBzOYGHa?dl=0">Link</a>
+      to the full source code.
     </small>
   </div>
 
