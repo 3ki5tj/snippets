@@ -1,3 +1,8 @@
+#ifndef CHOLESKY_H__
+#define CHOLESKY_H__
+
+
+
 /* Cholesky decomposition */
 
 
@@ -32,34 +37,53 @@ int choldecomp(double *a, int n)
 
 
 
-/* solve a x = b by Cholesky decomposition
+/* solve L x = b, with a = L.L^T by Cholesky decomposition
  * on return, `x' is saved in `b' */
-int cholsolve(double *a, double *b, int n)
+__inline static void cholsolveL(double *L, double *b, int n)
 {
   int i, j;
   double y;
 
-  if ( choldecomp(a, n) != 0 ) return -1;
-  /* solve L y = b
-   * sum {j = 0 to i - 1} L(i, j) y(j) + L(i, i) y(i) = b(i) */
+  /* sum {j = 0 to i - 1} L(i, j) y(j) + L(i, i) y(i) = b(i) */
   for ( i = 0; i < n; i++ ) {
     for ( y = b[i], j = 0; j < i; j++ )
-      y -= a[i*n + j] * b[j];
-    b[i] = y / a[i*n + i];
+      y -= L[i*n + j] * b[j];
+    b[i] = y / L[i*n + i];
   }
-  /* solve L^T x = y */
+}
+
+
+
+/* solve L^T x = b
+ * on return, `x' is saved in `b' */
+__inline static void cholsolveLT(double *L, double *b, int n)
+{
+  int i, j;
+  double y;
+
   for ( i = n - 1; i >= 0; i-- ) {
     for ( y = b[i], j = i + 1; j < n; j++ )
-      y -= a[i*n + j] * b[j]; /* a(i, j) == a(j, i) */
-    b[i] = y / a[i*n + i];
+      y -= L[i*n + j] * b[j]; /* a(i, j) == a(j, i) */
+    b[i] = y / L[i*n + i];
   }
+}
+
+
+
+/* solve a x = b by Cholesky decomposition
+ * on return, `x' is saved in `b' */
+int cholsolve(double *a, double *b, int n)
+{
+  if ( choldecomp(a, n) != 0 ) return -1;
+  cholsolveL(a, b, n); /* solve L y = b */
+  cholsolveLT(a, b, n); /* solve L^T x = y */
   return 0;
 }
 
 
 
 /* inverse the matrix `a', b = a^(-1) by Cholesky decomposition */
-int cholinv(double *a, double *b, int n)
+__inline static int cholinv(double *a, double *b, int n)
 {
   int i, j, k;
   double y;
@@ -86,3 +110,15 @@ int cholinv(double *a, double *b, int n)
 
 
 
+/* return determinant of L
+ * note that the determinant of the original matrix is twice as large */
+__inline static double chollogdetL(double *L, int n)
+{
+  int i;
+  double y = 0;
+
+  for ( i = 0; i < n; i++ ) y += log(L[i*n+i]);
+  return y;
+}
+
+#endif
