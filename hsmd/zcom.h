@@ -1,1 +1,1 @@
-/home/czhang/work/common/zcom.h
+../zcom.h

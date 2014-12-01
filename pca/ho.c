@@ -19,9 +19,13 @@
 #define THERMOSTAT LANGEVIN
 #endif
 
+#ifndef TRIGMASS
+#define TRIGMASS 0.0
+#endif
 
 
-enum { ANDERSEN, LANGEVIN, RANDOM_COLLISION_MC, RANDOM_COLLISION_LANGEVIN, VRESCALE };
+
+enum { ANDERSEN, LANGEVIN, VRESCALE, RANDOM_COLLISION_MC, RANDOM_COLLISION_LANGEVIN };
 
 
 
@@ -30,7 +34,7 @@ double mass[N];
 double x[N];
 double v[N];
 double f[N];
-double trigmass = 0; /* triangular mass distribution */
+double trigmass = TRIGMASS; /* triangular mass distribution */
 double temp = 1; /* temperature */
 double dt = 0.005; /* time step for molecular dynamics */
 double tstatdt = 0.01; /* thermostat time step */
@@ -43,7 +47,7 @@ double fsmallworld = 0.0; /* frequency of adding small-world springs */
 double ksmallworld = 1.0; /* stiffness of small-world springs */
 int smallworld[N][N];
 
-long long nsteps = 100000000; /* number of molecular dynamics steps */
+long long nsteps = 10000000; /* number of molecular dynamics steps */
 long long nstblah = 1000000; /* frequency of reporting */
 long long nstequiv = 10000; /* number of steps for equilibration */
 
@@ -174,6 +178,68 @@ static double langevin(double thdt)
 
 
 
+/* Andersen thermostat
+ * Note, DOF should be N in this case */
+static double andersen(void)
+{
+  int i;
+  double ek, r;
+
+  if ( rand01() < 0.1 ) {
+    i = (int) (N * rand01());
+    r = gaussrand();
+    v[i] = sqrt(temp/mass[i]) * r;
+  }
+  for (ek = 0, i = 0; i < N; i++)
+    ek += .5 * mass[i] * v[i] * v[i];
+  return ek;
+}
+
+
+
+/* return the sum of the squares of n Gaussian random numbers  */
+__inline static double randgausssum(int n)
+{
+  double x = 0., r;
+  if (n > 0) {
+    x = 2.0 * randgam(n/2);
+    if (n % 2) { r = gaussrand(); x += r*r; }
+  }
+  return x;
+}
+
+
+
+/* velocity rescaling thermostat
+ * do not use, not ergodic! */
+static double vrescale(double thdt, int dof)
+{
+  int i;
+  double ekav = .5f*temp*dof, ek1, ek2, s, c, r, r2;
+
+  /* normal velocity rescaling */
+  ek1 = getEk(v);
+
+/*
+  // approximate algorithm of computing ek2
+  c = 2*sqrt(ek1*ekav*thdt/dof);
+  ek2 = ek1 + (ekav - ek1)*thdt + c*gaussrand();
+*/
+  c = (thdt < 700) ? exp(-thdt) : 0;
+  r = gaussrand();
+  r2 = randgausssum(dof - 1);
+  ek2 = ek1 + (1 - c) * (ekav*(r2 + r*r)/dof - ek1)
+    + 2 * r * sqrt(c*(1 - c) * ekav/dof*ek1);
+
+  if (ek2 < 1e-30) ek2 = 1e-30;
+  s = sqrt(ek2/ek1);
+  for (i = 0; i < N; i++) v[i] *= s;
+
+  return ek2;
+}
+
+
+
 /* randomly collide two particles */
 static double random_collision_mc(void)
 {
@@ -224,47 +290,6 @@ static double random_collision_langevin(double thdt)
   v[i] += dv * (1 - frac);
   v[j] -= dv * frac;
   return getEk(v);
-}
-
-
-
-/* velocity rescaling thermostat
- * do not use, not ergodic! */
-static double vrescale(double thdt, int dof)
-{
-  int i;
-  double ekav = .5f*temp*dof, ek1, ek2, s, amp;
-
-  /* normal velocity rescaling */
-  for ( ek1 = 0, i = 0; i < N; i++ )
-    ek1 += .5 * mass[i] * v[i] * v[i];
-  amp = 2*sqrt(ek1*ekav*thdt/dof);
-  ek2 = ek1 + (ekav - ek1)*thdt + amp*gaussrand();
-  if (ek2 < 1e-6) ek2 = 1e-6;
-  s = sqrt(ek2/ek1);
-  for (i = 0; i < N; i++)
-    v[i] *= s;
-
-  return ek2;
-}
-
-
-
-/* Andersen thermostat
- * Note, DOF should be N in this case */
-static double andersen(void)
-{
-  int i;
-  double ek, r;
-
-  if ( rand01() < 0.1 ) {
-    i = (int) (N * rand01());
-    r = gaussrand();
-    v[i] = sqrt(temp/mass[i]) * r;
-  }
-  for (ek = 0, i = 0; i < N; i++)
-    ek += .5 * mass[i] * v[i] * v[i];
-  return ek;
 }
 
 
@@ -320,12 +345,12 @@ static void domd(void)
       Ek = andersen();
     } else if ( thermostat == LANGEVIN ) {
       Ek = langevin(tstatdt);
+    } else if ( thermostat == VRESCALE ) {
+      Ek = vrescale(tstatdt, dof);
     } else if ( thermostat == RANDOM_COLLISION_MC ) {
       Ek = random_collision_mc();
     } else if ( thermostat == RANDOM_COLLISION_LANGEVIN ) {
       Ek = random_collision_langevin(tstatdt);
-    } else if ( thermostat == VRESCALE ) {
-      Ek = vrescale(tstatdt, dof);
     } else {
       fprintf(stderr, "unknown thermostat %d\n", thermostat);
       exit(1);

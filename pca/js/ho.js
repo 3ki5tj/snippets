@@ -184,103 +184,6 @@ function getEk(vel)
 
 
 
-/* Langevin-like thermostat */
-function langevin(thdt)
-{
-  for ( var i = 0; i < N; i++ )
-    v[i] += (-thdt * v[i] + Math.sqrt(2*temp*thdt) * gaussrand())/mass[i];
-  rmcom(v);
-  return getEk(v);
-}
-
-
-
-/* randomly collide two particles */
-function random_collision_MC()
-{
-  var m, frac, vi, vj, dv, r, amp;
-
-  var i = Math.floor(N * rand01());
-  var j = (Math.floor((N - 1) * rand01()) + i + 1) % N;
-
-  frac = mass[i] / (mass[i] + mass[j]);
-  m = mass[j] * frac;
-
-  amp = Math.sqrt(2 * temp / m);
-  dv = (rand01()*2 - 1) * amp;
-  /* distribute dv to i and j such that
-   * mass[i] * v[i] + mass[j] * v[j] is conserved */
-  vi = v[i] + dv * (1 - frac);
-  vj = v[j] - dv * frac;
-  r = .5 * mass[i] * (vi*vi - v[i]*v[i])
-    + .5 * mass[j] * (vj*vj - v[j]*v[j]);
-  if ( r < 0 || rand01() < Math.exp(-r/temp) ) {
-    v[i] = vi;
-    v[j] = vj;
-  }
-  return getEk(v);
-}
-
-
-
-
-/* randomly collide two particles */
-function random_collision_langevin(thdt)
-{
-  var m, frac, vij, dv;
-
-  var i = Math.floor(N * rand01());
-  var j = (Math.floor((N - 1) * rand01()) + i + 1) % N;
-
-  frac = mass[i] / (mass[i] + mass[j]);
-  m = mass[j] * frac;
-  vij = v[i] - v[j];
-
-  /* do a step of Langevin equation */
-  dv = (-thdt * vij + Math.sqrt(2*temp*thdt) * gaussrand()) / m;
-  /* distribute dv to i and j such that
-   * mass[i] * v[i] + mass[j] * v[j] is conserved */
-  v[i] += dv * (1 - frac);
-  v[j] -= dv * frac;
-  //console.log(i, j, dv, frac, m, temp, thdt, vij);
-  return getEk(v);
-}
-
-
-
-/* velocity rescaling thermostat
- * do not use, not ergodic! */
-function vrescale(thdt, dof)
-{
-  var i, j;
-  var ekav = .5*temp*dof, ek1, ek2, s, amp;
-
-  // hack: randomly swap two velocities to increase the randomness
-  // for a complex system, we shouldn't need this
-  // it is not ergodic, even with this hack
-  if ( rand01() < 0.1 ) {
-    i = Math.floor(N * rand01());
-    j = (Math.floor((N - 1) * rand01()) + i + 1) % N;
-    var tmp = mass[i] * v[i];
-    v[i] = v[j] * mass[j] / mass[i];
-    v[j] = tmp / mass[j];
-  }
-
-  // normal velocity rescaling
-  for ( ek1 = 0, i = 0; i < N; i++ )
-    ek1 += .5 * mass[i] * v[i] * v[i];
-  amp = 2 * Math.sqrt(ek1*ekav*thdt/dof);
-  ek2 = ek1 + (ekav - ek1)*thdt + amp*gaussrand();
-  if (ek2 < 1e-6) ek2 = 1e-6;
-  s = Math.sqrt(ek2/ek1);
-  for (i = 0; i < N; i++)
-    v[i] *= s;
-
-  return ek2;
-}
-
-
-
 /* Andersen thermostat
  * Note, DOF should be N in this case */
 function andersen()
@@ -292,9 +195,53 @@ function andersen()
     i = Math.floor(N * rand01());
     v[i] = Math.sqrt(temp/mass[i]) * gaussrand();
   }
-  for (ek = 0, i = 0; i < N; i++)
-    ek += .5 * mass[i] * v[i] * v[i];
-  return ek;
+  return getEk(v);
+}
+
+
+
+/* Langevin-like thermostat */
+function langevin(thdt)
+{
+  for ( var i = 0; i < N; i++ )
+    v[i] += (-thdt * v[i] + Math.sqrt(2*temp*thdt) * gaussrand())/mass[i];
+  rmcom(v);
+  return getEk(v);
+}
+
+
+
+/* return the sum of the squares of n Gaussian random numbers  */
+function randgausssum(n)
+{
+  var x = 0., r;
+  if ( n > 0 ) {
+    x = 2.0 * randgam( Math.floor(n/2) );
+    if ( n % 2 > 0.5 ) { r = gaussrand(); x += r*r; }
+  }
+  return x;
+}
+
+
+
+/* velocity rescaling thermostat */
+function vrescale(thdt, dof)
+{
+  var i, j;
+  var ekav = .5*temp*dof, ek1, ek2, s, c, r, r2;
+
+  ek1 = getEk(v);
+  c = (thdt < 700) ? Math.exp(-thdt) : 0;
+  r = gaussrand();
+  r2 = randgausssum(dof - 1);
+  ek2 = ek1 + (1 - c) * (ekav*(r2 + r*r)/dof - ek1)
+      + 2 * r * Math.sqrt(c*(1 - c) * ekav/dof*ek1);
+  if (ek2 < 1e-30) ek2 = 1e-30;
+  s = Math.sqrt(ek2/ek1);
+  for (i = 0; i < N; i++)
+    v[i] *= s;
+
+  return ek2;
 }
 
 
@@ -357,10 +304,6 @@ function domd()
       Ek = andersen();
     } else if ( thermostat == "Langevin" ) {
       Ek = langevin(thdt);
-    } else if ( thermostat == "random_collision_MC" ) {
-      Ek = random_collision_MC();
-    } else if ( thermostat == "random_collision_Langevin" ) {
-      Ek = random_collision_langevin(thdt);
     } else if ( thermostat == "vrescale" ) {
       Ek = vrescale(thdt, dof);
     } else {

@@ -81,7 +81,7 @@ __inline static double rand01(void)
 
 /* Gaussian distribution with zero mean and unit variance
  * using the ratio method */
-__inline double gaussrand(void)
+__inline static double gaussrand(void)
 {
   double x, y, u, v, q;
   do {
@@ -93,6 +93,45 @@ __inline double gaussrand(void)
     if (q < 0.27597) break;
   } while (q > 0.27846 || v*v > -4*u*u*log(u));
   return v/u;
+}
+
+
+
+/* return a random number that satisfies the gamma distribution
+ * p(x) = x^(k - 1) exp(-x) / (k - 1)! */
+__inline double randgam(int k)
+{
+  int i;
+  double x, k1 = k - 1, r, y, v1, v2, w;
+
+  if ( k <= 0 ) return 0;
+  if ( k <= 7 ) {
+    /* adding random numbers that satisfy the exponential distribution */
+    for ( x = 1.0, i = 0; i < k; i++ )
+      x *= 1 - rand01();
+    return -log(x);
+  }
+
+  w = sqrt(2.*k - 1);
+  /* use the rejection method based on the Lorentz distribution */
+  for (;;) {
+    /* the Lorentz disribution is centered at k1, with width w
+     * p(y) = 1/pi/(1 + y^2), x = y*w + k1
+     * Int p(y) dy = 1/2 + arctan(y)/pi */
+    for (;;) {
+      v1 = 2 * rand01() - 1;
+      v2 = 2 * rand01() - 1;
+      if ( v1 * v1  + v2 * v2 < 1 ) {
+        y = v2 / v1;
+        x = w * y + k1;
+        if (x > 0.) break;
+      }
+    }
+    r = (1 + y*y) * exp(k1 * log(x/k1) - x + k1);
+    if ( rand01() <= r ) break;
+  }
+
+  return x;
 }
 
 
