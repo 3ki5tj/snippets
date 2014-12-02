@@ -10,7 +10,7 @@
 /* compute the Cholesky decomposition
  * the input matrix `a' should be positive definite
  * on return the left-bottom triangle is filled by the matrix L */
-int choldecomp(double *a, int n)
+__inline static int choldecomp(double *a, int n)
 {
   int i, j, k;
   double y;
@@ -72,7 +72,7 @@ __inline static void cholsolveLT(double *L, double *b, int n)
 
 /* solve a x = b by Cholesky decomposition
  * on return, `x' is saved in `b' */
-int cholsolve(double *a, double *b, int n)
+__inline static int cholsolve(double *a, double *b, int n)
 {
   if ( choldecomp(a, n) != 0 ) return -1;
   cholsolveL(a, b, n); /* solve L y = b */
@@ -112,12 +112,15 @@ __inline static int cholinv(double *a, double *b, int n)
 
 /* return determinant of L
  * note that the determinant of the original matrix is twice as large */
-__inline static double chollogdetL(double *L, int n)
+__inline static double chollogdetL(double *L, int n, double eps)
 {
   int i;
-  double y = 0;
+  double x, y = 0;
 
-  for ( i = 0; i < n; i++ ) y += log(L[i*n+i]);
+  for ( i = 0; i < n; i++ ) {
+    if ( (x = L[i*n + i]) < eps ) x = eps;
+    y += log( x );
+  }
   return y;
 }
 

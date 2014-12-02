@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title> K-means clustering </title>
+  <link rel="stylesheet" type="text/css" href="./css/default.css" />
+  <script type="text/javascript" src="./js/util.js"></script>
+  <script type="text/javascript" src="./js/cholesky.js"></script>
+  <script type="text/javascript" src="./js/mtrand.js"></script>
+  <script type="text/javascript" src="./js/kmeans.js"></script>
+  <script type="text/javascript" src="./js/kmeans_main.js"></script>
+</head>
+<body>
+
+<h2 class="center">
+  K-means clustering
+</h2>
+
+<form onload="change_params()">
+  Number of Gaussians:
+  <input type="text" size="6" value="0" id="ngaus"
+    onchange="change_params()">.
+  <br>
+
+  <table id="gausTable">
+    <tr>
+      <th>
+        <span class="math"><i>x<sub>c</sub></i></span>
+      </th>
+      <th>
+        <span class="math"><i>y<sub>c</sub></i></span>
+      </th>
+      <th>
+        <span class="math"><i>a</i></span>
+      </th>
+      <th>
+        <span class="math"><i>b</i></span>
+      </th>
+      <th>
+        <span class="math"><i>&theta;</i></span>
+      </th>
+      <th>
+        <span class="math"><i>N</i><sub>points</sub></span>
+      </th>
+    </tr>
+  </table>
+
+  <input type="button" value="Generate" id="gen"
+    onclick="gengaus()">
+  <br>
+
+  <canvas id="demobox" width="640px", height="640px">
+  </canvas>
+  <br>
+
+  <span class="math"><i>K</i></span>:
+  <input type="text" size="6" value="1" id="K">
+  <br>
+
+  <div>
+  The equivalent C code:
+  <ul>
+    <li><a href="cholesky.h">cholesky.h</a>
+    <li><a href="kmeans.h">kmeans.h</a>
+    <li><a href="test.c">test.c</a> (driver)
+  </ul>
+  </div>
+
+  <div>
+    <a href="https://www.dropbox.com/sh/ry5aqe05tyv60g6/AACyHlZ1J9D2EtPzYRHSoq6na">Link</a>
+    to the full source code.
+  </div>
+
+</form>
+
+</body>
+</html>

@@ -78,7 +78,7 @@ function initff()
     hess[i] = 1;
   }
 
-  /* Warm up the generator */ 
+  /* Warm up the generator */
   for ( i = 0; i < 1000; i++ ) rand01();
 
   fsmallworld = get_float("fsmallworld", 0.0);
@@ -511,7 +511,7 @@ function updatemodesplot(omgs, modes)
     dat += "0\n";
   }
   //console.log(dat);
-  
+
   if ( modesplot == null ) {
     var options = {
       title: 'Modes',

@@ -8,4 +8,7 @@ ho: ho.c mtrand.h eig.h lu.h
 
 clean:
 	rm -rf $(prog) a.out *~ .*.un~ */*~ */.*.un~
-	rstrip.py
+	rstrip.py -Rlv
+
+Dropbox: clean
+	rsync -avzL --exclude="*~" * ~/Dropbox/code/pca/

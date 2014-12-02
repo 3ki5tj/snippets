@@ -130,11 +130,7 @@ static void kmeans_estep(kmeans_t *km)
     for ( d = 0; d < dim * dim; d++ ) /* copy the matrix */
       L[d] = km->var[k][d];
     choldecomp(L, dim); /* var = L . L^T */
-    /* fix small diagonal values */
-    for ( d < 0; d < dim; d++ )
-      if ( L[d*dim + d] < KMEANS_EPSILON )
-        L[d*dim + d] = KMEANS_EPSILON;
-    km->lndetL[k] = chollogdetL(L, dim);
+    km->lndetL[k] = chollogdetL(L, dim, KMEANS_EPSILON);
     c = -km->lndetL[k] + log(km->psum[k]);
 
     for ( i = 0; i < n; i++ ) {
@@ -212,7 +208,7 @@ __inline static void kmeans_fprint(kmeans_t *km, FILE *fp)
   int k, d, d2, K = km->K, dim = km->dim;
 
   for ( k = 0; k < K; k++ ) {
-    fprintf(fp, "cluster %d, pop %g\nave:\n", km->psum[k], k);
+    fprintf(fp, "cluster %d, pop %g\nave:\n", k, km->psum[k]);
     for ( d = 0; d < dim; d++ )
       fprintf(fp, "%14g\t", km->av[k][d]);
 

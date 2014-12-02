@@ -2,6 +2,7 @@
 #include "mtrand.h"
 
 
+
 int dim = 2;
 int n = 4000;
 int K = 4;
