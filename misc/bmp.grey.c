@@ -135,7 +135,7 @@ static void writebmp(const char *fn)
 {
   int i;
   bmp_t *bmp;
-  
+
   bmp = bmp_open(16, 16);
   for (i = 0; i < 16; i++) bmp_dot(bmp, 3, i, 125);
   bmp_save(bmp, fn);

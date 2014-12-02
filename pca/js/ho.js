@@ -100,7 +100,7 @@ function initff()
         hessmat[j*N+i] -= ksmallworld;
         hessmat[i*N+i] += ksmallworld;
         hessmat[j*N+j] += ksmallworld;
-        console.log("add spring between " + (i+1) + " and " + (j+1), fsmallworld);
+        console.log("add spring between " + (i+1) + " and " + (j+1), "K", ksmallworld);
       }
     }
 
@@ -156,7 +156,7 @@ function force()
             tmp = getpairpot(x[j]-x[i], ksmallworld, quartic_a, quartic_b);
             U       += tmp[0];
             f[i]    += tmp[1];
-            f[i+1]  -= tmp[1];
+            f[j]    -= tmp[1];
           }
         }
       }
@@ -247,8 +247,8 @@ function vrescale(thdt, dof)
   c = (thdt < 700) ? Math.exp(-thdt) : 0;
   r = gaussrand();
   r2 = randgausssum(dof - 1);
-  ek2 = ek1 + (1 - c) * (ekav*(r2 + r*r)/dof - ek1)
-      + 2 * r * Math.sqrt(c*(1 - c) * ekav/dof*ek1);
+  ek2 = c * ek1 + (1 - c) * (r2 + r*r) * .5 * temp
+      + r * Math.sqrt(c * (1 - c) * 2 * temp * ek1);
   if (ek2 < 1e-30) ek2 = 1e-30;
   s = Math.sqrt(ek2/ek1);
   for (i = 0; i < N; i++)
@@ -434,17 +434,21 @@ function pca()
     var omg = eval[i];
     var mode = new Array(N);
     var mmax = 0;
+
+    // copy the vector for mode i
     for ( j = 0; j < N; j++ ) {
       mode[j] = evec[j*N+i];
       if ( Math.abs(mode[j]) > Math.abs(mmax) )
         mmax = mode[j];
     }
+
     // normalize the mode such that the maximal value is 1
     if ( Math.abs(mmax) > 0 ) {
       for ( j = 0; j < N; j++ )
         mode[j] /= mmax;
     }
-    if ( omg <= tiny ) {
+
+    if ( omg <= tiny ) { // a zero-frequency mode
       omg = 0;
       omgs.unshift( omg );
       modes.unshift( mode ); // add the mode at the beginning
@@ -455,9 +459,10 @@ function pca()
     }
   }
 
-  /* compute the inverse of the correlation matrix
-   * the zero modes must be added to avoid a singular matrix */
+  // compute the inverse of the correlation matrix
+  // the zero modes must be added to avoid a singular matrix
   add_zero_modes(varqq, eval, evec);
+  //console.log(varqq, eval, evec);
   luinv(varqq, invvarqq, N, 1e-10);
   for ( i = 0; i < N; i++ )
     for ( j = 0; j < N; j++ )

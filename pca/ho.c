@@ -220,16 +220,17 @@ static double vrescale(double thdt, int dof)
   /* normal velocity rescaling */
   ek1 = getEk(v);
 
+  /* approximate algorithm of computing ek2
+   * only valid for a small thdt <= 0.001 */
 /*
-  // approximate algorithm of computing ek2
-  c = 2*sqrt(ek1*ekav*thdt/dof);
+  c = sqrt(2*ek1*temp*thdt);
   ek2 = ek1 + (ekav - ek1)*thdt + c*gaussrand();
 */
   c = (thdt < 700) ? exp(-thdt) : 0;
   r = gaussrand();
   r2 = randgausssum(dof - 1);
-  ek2 = ek1 + (1 - c) * (ekav*(r2 + r*r)/dof - ek1)
-    + 2 * r * sqrt(c*(1 - c) * ekav/dof*ek1);
+  ek2 = c * ek1 + (1 - c) * (r2 + r*r) * .5 * temp
+      + r * sqrt(c * (1 - c) * 2 * temp * ek1);
 
   if (ek2 < 1e-30) ek2 = 1e-30;
   s = sqrt(ek2/ek1);
