@@ -47,7 +47,7 @@ double fsmallworld = 0.0; /* frequency of adding small-world springs */
 double ksmallworld = 1.0; /* stiffness of small-world springs */
 int smallworld[N][N];
 
-long long nsteps = 10000000; /* number of molecular dynamics steps */
+long long nsteps = 100000000; /* number of molecular dynamics steps */
 long long nstblah = 1000000; /* frequency of reporting */
 long long nstequiv = 10000; /* number of steps for equilibration */
 
@@ -404,6 +404,27 @@ static void printmat(double *m, int n, const char *name)
 
 
 
+const double eval_min = 1e-8;
+
+/* add the zero modes */
+static void add_zero_modes(double c[N][N], double eval[N], double evec[N][N])
+{
+  int k, i, j;
+  const double big = N*100;
+  double v[N];
+
+  for ( k = 0; k < N; k++ ) {
+    if ( eval[k] > eval_min ) continue;
+    for ( i = 0; i < N; i++ )
+      v[i] = evec[i][k];
+    for ( i = 0; i < N; i++ )
+      for ( j = 0; j < N; j++ )
+        c[i][j] += v[i] * v[j] * big;
+  }
+}
+
+
+
 /* principle component analysis */
 static void pca(void)
 {
@@ -424,8 +445,10 @@ static void pca(void)
   prvec(eval, "eigenvalues (omega^(-2))");
   prmat(evec, "eigenvectors");
 
-  // luinv((double *) c, (double *) invc, N, DBL_MIN);
-  // prmat(invc, "c^{-1}");
+  /* add zero-frequency modes */
+  add_zero_modes(c, eval, evec);
+  luinv((double *) c, (double *) invc, N, DBL_MIN);
+  prmat(invc, "c^{-1}");
 }
 
 

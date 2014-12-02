@@ -55,7 +55,7 @@ function roundto(x, decimals)
 
 
 
-function newnumarr(n)
+function newarr(n)
 {
   var i, a = new Array(n);
   for ( i = 0; i < n; i++ ) a[i] = 0;

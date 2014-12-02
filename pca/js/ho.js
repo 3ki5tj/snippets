@@ -1,7 +1,7 @@
 var N = 3;
 
 
-var hess;
+var hess, hessmat;
 var mass;
 var x;
 var v;
@@ -43,19 +43,20 @@ var smcnt = 0, smT = 0, smU = 0;
 function getparams()
 {
   N = get_int("npt", 3);
-  hess = newnumarr(N);
-  mass = newnumarr(N);
-  smallworld = newnumarr(N*N);
-  x = newnumarr(N);
-  v = newnumarr(N);
-  f = newnumarr(N);
-  qsum = newnumarr(N);
-  qqsum = newnumarr(N*N);
-  avq = newnumarr(N);
-  varqq = newnumarr(N*N);
-  invvarqq = newnumarr(N*N);
-  eval = newnumarr(N);
-  evec = newnumarr(N*N);
+  hess = newarr(N);
+  hessmat = newarr(N*N);
+  mass = newarr(N);
+  smallworld = newarr(N*N);
+  x = newarr(N);
+  v = newarr(N);
+  f = newarr(N);
+  qsum = newarr(N);
+  qqsum = newarr(N*N);
+  avq = newarr(N);
+  varqq = newarr(N*N);
+  invvarqq = newarr(N*N);
+  eval = newarr(N);
+  evec = newarr(N*N);
   nsamps = 0;
   nstequiv = get_int("nstequiv", 10000);
   mddt = get_float("mddt", 0.005);
@@ -72,23 +73,35 @@ function getparams()
 /* initialize the force field */
 function initff()
 {
-  var i;
+  var i, j;
 
   for ( i = 0; i < N; i++ ) {
     hess[i] = 1;
+    if ( i > 0 ) {
+      j = i - 1;
+      hessmat[i*N + i] += 1;
+      hessmat[j*N + j] += 1;
+      hessmat[i*N + j] -= 1;
+      hessmat[j*N + i] -= 1;
+    }
   }
 
-  /* Warm up the generator */
+  // Warm up the random number generator
   for ( i = 0; i < 1000; i++ ) rand01();
 
   fsmallworld = get_float("fsmallworld", 0.0);
   ksmallworld = get_float("ksmallworld", 1.0);
-  /* add small-world springs */
+  // add small-world springs
   for ( i = 0; i < N; i++ )
     for ( j = i + 2; j < N; j++ ) {
       smallworld[i*N+j] = ( rand01() < fsmallworld );
-      if ( smallworld[i*N+j] )
+      if ( smallworld[i*N+j] ) {
+        hessmat[i*N+j] -= ksmallworld;
+        hessmat[j*N+i] -= ksmallworld;
+        hessmat[i*N+i] += ksmallworld;
+        hessmat[j*N+j] += ksmallworld;
         console.log("add spring between " + (i+1) + " and " + (j+1), fsmallworld);
+      }
     }
 
   var massdistr = grab("massdistr").value;
@@ -372,6 +385,27 @@ function prmat(m, nm)
 
 
 
+var eval_min = 1e-8;
+
+/* add the zero modes */
+function add_zero_modes(c, eval, evec)
+{
+  var k, i, j;
+  var big = N*100;
+  var v = new Array(N);
+
+  for ( k = 0; k < N; k++ ) {
+    if ( eval[k] > eval_min ) continue;
+    for ( i = 0; i < N; i++ )
+      v[i] = evec[i*N + k];
+    for ( i = 0; i < N; i++ )
+      for ( j = 0; j < N; j++ )
+        c[i*N + j] += v[i] * v[j] * big;
+  }
+}
+
+
+
 /* principle component analysis */
 function pca()
 {
@@ -421,7 +455,15 @@ function pca()
     }
   }
 
-  return [omgs, modes]
+  /* compute the inverse of the correlation matrix
+   * the zero modes must be added to avoid a singular matrix */
+  add_zero_modes(varqq, eval, evec);
+  luinv(varqq, invvarqq, N, 1e-10);
+  for ( i = 0; i < N; i++ )
+    for ( j = 0; j < N; j++ )
+      invvarqq[i*N + j] *= Math.sqrt( mass[i] * mass[j] );
+
+  return [omgs, modes, invvarqq];
 }
 
 
@@ -531,6 +573,44 @@ function updatemodesplot(omgs, modes)
 
 
 
+/* draw the hessian matrix */
+function drawhess(hmat, target)
+{
+  var c = grab(target);
+  var ctx = c.getContext("2d");
+  var w = c.width;
+  var h = c.height;
+  var b = Math.min(w, h) / N;
+
+  // find the maximal
+  var mx = 0;
+  for ( var i = 0; i < N; i++ )
+    for ( var j = 0; j < N; j++ )
+      mx = Math.max(Math.abs(hmat[i*N+j]), mx);
+
+  ctx.clearRect(0, 0, w, h);
+  for ( var i = 0; i < N; i++ ) {
+    for ( var j = 0; j < N; j++ ) {
+      var x = Math.floor( 255 * hmat[i*N+j] / mx );
+      var red = 0, blue = 0, green = 0;
+      if ( x >= 0 ) {
+        blue = 255;
+        red = 255 - x;
+        green = 255 - x;
+      } else {
+        x = -x;
+        red = 255;
+        green = 255 - x;
+        blue = 255 - x;
+      }
+      ctx.fillStyle = "rgb(" + red + ", " + green + ", " + blue + ")";
+      ctx.fillRect(i*b, j*b, b, b);
+    }
+  }
+}
+
+
+
 /* upon a timer event */
 function pulse()
 {
@@ -539,12 +619,15 @@ function pulse()
   updateposplot();
   nstpca = get_int("nstpca", 500000);
   if ( mdstep % nstpca == 0 ) {
-    var pair = pca();
-    if ( pair == null ) return;
-    omgs = pair[0];
-    modes = pair[1];
+    var ret = pca();
+    if ( ret == null ) return;
+    var omgs = ret[0];
+    var modes = ret[1];
+    var hessmatb = ret[2];
     updateomgplot(omgs);
     updatemodesplot(omgs, modes);
+    drawhess(hessmat, "hessplot");
+    drawhess(hessmatb, "hessbplot");
   }
 }
 
@@ -579,6 +662,8 @@ function startmd()
   smT = smU = 0;
   mdtimer = setInterval(function(){ pulse() }, timer_interval);
 }
+
+
 
 function changeparams()
 {
