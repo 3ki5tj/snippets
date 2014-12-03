@@ -6,4 +6,4 @@ clean:
 	rstrip.py -Rlv
 
 Dropbox: clean
-	rsync -avzL * ~/Dropbox/scinotes/
+	rsync -avzL * ~/Dropbox/code/

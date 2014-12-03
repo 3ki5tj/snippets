@@ -241,7 +241,7 @@ function randgausssum(n)
 function vrescale(thdt, dof)
 {
   var i, j;
-  var ekav = .5*temp*dof, ek1, ek2, s, c, r, r2;
+  var ek1, ek2, s, c, r, r2;
 
   ek1 = getEk(v);
   c = (thdt < 700) ? Math.exp(-thdt) : 0;
@@ -406,7 +406,7 @@ function add_zero_modes(c, eval, evec)
 
 
 
-/* principle component analysis */
+/* principal component analysis */
 function pca()
 {
   var i, j;

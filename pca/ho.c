@@ -215,7 +215,7 @@ __inline static double randgausssum(int n)
 static double vrescale(double thdt, int dof)
 {
   int i;
-  double ekav = .5f*temp*dof, ek1, ek2, s, c, r, r2;
+  double ek1, ek2, s, c, r, r2;
 
   /* normal velocity rescaling */
   ek1 = getEk(v);
@@ -426,7 +426,7 @@ static void add_zero_modes(double c[N][N], double eval[N], double evec[N][N])
 
 
 
-/* principle component analysis */
+/* principal component analysis */
 static void pca(void)
 {
   int i, j;
