@@ -149,7 +149,7 @@ function draw_gauss(ret)
 
   // draw the clustering result
   if ( ret ) {
-    var l = 2*Math.log(2);
+    var l = 2.0; // 2*Math.log(2);
     for ( var i = 0; i < ret.length; i++ ) {
       var xc = ret[i].xc;
       var yc = ret[i].yc;
@@ -184,14 +184,34 @@ function get_abth(m)
 
 
 
+var timer = null;
+var iter = 0;
+var K;
+var km;
+
+
+
+/* stop the previous timer, if any */
+function stop_timer()
+{
+  if ( timer != null ) {
+    window.clearInterval( timer );
+    timer = null;
+  }
+}
+
+
+
 function doclus()
 {
-  var K = get_int("nclus");
-  var km = new Kmeans(2, K, datarr);
   var ret = new Array(K);
   var niter = get_int("niter");
+  var niterps = get_int("niterps");
+  var it = 0;
 
-  for ( it = 0; it < niter; it++ ) {
+  if ( iter >= niter ) stop_timer();
+
+  for ( it = 0; it < niterps && iter < niter; it++, iter++ ) {
     km.estep();
     km.mstep();
   }
@@ -207,6 +227,9 @@ function doclus()
       theta: abth[2]
     };
   }
+  draw_gauss(ret);
+
+  //console.log(iter, ret);
   return ret;
 }
 
@@ -214,9 +237,23 @@ function doclus()
 
 function show()
 {
+  stop_timer();
+
+  // generate Gaussians
   mkpoints();
-  ret = doclus();
-  draw_gauss(ret);
+
+  K = get_int("nclus");
+  km = new Kmeans(2, K, datarr);
+  iter = 0;
+  timer = setInterval( doclus, 1000 );
+}
+
+
+
+function change_params()
+{
+  // if the timer is running, restart it
+  if ( timer != null ) show();
 }
 
 
@@ -232,19 +269,23 @@ function mapchange(a, b)
 function mkrange(name, min, max, step, value, size)
 {
   if ( size == null || size == undefined ) size = 8;
+  // create a range control
   var s = '<input type="range" min="' + min + '" max="' + max +
     '" step="' + step + '" value="' + value + '" id="slider_' + name +
-    '" class = "slider" onchange="mapchange(\'slider_' + name + '\', \'' + name + '\')">';
+    '" class = "slider" onchange="mapchange(\'slider_' + name + '\', \'' + name + '\');change_params()">';
+  // create a corresponding text box
   s += '<input type="text" value="' + value + '" id="' + name +
     '" size = "' + size + '" class="slider_num" ' +
-    'onchange="mapchange(\'' + name + '\', \'slider_' + name + '\')">';
+    'onchange="mapchange(\'' + name + '\', \'slider_' + name + '\');change_params()">';
   return s;
 }
 
 
 
-function change_params()
+function change_ngaus()
 {
+  stop_timer();
+
   var ngaus = grab("ngaus").value;
   if ( !is_int(ngaus) ) return;
   ngaus = parseInt(ngaus);
@@ -332,12 +373,13 @@ function set_gparams(i, xc, yc, a, b, theta, npt)
 
 
 
-/* initialize a few default Gaussians */
+/* set up the default test case
+ * initialize a few Gaussians */
 function init_gauss()
 {
   var ng = 4;
   set_val2("ngaus", ng);
-  change_params();
+  change_ngaus();
   set_gparams(1,  0.0,  0.0, 1.0, 1.0,   0, 1000);
   set_gparams(2,  1.5,  0.0, 0.2, 1.5,   0, 1000);
   set_gparams(3, -2.0,  2.0, 1.0, 0.1, -45, 1000);

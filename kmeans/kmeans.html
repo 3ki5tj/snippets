@@ -20,11 +20,11 @@
   <div class="panel">
     <h4 class="panel-title">Sample generations</h4>
 
-    Number of Gaussians:
+    Number of Gaussian distributions:
     <input type="range" min="0" max="10" step="1" value="0" id="slider_ngaus"
-      class="slider" onchange="mapchange('slider_ngaus', 'ngaus');change_params()">
+      class="slider" onchange="mapchange('slider_ngaus', 'ngaus');change_ngaus()">
     <input type="text" size="6" value="0" id="ngaus"
-      class="slider_num" onchange="mapchange('ngaus', 'slider_ngaus');change_params()">.
+      class="slider_num" onchange="mapchange('ngaus', 'slider_ngaus');change_ngaus()">.
     <br>
 
     <table id="gausTable">
@@ -55,15 +55,25 @@
   <div class="panel">
     <h4 class="panel-title">Clustering parameters</h4>
 
-    <span class="math">Number of clusters, <i>K</i></span>:
+    Number of clusters, <span class="math"><i>K</i></span>:
     <input type="range" min="1" max="10" step="1" value="4" id="slider_nclus"
       class="slider" onchange="mapchange('slider_nclus', 'nclus');change_params()">
     <input type="text" size="6" value="4" id="nclus"
       class="slider_num" onchange="mapchange('nclus', 'slider_nclus');change_params()">.
     &nbsp;
 
-    <span class="math">Number of iterations</span>:
-    <input type="text" size="6" value="200" id="niter">.
+    Number of iterations:
+    <input type="range" min="1" max="10000" step="1" value="2000" id="slider_niter"
+      class="slider" onchange="mapchange('slider_niter', 'niter')">
+    <input type="text" size="6" value="2000" id="niter"
+      class="slider_num" onchange="mapchange('niter', 'slider_niter');">.
+    <br>
+
+    Number of iterations per second:
+    <input type="range" min="1" max="100" step="1" value="10" id="slider_niterps"
+      class="slider" onchange="mapchange('slider_niterps', 'niterps')">
+    <input type="text" size="6" value="10" id="niterps"
+      class="slider_num" onchange="mapchange('niterps', 'slider_niterps');">.
     <br>
 
   </div>
