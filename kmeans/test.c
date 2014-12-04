@@ -9,14 +9,24 @@ int K = 4;
 double **dat;
 
 
+typedef struct {
+  double xc, yc;
+  double a, b, theta;
+  int npt;
+} ellipse_t;
+
+
 
 static void mkdata(void)
 {
   int i, k, n1;
   double x[2], c, s;
-  double av[4][2] = {{0, 0}, {1.5, 0}, {-2, 2}, {-2, -2}};
-  double sig[4][2] = {{1, 1}, {0.2, 1.5}, {1., 0.1}, {1., 0.4}};
-  double theta[4] = {0, 0, M_PI/4, -M_PI/4};
+  ellipse_t elp[4] = {
+    { 0.0,  0.0, 1.0, 1.0, 0, 1000},
+    { 1.5,  0.0, 0.2, 1.5, 0, 1000},
+    {-2.0,  2.0, 1.0, 0.1, M_PI/4, 1000},
+    {-2.0, -2.0, 1.0, 0.4, -M_PI/4, 1000},
+  };
   FILE *fp;
 
   xnew(dat, n);
@@ -25,12 +35,12 @@ static void mkdata(void)
     xnew(dat[i], dim);
   for ( k = 0; k < K; k++ ) {
     for ( i = k*n1; i < (k+1)*n1; i++ ) {
-      x[0] = sig[k][0] * gaussrand();
-      x[1] = sig[k][1] * gaussrand();
-      c = cos(theta[k]);
-      s = sin(theta[k]);
-      dat[i][0] = av[k][0] + x[0] * c + x[1] * s;
-      dat[i][1] = av[k][1] + x[0] * (-s) + x[1] * c;
+      x[0] = elp[k].a * gaussrand();
+      x[1] = elp[k].b * gaussrand();
+      c = cos(elp[k].theta);
+      s = sin(elp[k].theta);
+      dat[i][0] = elp[k].xc + x[0] * c + x[1] * s;
+      dat[i][1] = elp[k].yc + x[0] * (-s) + x[1] * c;
     }
   }
 

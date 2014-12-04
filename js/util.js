@@ -62,3 +62,38 @@ function newarr(n)
   return a;
 }
 
+
+
+/* create a two-dimensional numeric array */
+function newarr2d(m, n)
+{
+  var i, j, a = new Array(m);
+  for ( i = 0; i < m; i++ )
+    a[i] = newarr(n);
+  return a;
+}
+
+
+
+/* copy array */
+function cparr(x, y, n)
+{
+  var i;
+
+  for ( i = 0; i < n; i++ )
+    x[i] = y[i];
+}
+
+
+
+/* copy two-dimensional array */
+function cparr2d(x, y, m, n)
+{
+  var j;
+
+  for ( j = 0; j < m; j++ )
+    cparr(x[j], y[j], n);
+}
+
+
+
