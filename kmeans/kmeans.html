@@ -17,45 +17,70 @@
 </h2>
 
 <form>
-  Number of Gaussians:
-  <input type="text" size="6" value="0" id="ngaus"
-    onchange="change_params()">.
+  <div class="panel">
+    <h4 class="panel-title">Sample generations</h4>
+
+    Number of Gaussians:
+    <input type="range" min="0" max="10" step="1" value="0" id="slider_ngaus"
+      class="slider" onchange="mapchange('slider_ngaus', 'ngaus');change_params()">
+    <input type="text" size="6" value="0" id="ngaus"
+      class="slider_num" onchange="mapchange('ngaus', 'slider_ngaus');change_params()">.
+    <br>
+
+    <table id="gausTable">
+      <tr>
+        <th>
+          <span class="math"><i>x<sub>c</sub></i></span>
+        </th>
+        <th>
+          <span class="math"><i>y<sub>c</sub></i></span>
+        </th>
+        <th>
+          <span class="math"><i>a</i></span>
+        </th>
+        <th>
+          <span class="math"><i>b</i></span>
+        </th>
+        <th>
+          <span class="math"><i>&theta;</i></span>
+        </th>
+        <th>
+          <span class="math"><i>N</i><sub>points</sub></span>
+        </th>
+      </tr>
+    </table>
+
+  </div>
+
+  <div class="panel">
+    <h4 class="panel-title">Clustering parameters</h4>
+
+    <span class="math">Number of clusters, <i>K</i></span>:
+    <input type="range" min="1" max="10" step="1" value="4" id="slider_nclus"
+      class="slider" onchange="mapchange('slider_nclus', 'nclus');change_params()">
+    <input type="text" size="6" value="4" id="nclus"
+      class="slider_num" onchange="mapchange('nclus', 'slider_nclus');change_params()">.
+    &nbsp;
+
+    <span class="math">Number of iterations</span>:
+    <input type="text" size="6" value="200" id="niter">.
+    <br>
+
+  </div>
+
+  <div class="center">
+    <input type="button" value="Do clustering!" id="clus"
+      class="largebtn" onclick="show()">
+
+    <canvas id="demobox" width="920px", height="640px">
+    </canvas>
+  </div>
+
   <br>
 
-  <table id="gausTable">
-    <tr>
-      <th>
-        <span class="math"><i>x<sub>c</sub></i></span>
-      </th>
-      <th>
-        <span class="math"><i>y<sub>c</sub></i></span>
-      </th>
-      <th>
-        <span class="math"><i>a</i></span>
-      </th>
-      <th>
-        <span class="math"><i>b</i></span>
-      </th>
-      <th>
-        <span class="math"><i>&theta;</i></span>
-      </th>
-      <th>
-        <span class="math"><i>N</i><sub>points</sub></span>
-      </th>
-    </tr>
-  </table>
 
-  <input type="button" value="Generate" id="gen"
-    onclick="gen_gauss()">
-  <br>
-
-  <canvas id="demobox" width="640px", height="640px">
-  </canvas>
-  <br>
-
-  <span class="math"><i>K</i></span>:
-  <input type="text" size="6" value="1" id="K">
-  <br>
+  <div class="panel">
+    <h4 class="panel-title">Source code</h4>
 
   <div>
   The equivalent C code:
@@ -69,6 +94,8 @@
   <div>
     <a href="https://www.dropbox.com/sh/ry5aqe05tyv60g6/AACyHlZ1J9D2EtPzYRHSoq6na">Link</a>
     to the full source code.
+  </div>
+
   </div>
 
 </form>

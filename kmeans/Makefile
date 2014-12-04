@@ -3,7 +3,7 @@ LM = -lm
 
 bins = test
 
-bins : %: %.c kmeans.h cholesky.h
+$(bins) : %: %.c kmeans.h cholesky.h
 	$(CC) $< -o $@ $(LM)
 
 clean:

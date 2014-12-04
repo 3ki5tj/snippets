@@ -4,24 +4,25 @@ var KMEANS_EPSILON = 1e-8;
 
 
 
-function Kmeans(dim, n, K, dat)
+function Kmeans(dim, K, dat)
 {
   this.dim = dim;
-  this.n = n;
+  this.n = dat.length;
   this.K = K;
   this.x = dat;
   this.av = newarr2d(K, dim);
   this.var = newarr2d(K, dim * dim);
   this.lndetL = newarr(K);
-  this.lnp = newarr2d(n, K);
+  this.lnp = newarr2d(this.n, K);
   this.psum = newarr(k);
   for ( var k = 0; k < K; k++ ) {
-    var i = n * k / K;
+    var i = Math.floor( this.n * k / K );
+    if ( i >= this.n ) i = this.n - 1;
     for ( var d = 0; d < dim; d++ ) {
       this.av[k][d] = dat[i][d] + 1e-3 * (2.*Math.random() - 1);
     }
     for ( i = 0; i < dim; i++ )
-      this.var[k][i*dim+i] = 1e-8;
+      this.var[k][i*dim+i] = KMEANS_EPSILON;
     this.psum[k] = 1./K;
   }
 }

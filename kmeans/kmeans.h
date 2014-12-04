@@ -59,7 +59,7 @@ static kmeans_t *kmeans_open(int dim, int n, int K, double **dat)
     }
     xnew(km->var[k], dim*dim);
     for ( i = 0; i < dim; i++ )
-      km->var[k][i*dim+i] = 1e-8;
+      km->var[k][i*dim+i] = KMEANS_EPSILON;
   }
 
   xnew(km->lnp, n);

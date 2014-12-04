@@ -24,8 +24,8 @@ static void mkdata(void)
   ellipse_t elp[4] = {
     { 0.0,  0.0, 1.0, 1.0, 0, 1000},
     { 1.5,  0.0, 0.2, 1.5, 0, 1000},
-    {-2.0,  2.0, 1.0, 0.1, M_PI/4, 1000},
-    {-2.0, -2.0, 1.0, 0.4, -M_PI/4, 1000},
+    {-2.0,  2.0, 1.0, 0.1, -M_PI/4, 1000},
+    {-2.0, -2.0, 1.0, 0.4, M_PI/4, 1000},
   };
   FILE *fp;
 
@@ -39,8 +39,8 @@ static void mkdata(void)
       x[1] = elp[k].b * gaussrand();
       c = cos(elp[k].theta);
       s = sin(elp[k].theta);
-      dat[i][0] = elp[k].xc + x[0] * c + x[1] * s;
-      dat[i][1] = elp[k].yc + x[0] * (-s) + x[1] * c;
+      dat[i][0] = elp[k].xc + x[0] * c - x[1] * s;
+      dat[i][1] = elp[k].yc + x[0] * s + x[1] * c;
     }
   }
 
