@@ -165,47 +165,32 @@ static double getEk(double *vel)
 
 
 
+/* Andersen thermostat
+ * Note, DOF should be N in this case */
+static double andersen(void)
+{
+  int i;
+  double r;
+
+  if ( rand01() < 0.1 ) {
+    i = (int) (N * rand01());
+    r = randgaus();
+    v[i] = sqrt(temp/mass[i]) * r;
+  }
+  return getEk(v);
+}
+
+
+
 /* Langevin-like thermostat */
 static double langevin(double thdt)
 {
   int i;
 
   for ( i = 0; i < N; i++ )
-    v[i] += (-thdt * v[i] + sqrt(2*temp*thdt) * gaussrand()) / mass[i];
+    v[i] += (-thdt * v[i] + sqrt(2*temp*thdt) * randgaus()) / mass[i];
   rmcom(v);
   return getEk(v);
-}
-
-
-
-/* Andersen thermostat
- * Note, DOF should be N in this case */
-static double andersen(void)
-{
-  int i;
-  double ek, r;
-
-  if ( rand01() < 0.1 ) {
-    i = (int) (N * rand01());
-    r = gaussrand();
-    v[i] = sqrt(temp/mass[i]) * r;
-  }
-  for (ek = 0, i = 0; i < N; i++)
-    ek += .5 * mass[i] * v[i] * v[i];
-  return ek;
-}
-
-
-
-/* return the sum of the squares of n Gaussian random numbers  */
-__inline static double randgausssum(int n)
-{
-  double x = 0., r;
-  if (n > 0) {
-    x = 2.0 * randgam(n/2);
-    if (n % 2) { r = gaussrand(); x += r*r; }
-  }
-  return x;
 }
 
 
@@ -224,11 +209,11 @@ static double vrescale(double thdt, int dof)
    * only valid for a small thdt <= 0.001 */
 /*
   c = sqrt(2*ek1*temp*thdt);
-  ek2 = ek1 + (ekav - ek1)*thdt + c*gaussrand();
+  ek2 = ek1 + (ekav - ek1)*thdt + c*randgaus();
 */
   c = (thdt < 700) ? exp(-thdt) : 0;
-  r = gaussrand();
-  r2 = randgausssum(dof - 1);
+  r = randgaus();
+  r2 = randchisqr(dof - 1);
   ek2 = c * ek1 + (1 - c) * (r2 + r*r) * .5 * temp
       + r * sqrt(c * (1 - c) * 2 * temp * ek1);
 
@@ -285,7 +270,7 @@ static double random_collision_langevin(double thdt)
   vij = v[i] - v[j];
 
   /* do a step of Langevin equation */
-  dv = (-thdt * vij + sqrt(2*temp*thdt) * gaussrand()) / m;
+  dv = (-thdt * vij + sqrt(2*temp*thdt) * randgaus()) / m;
   /* distribute dv to i and j such that
    * mass[i] * v[i] + mass[j] * v[j] is conserved */
   v[i] += dv * (1 - frac);
@@ -319,7 +304,7 @@ static void domd(void)
   /* initialize the random velocities */
   for ( Ek = 0, i = 0; i < N; i++ ) {
     x[i] = 0;
-    r = gaussrand();
+    r = randgaus();
     v[i] = sqrt(temp/mass[i]) * r;
     Ek += .5 * mass[i] * v[i] * v[i];
   }

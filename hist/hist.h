@@ -69,7 +69,7 @@ __inline int histsave(const double *h, int rows, int n, double xmin, double dx,
   int i, r, rp, rowp, imax, imin;
   const double *p;
   double sm, *sums, fac, delta;
-  double smtot[3], *htot = NULL;
+  double smtot[3] = {0}, *htot = NULL;
 
   if (fn == NULL) fn = "HIST";
   if ((fp = fopen(fn, "w")) == NULL) return -1;

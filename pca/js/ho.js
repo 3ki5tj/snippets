@@ -206,7 +206,7 @@ function andersen()
 
   if ( rand01() < 0.1 ) {
     i = Math.floor(N * rand01());
-    v[i] = Math.sqrt(temp/mass[i]) * gaussrand();
+    v[i] = Math.sqrt(temp/mass[i]) * randgaus();
   }
   return getEk(v);
 }
@@ -217,22 +217,9 @@ function andersen()
 function langevin(thdt)
 {
   for ( var i = 0; i < N; i++ )
-    v[i] += (-thdt * v[i] + Math.sqrt(2*temp*thdt) * gaussrand())/mass[i];
+    v[i] += (-thdt * v[i] + Math.sqrt(2*temp*thdt) * randgaus())/mass[i];
   rmcom(v);
   return getEk(v);
-}
-
-
-
-/* return the sum of the squares of n Gaussian random numbers  */
-function randgausssum(n)
-{
-  var x = 0., r;
-  if ( n > 0 ) {
-    x = 2.0 * randgam( Math.floor(n/2) );
-    if ( n % 2 > 0.5 ) { r = gaussrand(); x += r*r; }
-  }
-  return x;
 }
 
 
@@ -245,8 +232,8 @@ function vrescale(thdt, dof)
 
   ek1 = getEk(v);
   c = (thdt < 700) ? Math.exp(-thdt) : 0;
-  r = gaussrand();
-  r2 = randgausssum(dof - 1);
+  r = randgaus();
+  r2 = randchisqr(dof - 1);
   ek2 = c * ek1 + (1 - c) * (r2 + r*r) * .5 * temp
       + r * Math.sqrt(c * (1 - c) * 2 * temp * ek1);
   if (ek2 < 1e-30) ek2 = 1e-30;
@@ -278,8 +265,8 @@ function initmd()
 {
   /* initialize the random velocities */
   for ( i = 0; i < N; i++ ) {
-    x[i] = 0.001 * gaussrand();
-    v[i] = Math.sqrt(temp/mass[i]) * gaussrand();
+    x[i] = 0.001 * randgaus();
+    v[i] = Math.sqrt(temp/mass[i]) * randgaus();
   }
   rmcom(x);
   rmcom(v);

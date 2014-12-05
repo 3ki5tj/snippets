@@ -66,8 +66,8 @@ function rand01()
 
 
 /* Gaussian distribution with zero mean and unit variance
- * using ratio method */
-function gaussrand()
+ * using the ratio method */
+function randgaus()
 {
   var x, y, u, v, q;
   do {
@@ -84,39 +84,45 @@ function gaussrand()
 
 
 /* return a random number that satisfies the gamma distribution
- * p(x) = x^(k - 1) exp(-x) / (k - 1)! */
+ * p(x) = x^(k - 1) exp(-x) / Gamma(k) */
 function randgam(k)
 {
-  var x, k1 = k - 1, r, y, v1, v2, w;
+  var lt1 = false;
+  var a, b, x, v, u;
 
   if ( k <= 0 ) return 0;
-  if ( k <= 7 ) {
-    // adding random numbers that satisfy the exponential distribution
-    for ( var i = 0, x = 1.0; i < k; i++ )
-      x *= 1 - rand01();
-    return -Math.log(x);
+  if ( k < 1 ) {
+    lt1 = true;
+    k += 1;
+  }
+  a = k - 1./3;
+  b = 1./3/Math.sqrt(a);
+
+  for ( ; ; ) {
+    do {
+      x = randgaus();
+      v = 1 + b * x;
+    } while ( v <= 0 );
+    v *= v * v;
+    x *= x;
+    u = rand01();
+    if ( u <= 1 - 0.331 * x * x ) break;
+    u = Math.log(u);
+    if ( u <= 0.5 * x + a * (1 - v + Math.log(v)) ) break;
   }
 
-  w = Math.sqrt(2.*k - 1);
-  // use the rejection method based on the Lorentz distribution */
-  for (;;) {
-    // the Lorentz disribution is centered at k1, with width w
-    // p(y) = 1/pi/(1 + y^2), x = y*w + k1
-    // Int p(y) dy = 1/2 + arctan(y)/pi
-    for (;;) {
-      v1 = 2 * rand01() - 1;
-      v2 = 2 * rand01() - 1;
-      if ( v1 * v1  + v2 * v2 < 1 ) {
-        y = v2 / v1;
-        x = w * y + k1;
-        if (x > 0.) break;
-      }
-    }
-    r = (1 + y*y) * Math.exp(k1 * Math.log(x/k1) - x + k1);
-    if ( rand01() <= r ) break;
-  }
-
+  x = a * v;
+  if ( lt1 ) x *= Math.pow(1 - rand01(), 1./(k - 1));
   return x;
+}
+
+
+
+/* return a random number that satisfies the chi-squared distribution,
+ * which is the sum of the squares k Gaussian random numbers */
+function randchisqr(k)
+{
+  return 2*randgam(k*.5);
 }
 
 

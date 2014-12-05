@@ -167,6 +167,26 @@ static double lj_ekin(double (*v)[D], int n)
 
 
 
+/* exact velocity rescaling thermostat */
+static double lj_vrescale(double (*v)[D], int n, int dof, double tp, double dt)
+{
+  int i;
+  double ek1, ek2, s, c, r, r2;
+
+  c = (dt < 700) ? exp(-dt) : 0;
+  ek1 = lj_ekin(v, n);
+  r = randgaus();
+  r2 = randchisqr(dof - 1);
+  ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
+      + 2 * r * sqrt(c * (1 - c) * ek1 * tp / 2);
+  if (ek2 < 0) ek2 = 0;
+  s = sqrt(ek2/ek1);
+  for (i = 0; i < n; i++) vsmul(v[i], s);
+  return ek2;
+}
+
+
+
 /* open an LJ system */
 static lj_t *lj_open(int n, double rho, double rcdef)
 {
@@ -189,13 +209,11 @@ static lj_t *lj_open(int n, double rho, double rcdef)
   /* init. random velocities */
   for (i = 0; i < n; i++)
     for ( d = 0; d < D; d++ )
-      lj->v[i][d] = gaussrand();
+      lj->v[i][d] = randgaus();
 
   lj_rmcom(lj->v, lj->n);
   lj_shiftang(lj->x, lj->v, lj->n);
-  lj->ekin = lj_ekin(lj->v, lj->n);
 
-  //lj_force(lj);
   return lj;
 }
 
@@ -263,12 +281,12 @@ static double lj_pbcdist2(double *dx,
 
 
 
-/* 3D compute force and virial, return energy */
-static double lj_energy(lj_t *lj, double (*x)[D],
+/* compute force and virial, return energy */
+__inline static double lj_energy(lj_t *lj, double (*x)[D],
     double *virial, double *ep0, double *eps)
 {
   double dx[D], dr2, dr6, ep, vir, l = lj->l, rc2 = lj->rc2;
-  int i, j, prcnt = 0, n = lj->n;
+  int i, j, npr = 0, n = lj->n;
 
   for (ep = vir = 0, i = 0; i < n - 1; i++) {
     for (j = i + 1; j < n; j++) {
@@ -278,23 +296,23 @@ static double lj_energy(lj_t *lj, double (*x)[D],
       dr6 = dr2 * dr2 * dr2;
       vir += dr6 * (48 * dr6 - 24); /* f.r */
       ep += 4 * dr6 * (dr6 - 1);
-      prcnt++;
+      npr++;
     }
   }
   if (virial) *virial = vir;
   if (ep0) *ep0 = ep;
-  if (eps) *eps = ep - prcnt * lj->epot_shift; /* shifted energy */
+  if (eps) *eps = ep - npr * lj->epot_shift; /* shifted energy */
   return ep + lj->epot_tail; /* unshifted energy */
 }
 
 
 
 /* compute force and virial, return energy */
-double lj_force(lj_t *lj, double (*x)[D], double (*f)[D],
+__inline static double lj_force(lj_t *lj, double (*x)[D], double (*f)[D],
     double *virial, double *ep0, double *eps)
 {
   double dx[D], fi[D], dr2, dr6, fs, ep, vir, l = lj->l, rc2 = lj->rc2;
-  int i, j, prcnt = 0, n = lj->n;
+  int i, j, npr = 0, n = lj->n;
 
   for (i = 0; i < n; i++) vzero(f[i]);
   for (ep = vir = 0, i = 0; i < n - 1; i++) {
@@ -310,12 +328,12 @@ double lj_force(lj_t *lj, double (*x)[D], double (*f)[D],
       vsinc(fi, dx, fs);
       vsinc(f[j], dx, -fs);
       ep += 4 * dr6 * (dr6 - 1);
-      prcnt++;
+      npr++;
     }
     vinc(f[i], fi);
   }
   if (ep0) *ep0 = ep;
-  if (eps) *eps = ep - prcnt * lj->epot_shift; /* shifted energy */
+  if (eps) *eps = ep - npr * lj->epot_shift; /* shifted energy */
   if (virial) *virial = vir;
   return ep + lj->epot_tail; /* unshifted energy */
 }
