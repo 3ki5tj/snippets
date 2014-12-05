@@ -1,13 +1,17 @@
 CC = gcc -O3 -Wall -Wextra
 LM = -lm
 
-bins = test
+srcs = $(wildcard *.c)
+bins = $(patsubst %.c,%, $(srcs))
+deps = $(wildcard *.h)
 
-$(bins) : %: %.c kmeans.h cholesky.h
+all: $(bins)
+
+$(bins): % : %.c $(deps)
 	$(CC) $< -o $@ $(LM)
 
 clean:
-	rm -rf $(prog) a.out *~ .*.un~ */*~ */.*.un~ *.dat $(bins)
+	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~ *.dat $(bins)
 	rstrip.py -Rlv
 
 Dropbox: clean
