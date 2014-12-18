@@ -1,7 +1,11 @@
-K-means clustering
+# K-means clustering #
 
+K-mean clustering demonstration.
+Adapted from Numerical Recipes.
 
-Note:
+## Notes ##
 
 In Mathematica,
+```
 ClusteringComponents[..., Method->"KMeans"]
+```

@@ -28,7 +28,7 @@ function mkpoints()
     var th = theta * Math.PI / 180.0;
     var npt = get_int("npt_" + i1, 100);
     for ( var j = 0; j < npt; j++ ) {
-      var xy = rotate(a*gaussrand(), b*gaussrand(), th);
+      var xy = rotate(a*randgaus(), b*randgaus(), th);
       datarr.push( [xc + xy[0], yc + xy[1]] );
     }
     color[i] = random_color();
