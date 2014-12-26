@@ -1,5 +1,9 @@
-Small code pieces
+# Snippets: small code pieces #
 
-Github link
-https://github.com/3ki5tj/snippets
+This is a collection of small code pieces.
+
+
+# Source code #
+
+[Github link](https://github.com/3ki5tj/snippets)
 

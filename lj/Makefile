@@ -3,6 +3,7 @@ LM = -lm
 
 srcs = $(wildcard *.c)
 bins = $(patsubst %.c,%, $(srcs))
+bin2ds = $(patsubst %,%2d, $(bins))
 deps = $(wildcard *.h)
 
 all: $(bins)
@@ -10,10 +11,12 @@ all: $(bins)
 $(bins): % : %.c $(deps)
 	$(CC) $< -o $@ $(LM)
 
+$(bin2ds): %2d : %.c $(deps)
+	$(CC) -DD=2 $< -o $@ $(LM)
+
 clean:
-	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~ *.pos
+	rm -rf $(bins) $(bin2ds) a.out *~ .*.un~ */*~ */.*.un~ *.dat
 	rstrip.py -Rlv
 
 Dropbox: clean
-	rsync -avzL --exclude="*~" * ~/Dropbox/code/lj/
-
+	rsync -avzL --exclude="*~" * ~/Dropbox/code/kmeans/

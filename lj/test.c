@@ -1,4 +1,12 @@
-#include "lj.h"
+#ifndef D
+#define D 3
+#endif
+
+#if D == 3
+#include "lj3d.h"
+#else
+#include "lj2d.h"
+#endif
 
 
 
@@ -17,11 +25,12 @@ int main(void)
     lj->epot = lj_force(lj, lj->x, lj->f, NULL, NULL, NULL);
     for (i = 0; i < n; i++) /* VV part 2 */
       vsinc(lj->v[i], lj->f[i], dth);
-    //lj->ekin = lj_ekin(lj->v, n);
     lj->ekin = lj_vrescale(lj->v, lj->n, lj->dof, tp, 20*dt);
-    printf("%d, ep %g, ek %g, e %g\n", t, lj->epot, lj->ekin, lj->epot + lj->ekin);
+    //lj->ekin = lj_ekin(lj->v, n);
+    //printf("%d, ep %g, ek %g, e %g\n", t, lj->epot, lj->ekin, lj->epot + lj->ekin);
   }
   lj_writepos(lj, lj->x, lj->v, "a.pos");
   lj_close(lj);
   return 0;
 }
+

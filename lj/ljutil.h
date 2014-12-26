@@ -76,6 +76,21 @@ __inline static double vdot(const double *x, const double *y)
 
 
 
+#if D == 2
+
+
+
+__inline static double vcross(const double *x, const double *y)
+{
+  return x[0]*y[1] - x[1]*y[0];
+}
+
+
+
+#elif D == 3
+
+
+
 __inline static double *vcross(double *z, const double *x, const double *y)
 {
   z[0] = x[1]*y[2] - x[2]*y[1];
@@ -107,6 +122,9 @@ __inline static void rm3_inv(double b[3][3], double a[3][3])
   b[2][1] = (a[2][0]*a[0][1] - a[2][1]*a[0][0])/detm;
   b[2][2] = (a[0][0]*a[1][1] - a[0][1]*a[1][0])/detm;
 }
+
+
+#endif /* D == 3 */
 
 
 

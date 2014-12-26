@@ -1,7 +1,12 @@
-/* histogram routines, copied from the zcom project
- * slightly modified and simplified */
 #ifndef HIST_H__
 #define HIST_H__
+
+
+
+/* histogram routines, copied from the zcom project
+ * slightly modified and simplified */
+
+
 
 #include <stdio.h>
 #include <stdlib.h>

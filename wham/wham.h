@@ -1,20 +1,86 @@
-/* histogram reweighting */
+#ifndef WHAM_H__
+#define WHAM_H__
+
+
+
+/* Weighted histogram analysis method
+ * this module requires `hist.h` */
+
+
 
 static int wham_savelndos(double *lndos,
     int n, double emin, double de, const char *fn);
 static void wham_getav(double *lndos, int n, double emin, double de,
     double *beta, int nt, const char *fn);
 
+
+
 #define LOG0 -1e9
 
 
 
 /* log(exp(a) + exp(b)) */
-__inline double lnadd(double a, double b)
+__inline static double lnadd(double a, double b)
 {
   double c;
   if (a < b) { c = a; a = b; b = c; } /* ensure a >= b */
   return ((c = a - b) > 50.0) ? a : a + log(1 + exp(-c));
+}
+
+
+
+/* save the density of states to file `fn` */
+static int wham_savelndos(double *lndos,
+    int n, double emin, double de, const char *fn)
+{
+  FILE *fp;
+  int i;
+
+  if ((fp = fopen(fn, "w")) == NULL) {
+    fprintf(stderr, "cannot write %s\n", fn);
+    return -1;
+  }
+  for ( i = 0; i < n; i++ )
+    if (lndos[i] > LOG0)
+      fprintf(fp, "%g %g\n", emin + (i+.5)*de, lndos[i]);
+  fclose(fp);
+  return 0;
+}
+
+
+
+/* compute the energy and heat capacity from the WHAM */
+static void wham_getav(double *lndos, int n, double emin, double de,
+    double *beta, int nt, const char *fn)
+{
+  double T, lnZ, lnE, lnE2, Eav, Evar, enei, y, loge;
+  int i, j;
+  FILE *fp;
+
+  if ( (fp = fopen(fn, "w")) == NULL ) {
+    fprintf(stderr, "cannot write %s\n", fn);
+    exit(1);
+  }
+  for ( j = 0; j < nt; j++ ) {
+    T = 1./beta[j];
+    lnZ = lnE = lnE2 = LOG0;
+    for ( i = 0; i < n; i++ ) {
+      if (lndos[i] <= LOG0) continue;
+      /* note: we do not add emin here for it may lead to
+       * a negative energy whose logarithm is undefined */
+      enei = (i + .5) * de;
+      y = lndos[i] - beta[j] * enei;
+      loge = log(enei);
+      lnZ = lnadd(lnZ, y);
+      lnE = lnadd(lnE, loge + y);
+      lnE2 = lnadd(lnE2, 2*loge + y);
+    }
+    Eav = exp(lnE - lnZ);
+    Evar = exp(lnE2 - lnZ) - Eav * Eav;
+    Eav += emin;
+    fprintf(fp, "%g %g %g %g\n", T, Eav, Evar/(T*T), lnZ - beta[j] * emin);
+  }
+  fclose(fp);
 }
 
 
@@ -48,6 +114,8 @@ static void wham_estimatelnZ(hist_t *hist, double *beta, double *lnZ)
 
 
 
+/* iteratively compute the logarithm of the density of states
+ * using the weighted histogram method */
 static double *wham_getlndos(hist_t *hist, double *beta, double *lnZ)
 {
   double *lndos, *lntot, *lnZ0 = lnZ, *lnZ1, num, den, enei;
@@ -81,12 +149,17 @@ static double *wham_getlndos(hist_t *hist, double *beta, double *lnZ)
 #ifndef WHAM_LNZTOL
 #define WHAM_LNZTOL 0.1
 #endif
+
   for ( iter = 1; iter <= WHAM_ITERMAX; iter++ ) {
     imin = -1;
     for ( i = 0; i < n; i++ ) {
       num = 0;
       den = LOG0;
-      enei = hist->xmin + (i + .5) * hist->dx; // no offset
+      enei = hist->xmin + (i + .5) * hist->dx;
+      /*        num           Sum_j arr[j, i]
+       * dos = ----- = ------------------------------------------
+       *        den     Sum_j tot[j] exp(-beta[j] * enei) / Z[j]
+       * */
       for ( j = 0; j < nbeta; j++ ) {
         x = hist->arr[j*n + i];
         if ( x <= 0 ) continue;
@@ -122,16 +195,15 @@ static double *wham_getlndos(hist_t *hist, double *beta, double *lnZ)
       lnZ[j] = lnZ1[j];
     }
 
-    if (iter % 1000 == 0 )
-    {
-      printf("iter %d, err = %g, i %d\n", iter, errmax, i);
+    if (iter % 1000 == 0 ) {
+      fprintf(stderr, "iter %d, err = %g, i %d\n", iter, errmax, i);
       //wham_savelndos(lndos, n, hist->xmin, hist->dx, "alndos.dat");
       //wham_getav(lndos, n, hist->xmin, hist->dx, beta, nbeta, "aeav.dat");
       //getchar();
     }
     if (errmax < WHAM_LNZTOL) break;
   }
-  printf("partition function converged at step %d, error %g\n", iter, errmax);
+  fprintf(stderr, "partition function converged at step %d, error %g\n", iter, errmax);
   free(lntot);
   if (lnZ0 == NULL) free(lnZ);
   free(lnZ1);
@@ -140,64 +212,13 @@ static double *wham_getlndos(hist_t *hist, double *beta, double *lnZ)
 
 
 
-static int wham_savelndos(double *lndos,
-    int n, double emin, double de, const char *fn)
-{
-  FILE *fp;
-  int i;
-
-  if ((fp = fopen(fn, "w")) == NULL) {
-    fprintf(stderr, "cannot write %s\n", fn);
-    return -1;
-  }
-  for ( i = 0; i < n; i++ )
-    if (lndos[i] > LOG0)
-      fprintf(fp, "%g %g\n", emin + (i+.5)*de, lndos[i]);
-  fclose(fp);
-  return 0;
-}
-
-
-
-/* compute the energy and heat capacity from the WHAM */
-static void wham_getav(double *lndos, int n, double emin, double de,
-    double *beta, int nt, const char *fn)
-{
-  double T, lnZ, lnE, lnE2, Eav, Evar, enei, y, loge;
-  int i, j;
-  FILE *fp;
-
-  if ((fp = fopen(fn, "w")) == NULL) {
-    fprintf(stderr, "cannot write %s\n", fn);
-    exit(1);
-  }
-  for ( j = 0; j < nt; j++ ) {
-    T = 1./beta[j];
-    lnZ = lnE = lnE2 = LOG0;
-    for ( i = 0; i < n; i++ ) {
-      if (lndos[i] <= LOG0) continue;
-      enei = (i + .5) * de; /* don't add the offset yet */
-      y = lndos[i] - beta[j] * enei;
-      loge = log(enei);
-      lnZ = lnadd(lnZ, y);
-      lnE = lnadd(lnE, loge + y);
-      lnE2 = lnadd(lnE2, 2*loge + y);
-    }
-    Eav = exp(lnE - lnZ);
-    Evar = exp(lnE2 - lnZ) - Eav * Eav;
-    Eav += emin;
-    fprintf(fp, "%g %g %g %g\n", T, Eav, Evar/(T*T), lnZ - beta[j] * emin);
-  }
-  fclose(fp);
-}
-
-
-
+/* weighted histogram analysis method */
 static void wham(hist_t *hs, double *beta, double *lnZ,
     const char *fnlndos, const char *fneav)
 {
   double *lndos = NULL;
 
+  /* estimate the density of states */
   lndos = wham_getlndos(hs, beta, lnZ);
   if (fnlndos)
     wham_savelndos(lndos, hs->n, hs->xmin, hs->dx, fnlndos);
@@ -206,3 +227,6 @@ static void wham(hist_t *hs, double *beta, double *lnZ,
   free(lndos);
 }
 
+
+
+#endif /* WHAM_H__ */
