@@ -59,37 +59,6 @@ static void lj_setrho(lj_t *lj, double rho)
 
 
 
-/* compute the kinetic energy */
-static double lj_ekin(double (*v)[D], int n)
-{
-  int i;
-  double ek = 0;
-  for ( i = 0; i < n; i++ ) ek += vsqr( v[i] );
-  return ek/2;
-}
-
-
-
-/* exact velocity rescaling thermostat */
-static double lj_vrescale(double (*v)[D], int n, int dof, double tp, double dt)
-{
-  int i;
-  double ek1, ek2, s, c, r, r2;
-
-  c = (dt < 700) ? exp(-dt) : 0;
-  ek1 = lj_ekin(v, n);
-  r = randgaus();
-  r2 = randchisqr(dof - 1);
-  ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
-      + 2 * r * sqrt(c * (1 - c) * ek1 * tp / 2);
-  if (ek2 < 0) ek2 = 0;
-  s = sqrt(ek2/ek1);
-  for (i = 0; i < n; i++) vsmul(v[i], s);
-  return ek2;
-}
-
-
-
 /* remove the center of mass motion */
 static void lj_rmcom(double (*x)[D], int n)
 {
@@ -174,27 +143,24 @@ static int lj_writepos(lj_t *lj, double (*x)[D], double (*v)[D], const char *fn)
 
 
 
-static double lj_pbc(double x, double l)
-{
-  return x - ((int)(x/l + 1000.5) - 1000)*l;
-}
+#define LJ_PBC(x, l, invl) { (x) -= ((int)((x)*invl + 1000.5) - 1000.)*l; }
 
 
 
-static double *lj_vpbc(double *v, double l)
+static double *lj_vpbc(double *v, double l, double invl)
 {
   int d;
   for ( d = 0; d < D; d++ )
-    v[d] = lj_pbc(v[d], l);
+    LJ_PBC(v[d], l, invl);
   return v;
 }
 
 
 
-static double lj_pbcdist2(double *dx,
-    const double *a, const double *b, double l)
+static double lj_pbcdist2(double *dx, const double *a, const double *b,
+    double l, double invl)
 {
-  return vsqr( lj_vpbc(vdiff(dx, a, b), l) );
+  return vsqr( lj_vpbc(vdiff(dx, a, b), l, invl) );
 }
 
 
@@ -203,12 +169,13 @@ static double lj_pbcdist2(double *dx,
 __inline static double lj_energy(lj_t *lj, double (*x)[D],
     double *virial, double *ep0, double *eps)
 {
-  double dx[D], dr2, dr6, ep, vir, l = lj->l, rc2 = lj->rc2;
+  double dx[D], dr2, dr6, ep, vir, rc2 = lj->rc2;
+  double l = lj->l, invl = 1/l;
   int i, j, npr = 0, n = lj->n;
 
   for (ep = vir = 0, i = 0; i < n - 1; i++) {
     for (j = i + 1; j < n; j++) {
-      dr2 = lj_pbcdist2(dx, x[i], x[j], l);
+      dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
       if (dr2 > rc2) continue;
       dr2 = 1 / dr2;
       dr6 = dr2 * dr2 * dr2;
@@ -229,14 +196,15 @@ __inline static double lj_energy(lj_t *lj, double (*x)[D],
 __inline static double lj_force(lj_t *lj, double (*x)[D], double (*f)[D],
     double *virial, double *ep0, double *eps)
 {
-  double dx[D], fi[D], dr2, dr6, fs, ep, vir, l = lj->l, rc2 = lj->rc2;
+  double dx[D], fi[D], dr2, dr6, fs, ep, vir, rc2 = lj->rc2;
+  double l = lj->l, invl = 1/l;
   int i, j, npr = 0, n = lj->n;
 
   for (i = 0; i < n; i++) vzero(f[i]);
   for (ep = vir = 0, i = 0; i < n - 1; i++) {
     vzero(fi);
     for (j = i + 1; j < n; j++) {
-      dr2 = lj_pbcdist2(dx, x[i], x[j], l);
+      dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
       if (dr2 > rc2) continue;
       dr2 = 1 / dr2;
       dr6 = dr2 * dr2 * dr2;
@@ -254,6 +222,57 @@ __inline static double lj_force(lj_t *lj, double (*x)[D], double (*f)[D],
   if (eps) *eps = ep - npr * lj->epot_shift; /* shifted energy */
   if (virial) *virial = vir;
   return ep + lj->epot_tail; /* unshifted energy */
+}
+
+
+
+/* velocity-verlet */
+static void lj_vv(lj_t *lj, double dt)
+{
+  int i, n = lj->n;
+  double dth = dt * .5;
+
+  for (i = 0; i < n; i++) { /* VV part 1 */
+    vsinc(lj->v[i], lj->f[i], dth);
+    vsinc(lj->x[i], lj->v[i], dt);
+  }
+  lj->epot = lj_force(lj, lj->x, lj->f, NULL, NULL, NULL);
+  for (i = 0; i < n; i++) /* VV part 2 */
+    vsinc(lj->v[i], lj->f[i], dth);
+}
+
+
+
+/* compute the kinetic energy */
+static double lj_ekin(double (*v)[D], int n)
+{
+  int i;
+  double ek = 0;
+  for ( i = 0; i < n; i++ ) ek += vsqr( v[i] );
+  return ek/2;
+}
+
+
+
+#define lj_vrescale(lj, tp, dt) \
+  lj_vrescale_low(lj->v, lj->n, lj->dof, tp, dt)
+
+/* exact velocity rescaling thermostat */
+static double lj_vrescale_low(double (*v)[D], int n, int dof, double tp, double dt)
+{
+  int i;
+  double ek1, ek2, s, c, r, r2;
+
+  c = (dt < 700) ? exp(-dt) : 0;
+  ek1 = lj_ekin(v, n);
+  r = randgaus();
+  r2 = randchisqr(dof - 1);
+  ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
+      + 2 * r * sqrt(c * (1 - c) * ek1 * tp / 2);
+  if (ek2 < 0) ek2 = 0;
+  s = sqrt(ek2/ek1);
+  for (i = 0; i < n; i++) vsmul(v[i], s);
+  return ek2;
 }
 
 

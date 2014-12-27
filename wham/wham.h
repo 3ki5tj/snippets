@@ -8,6 +8,10 @@
 
 
 
+#include "hist.h"
+
+
+
 static int wham_savelndos(double *lndos,
     int n, double emin, double de, const char *fn);
 static void wham_getav(double *lndos, int n, double emin, double de,
@@ -230,3 +234,4 @@ static void wham(hist_t *hs, double *beta, double *lnZ,
 
 
 #endif /* WHAM_H__ */
+
