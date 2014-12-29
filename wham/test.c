@@ -7,12 +7,18 @@ double rho = 0.3;
 double rcdef = 2.5;
 double dt = 0.002; /* MD time step */
 double thdt = 0.02; /* thermostat time step */
-int nequil = 10000;
-int nsteps = 100000;
+int nequil = 4000;
+int nsteps = 40000;
 
-int ntp = 10;
-double xmin, xmax, dx;
+int ntp = 5;
+double xmin = -600, xmax = 100, dx = 0.1;
+int itmax = 100000;
+double tol = 1e-7;
+int nbases = 5;
 
+const char *fnlndos = "lndos.dat";
+const char *fneav = "eav.dat";
+const char *fnhist = "hist.dat";
 
 
 int main(void)
@@ -28,23 +34,30 @@ int main(void)
   xnew(epot, ntp);
   for ( itp = 0; itp < ntp; itp++ ) {
     lj[itp] = lj_open(n, rho, rcdef);
-    beta[itp] = 1./(1 + .1 * itp);
+    beta[itp] = 1./(0.8 + .3 * itp);
     lnz[itp] = epot[itp] = 0;
   }
   hs = hist_open(ntp, xmin, xmax, dx);
 
-  /* do the simulations */
-  for ( istep = 1; istep <= nequil + nsteps; istep++ ) {
-    for ( itp = 0; itp < ntp; itp++ ) {
-      lj_vv(lj[itp], dt);
-      lj[itp]->ekin = lj_vrescale(lj[itp], 1/beta[itp], thdt);
-      epot[itp] = lj[itp]->epot;
+  /* try to load the histogram, if it fails, do simulations */
+  if ( 0 != hist_load(hs, fnhist, HIST_VERBOSE) ) {
+    /* do the simulations */
+    for ( istep = 1; istep <= nequil + nsteps; istep++ ) {
+      for ( itp = 0; itp < ntp; itp++ ) {
+        lj_vv(lj[itp], dt);
+        lj[itp]->ekin = lj_vrescale(lj[itp], 1/beta[itp], thdt);
+        epot[itp] = lj[itp]->epot;
+      }
+      if ( istep <= nequil ) continue;
+      hist_add(hs, epot, 1, 0);
     }
-    if ( istep <= nequil ) continue;
-    hist_add(hs, epot, 1, 0);
+
+    fprintf(stderr, "simulation ended, doing WHAM\n");
+    hist_save(hs, fnhist, HIST_ADDAHALF);
   }
 
-  wham(hs, beta, lnz, NULL, NULL);
+  //wham(hs, beta, lnz, itmax, tol, fnlndos, fneav);
+  wham_mdiis(hs, beta, lnz, nbases, 1.0, itmax, tol, 0, fnlndos, fneav);
   hist_close(hs);
   for ( itp = 0; itp < ntp; itp++ )
     lj_close( lj[itp] );

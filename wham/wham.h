@@ -9,13 +9,57 @@
 
 
 #include "hist.h"
+#include "mdiis.h"
 
 
 
-static int wham_savelndos(double *lndos,
-    int n, double emin, double de, const char *fn);
-static void wham_getav(double *lndos, int n, double emin, double de,
-    double *beta, int nt, const char *fn);
+typedef struct {
+  double *beta; /* temperature array, reference */
+  double *lnz; /* partition function, reference */
+  double *lnz1;
+  double *res;
+  double *lndos; /* density of states */
+  double *lntot;
+  hist_t *hist; /* histograms, reference */
+} wham_t;
+
+
+
+static wham_t *wham_open(double *beta, double *lnz, hist_t *hist)
+{
+  wham_t *w;
+  int i, j, nbeta = hist->rows, n = hist->n;
+
+  xnew(w, 1);
+  w->beta = beta;
+  w->lnz = lnz;
+  w->hist = hist;
+  xnew(w->lntot, hist->rows);
+  xnew(w->lnz1, hist->rows);
+  xnew(w->res, hist->rows);
+  xnew(w->lndos, hist->n);
+
+  /* compute the total */
+  for ( j = 0; j < nbeta; j++ ) {
+    double x = 0;
+    for ( i = 0; i < n; i++ )
+      x += hist->arr[j*n+i];
+    w->lntot[j] = log(x);
+  }
+
+  return w;
+}
+
+
+
+static void wham_close(wham_t *w)
+{
+  free(w->lnz1);
+  free(w->res);
+  free(w->lndos);
+  free(w->lntot);
+  free(w);
+}
 
 
 
@@ -24,7 +68,7 @@ static void wham_getav(double *lndos, int n, double emin, double de,
 
 
 /* log(exp(a) + exp(b)) */
-__inline static double lnadd(double a, double b)
+__inline static double wham_lnadd(double a, double b)
 {
   double c;
   if (a < b) { c = a; a = b; b = c; } /* ensure a >= b */
@@ -34,19 +78,18 @@ __inline static double lnadd(double a, double b)
 
 
 /* save the density of states to file `fn` */
-static int wham_savelndos(double *lndos,
-    int n, double emin, double de, const char *fn)
+static int wham_savelndos(wham_t *w, const char *fn)
 {
   FILE *fp;
-  int i;
+  int i, n = w->hist->n, emin = w->hist->xmin, de = w->hist->dx;
 
   if ((fp = fopen(fn, "w")) == NULL) {
     fprintf(stderr, "cannot write %s\n", fn);
     return -1;
   }
   for ( i = 0; i < n; i++ )
-    if (lndos[i] > LOG0)
-      fprintf(fp, "%g %g\n", emin + (i+.5)*de, lndos[i]);
+    if ( w->lndos[i] > LOG0 )
+      fprintf(fp, "%g %g\n", emin + (i+.5)*de, w->lndos[i]);
   fclose(fp);
   return 0;
 }
@@ -54,50 +97,52 @@ static int wham_savelndos(double *lndos,
 
 
 /* compute the energy and heat capacity from the WHAM */
-static void wham_getav(double *lndos, int n, double emin, double de,
-    double *beta, int nt, const char *fn)
+static void wham_getav(wham_t *w, const char *fn)
 {
+  hist_t *hist = w->hist;
   double T, lnZ, lnE, lnE2, Eav, Evar, enei, y, loge;
-  int i, j;
-  FILE *fp;
+  double de = hist->dx, emin = hist->xmin;
+  int i, j, n = hist->n, nbeta = hist->rows;
+  FILE *fp = NULL;
 
-  if ( (fp = fopen(fn, "w")) == NULL ) {
+  if ( fn != NULL && (fp = fopen(fn, "w")) == NULL ) {
     fprintf(stderr, "cannot write %s\n", fn);
-    exit(1);
   }
-  for ( j = 0; j < nt; j++ ) {
-    T = 1./beta[j];
+  for ( j = 0; j < nbeta; j++ ) {
+    T = 1./w->beta[j];
     lnZ = lnE = lnE2 = LOG0;
     for ( i = 0; i < n; i++ ) {
-      if (lndos[i] <= LOG0) continue;
+      if (w->lndos[i] <= LOG0) continue;
       /* note: we do not add emin here for it may lead to
        * a negative energy whose logarithm is undefined */
       enei = (i + .5) * de;
-      y = lndos[i] - beta[j] * enei;
+      y = w->lndos[i] - w->beta[j] * enei;
       loge = log(enei);
-      lnZ = lnadd(lnZ, y);
-      lnE = lnadd(lnE, loge + y);
-      lnE2 = lnadd(lnE2, 2*loge + y);
+      lnZ = wham_lnadd(lnZ, y);
+      lnE = wham_lnadd(lnE, loge + y);
+      lnE2 = wham_lnadd(lnE2, 2*loge + y);
     }
     Eav = exp(lnE - lnZ);
     Evar = exp(lnE2 - lnZ) - Eav * Eav;
     Eav += emin;
-    fprintf(fp, "%g %g %g %g\n", T, Eav, Evar/(T*T), lnZ - beta[j] * emin);
+    if ( fp != NULL )
+      fprintf(fp, "%g %g %g %g\n", T, Eav, Evar/(T*T), lnZ - w->beta[j] * emin);
   }
-  fclose(fp);
+  if ( fp != NULL ) fclose(fp);
 }
 
 
 
 /* estimate the partition function using the single histogram method */
-static void wham_estimatelnZ(hist_t *hist, double *beta, double *lnZ)
+static void wham_estimatelnz(wham_t *w, double *beta, double *lnz)
 {
-  int i, j, n = hist->n, nbeta = hist->rows;
+  hist_t *hist = w->hist;
+  int i, j, n = hist->n, nt = hist->rows;
   double dbet, enei, hc, s, logsx;
 
-  lnZ[0] = 0;
-  for ( j = 0; j < nbeta - 1; j++ ) {
-    dbet = beta[j+1] - beta[j];
+  lnz[0] = 0;
+  for ( j = 0; j < nt - 1; j++ ) {
+    dbet = w->beta[j+1] - w->beta[j];
     s = 0;
     logsx = LOG0;
     for ( i = 0; i < n; i++ ) {
@@ -105,130 +150,136 @@ static void wham_estimatelnZ(hist_t *hist, double *beta, double *lnZ)
       if ( hc <= 0 ) continue;
       enei = hist->xmin + (i + .5) * hist->dx; // no offset
       s += hc;
-      logsx = lnadd(logsx, log(hc) - dbet * enei);
+      logsx = wham_lnadd(logsx, log(hc) - dbet * enei);
     }
     if ( s <= 0 ) {
-      lnZ[j+1] = lnZ[j];
+      lnz[j+1] = lnz[j];
       continue;
     }
-    lnZ[j+1] = lnZ[j] + logsx - log(s);
+    lnz[j+1] = lnz[j] + logsx - log(s);
     //printf("j %d, dlnZ %g, logsx %g, s %g\n", j, lnZ[j+1]-lnZ[j], logsx, s);
   }
 }
 
 
 
+static double wham_step(wham_t *w, double *lnz, double *res, int update)
+{
+  hist_t *hist = w->hist;
+  int i, j, imin;
+  int n = hist->n, nbeta = hist->rows;
+  double x, num, den, enei, emin = hist->xmin, de = hist->dx, err;
+
+  imin = -1;
+  for ( i = 0; i < n; i++ ) {
+    num = 0;
+    den = LOG0;
+    enei = emin + (i + .5) * de;
+    /*        num           Sum_j arr[j, i]
+     * dos = ----- = ------------------------------------------
+     *        den     Sum_j tot[j] exp(-beta[j] * enei) / Z[j]
+     * */
+    for ( j = 0; j < nbeta; j++ ) {
+      x = hist->arr[j*n + i];
+      if ( x <= 0 ) continue;
+      num += x;
+      den = wham_lnadd(den, w->lntot[j] - w->beta[j] * enei - lnz[j]);
+    }
+    if ( num > 0 ) {
+      w->lndos[i] = log(num) - den;
+      if ( imin < 0 ) imin = i;
+    } else {
+      w->lndos[i] = LOG0;
+    }
+  }
+
+  /* shift the origin of the density of states */
+  for ( x = w->lndos[imin], i = n - 1; i >= 0; i-- )
+    if ( w->lndos[i] > LOG0 )
+      w->lndos[i] -= x;
+
+  /* refresh the partition function */
+  for ( j = 0; j < nbeta; j++ ) {
+    for ( w->lnz1[j] = LOG0, i = 0; i < n; i++ ) {
+      if ( w->lndos[i] <= LOG0) continue;
+      enei = hist->xmin + (i + .5) * hist->dx;
+      w->lnz1[j] = wham_lnadd(w->lnz1[j], w->lndos[i] - w->beta[j] * enei);
+    }
+  }
+  for ( x = w->lnz1[0], j = 0; j < nbeta; j++ )
+    w->lnz1[j] -= x; /* shift the baseline */
+
+  for ( err = 0, j = 0; j < nbeta; j++ ) {
+    res[j] = w->lnz1[j] - lnz[j];
+    if ( fabs(res[j]) > err ) err = fabs(res[j]);
+    if ( update ) lnz[j] = w->lnz1[j];
+  }
+
+  return err;
+}
+
+
+
+static double wham_getres(void *w, double *lnz, double *res)
+{
+  return wham_step((wham_t *) w, lnz, res, 0);
+}
+
+
+
 /* iteratively compute the logarithm of the density of states
  * using the weighted histogram method */
-static double *wham_getlndos(hist_t *hist, double *beta, double *lnZ)
+static double wham_getlndos(wham_t *w, double *lnz, int itmax, double tol)
 {
-  double *lndos, *lntot, *lnZ0 = lnZ, *lnZ1, num, den, enei;
-  double err, errmax, x;
-  int i, imin, j, n = hist->n, nbeta = hist->rows;
-  int iter;
+  hist_t *hist = w->hist;
+  int j, iter, n = hist->n, nbeta = hist->rows;
+  double err;
 
-  xnew(lndos, n);
-  xnew(lntot, nbeta);
-  if (lnZ == NULL)
-    xnew(lnZ, nbeta);
-  xnew(lnZ1, nbeta);
-
-  for ( j = 0; j < nbeta; j++ ) {
-    if ( fabs(lnZ[j]) > 1e-30 ) break;
-  }
+  for ( j = 0; j < nbeta; j++ )
+    if ( fabs(lnz[j]) > DBL_MIN ) break;
   if ( j == nbeta )
-    wham_estimatelnZ(hist, beta, lnZ);
+    wham_estimatelnz(w, w->beta, lnz);
 
-  /* compute the total */
-  for ( j = 0; j < nbeta; j++ ) {
-    num = 0;
-    for ( i = 0; i < n; i++ )
-      num += hist->arr[j*n+i];
-    lntot[j] = log(num);
-  }
-
-#ifndef WHAM_ITERMAX
-#define WHAM_ITERMAX 100000
-#endif
-#ifndef WHAM_LNZTOL
-#define WHAM_LNZTOL 0.1
-#endif
-
-  for ( iter = 1; iter <= WHAM_ITERMAX; iter++ ) {
-    imin = -1;
-    for ( i = 0; i < n; i++ ) {
-      num = 0;
-      den = LOG0;
-      enei = hist->xmin + (i + .5) * hist->dx;
-      /*        num           Sum_j arr[j, i]
-       * dos = ----- = ------------------------------------------
-       *        den     Sum_j tot[j] exp(-beta[j] * enei) / Z[j]
-       * */
-      for ( j = 0; j < nbeta; j++ ) {
-        x = hist->arr[j*n + i];
-        if ( x <= 0 ) continue;
-        num += x;
-        den = lnadd(den, lntot[j] - beta[j] * enei - lnZ[j]);
-      }
-      if ( num > 0 ) {
-        lndos[i] = log(num) - den;
-        if ( imin < 0 ) imin = i;
-      } else {
-        lndos[i] = LOG0;
-      }
-    }
-
-    /* shift the origin of the density of states */
-    for ( i = n - 1; i >= 0; i-- )
-      if (lndos[i] > LOG0)
-        lndos[i] -= lndos[imin];
-
-    /* refresh the partition function */
-    for ( j = 0; j < nbeta; j++ ) {
-      for ( lnZ1[j] = LOG0, i = 0; i < n; i++ ) {
-        if (lndos[i] <= LOG0) continue;
-        enei = hist->xmin + (i + .5) * hist->dx;
-        lnZ1[j] = lnadd(lnZ1[j], lndos[i] - beta[j] * enei);
-      }
-    }
-    errmax = 0;
-    for ( i = -1, j = nbeta - 1; j >= 0; j-- ) {
-      lnZ1[j] -= lnZ1[0]; /* shift the base */
-      err = fabs(lnZ1[j] - lnZ[j]);
-      if (err > errmax) { i = j; errmax = err; }
-      lnZ[j] = lnZ1[j];
-    }
-
+  for ( iter = 1; iter <= itmax; iter++ ) {
+    err = wham_step(w, lnz, w->res, 1);
     if (iter % 1000 == 0 ) {
-      fprintf(stderr, "iter %d, err = %g, i %d\n", iter, errmax, i);
+      fprintf(stderr, "iter %d, err = %g\n", iter, err);
       //wham_savelndos(lndos, n, hist->xmin, hist->dx, "alndos.dat");
       //wham_getav(lndos, n, hist->xmin, hist->dx, beta, nbeta, "aeav.dat");
       //getchar();
     }
-    if (errmax < WHAM_LNZTOL) break;
+    if (err < tol) break;
   }
-  fprintf(stderr, "partition function converged at step %d, error %g\n", iter, errmax);
-  free(lntot);
-  if (lnZ0 == NULL) free(lnZ);
-  free(lnZ1);
-  return lndos;
+  fprintf(stderr, "partition function converged at step %d, error %g\n", iter, err);
+  return err;
 }
 
 
 
 /* weighted histogram analysis method */
-static void wham(hist_t *hs, double *beta, double *lnZ,
+static void wham(hist_t *hist, double *beta, double *lnz,
+    int itmax, double tol,
     const char *fnlndos, const char *fneav)
 {
-  double *lndos = NULL;
+  wham_t *w = wham_open(beta, lnz, hist);
+  wham_getlndos(w, lnz, itmax, tol);
+  if ( fnlndos ) wham_savelndos(w, fnlndos);
+  wham_getav(w, fneav);
+  wham_close(w);
+}
 
-  /* estimate the density of states */
-  lndos = wham_getlndos(hs, beta, lnZ);
-  if (fnlndos)
-    wham_savelndos(lndos, hs->n, hs->xmin, hs->dx, fnlndos);
-  wham_getav(lndos, hs->n, hs->xmin, hs->dx,
-      beta, hs->rows, fneav);
-  free(lndos);
+
+
+static void wham_mdiis(hist_t *hist, double *beta, double *lnz,
+    int nbases, double damp, int itmax, double tol, int verbose,
+    const char *fnlndos, const char *fneav)
+{
+  wham_t *w = wham_open(beta, lnz, hist);
+  iter_mdiis(lnz, hist->rows, wham_getres, w, nbases, damp,
+     itmax, tol, verbose);
+  if ( fnlndos ) wham_savelndos(w, fnlndos);
+  wham_getav(w, fneav);
+  wham_close(w);
 }
 
 

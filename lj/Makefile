@@ -19,4 +19,4 @@ clean:
 	rstrip.py -Rlv
 
 Dropbox: clean
-	rsync -avzL --exclude="*~" * ~/Dropbox/code/kmeans/
+	rsync -avzL --exclude="*~" * ~/Dropbox/code/lj/
