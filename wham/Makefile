@@ -1,11 +1,11 @@
-CC = icc
+CC = icc -Wall -Wremarks
 LM =
 #CC = gcc -O3 -Wall -Wextra
 #LM = -lm
 
 srcs = $(wildcard *.c)
 bins = $(patsubst %.c,%, $(srcs))
-deps = $(wildcard *.h)
+deps = $(wildcard *.h) Makefile
 
 all: $(bins)
 

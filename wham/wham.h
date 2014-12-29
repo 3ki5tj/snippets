@@ -81,7 +81,8 @@ __inline static double wham_lnadd(double a, double b)
 static int wham_savelndos(wham_t *w, const char *fn)
 {
   FILE *fp;
-  int i, n = w->hist->n, emin = w->hist->xmin, de = w->hist->dx;
+  int i, n = w->hist->n;
+  double emin = w->hist->xmin, de = w->hist->dx;
 
   if ((fp = fopen(fn, "w")) == NULL) {
     fprintf(stderr, "cannot write %s\n", fn);
@@ -134,14 +135,14 @@ static void wham_getav(wham_t *w, const char *fn)
 
 
 /* estimate the partition function using the single histogram method */
-static void wham_estimatelnz(wham_t *w, double *beta, double *lnz)
+static void wham_estimatelnz(wham_t *w, double *lnz)
 {
   hist_t *hist = w->hist;
-  int i, j, n = hist->n, nt = hist->rows;
+  int i, j, n = hist->n, nbeta = hist->rows;
   double dbet, enei, hc, s, logsx;
 
   lnz[0] = 0;
-  for ( j = 0; j < nt - 1; j++ ) {
+  for ( j = 0; j < nbeta - 1; j++ ) {
     dbet = w->beta[j+1] - w->beta[j];
     s = 0;
     logsx = LOG0;
@@ -232,22 +233,18 @@ static double wham_getres(void *w, double *lnz, double *res)
 static double wham_getlndos(wham_t *w, double *lnz, int itmax, double tol)
 {
   hist_t *hist = w->hist;
-  int j, iter, n = hist->n, nbeta = hist->rows;
+  int j, iter, nbeta = hist->rows;
   double err;
 
   for ( j = 0; j < nbeta; j++ )
     if ( fabs(lnz[j]) > DBL_MIN ) break;
   if ( j == nbeta )
-    wham_estimatelnz(w, w->beta, lnz);
+    wham_estimatelnz(w, lnz);
 
   for ( iter = 1; iter <= itmax; iter++ ) {
     err = wham_step(w, lnz, w->res, 1);
-    if (iter % 1000 == 0 ) {
+    if (iter % 1000 == 0 )
       fprintf(stderr, "iter %d, err = %g\n", iter, err);
-      //wham_savelndos(lndos, n, hist->xmin, hist->dx, "alndos.dat");
-      //wham_getav(lndos, n, hist->xmin, hist->dx, beta, nbeta, "aeav.dat");
-      //getchar();
-    }
     if (err < tol) break;
   }
   fprintf(stderr, "partition function converged at step %d, error %g\n", iter, err);

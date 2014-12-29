@@ -117,7 +117,8 @@ static void lj_close(lj_t *lj)
 
 
 /* write positions (and possibly velocities) */
-static int lj_writepos(lj_t *lj, double (*x)[D], double (*v)[D], const char *fn)
+__inline static int lj_writepos(lj_t *lj,
+    double (*x)[D], double (*v)[D], const char *fn)
 {
   FILE *fp;
   int i, d, n = lj->n;
@@ -160,7 +161,8 @@ static double *lj_vpbc(double *v, double l, double invl)
 static double lj_pbcdist2(double *dx, const double *a, const double *b,
     double l, double invl)
 {
-  return vsqr( lj_vpbc(vdiff(dx, a, b), l, invl) );
+  lj_vpbc(vdiff(dx, a, b), l, invl);
+  return vsqr( dx );
 }
 
 

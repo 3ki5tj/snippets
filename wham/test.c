@@ -20,13 +20,21 @@ const char *fnlndos = "lndos.dat";
 const char *fneav = "eav.dat";
 const char *fnhist = "hist.dat";
 
+enum { METHOD_DIRECT = 0, METHOD_MDIIS = 1 };
+int method = METHOD_DIRECT;
 
-int main(void)
+
+
+int main(int argc, char **argv)
 {
   hist_t *hs;
   double *beta, *lnz, *epot;
   lj_t **lj;
   int itp, istep;
+
+  if ( argc > 1 ) {
+    method = atoi(argv[1]);
+  }
 
   xnew(lj, ntp);
   xnew(beta, ntp);
@@ -56,8 +64,11 @@ int main(void)
     hist_save(hs, fnhist, HIST_ADDAHALF);
   }
 
-  //wham(hs, beta, lnz, itmax, tol, fnlndos, fneav);
-  wham_mdiis(hs, beta, lnz, nbases, 1.0, itmax, tol, 0, fnlndos, fneav);
+  if ( method == METHOD_DIRECT ) {
+    wham(hs, beta, lnz, itmax, tol, fnlndos, fneav);
+  } else {
+    wham_mdiis(hs, beta, lnz, nbases, 1.0, itmax, tol, 0, fnlndos, fneav);
+  }
   hist_close(hs);
   for ( itp = 0; itp < ntp; itp++ )
     lj_close( lj[itp] );
