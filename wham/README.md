@@ -2,4 +2,4 @@
 
 ## Overview ##
 
-This module requires `hist.h`.
+This module requires modules `hist` and `mdiis`.

@@ -1,4 +1,4 @@
-# hist.h Reading and writing histograms #
+# Reading and writing histograms #
 
 ## Features ##
 

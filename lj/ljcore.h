@@ -25,7 +25,8 @@ typedef struct {
   double (*x)[D]; /* position */
   double (*v)[D]; /* velocity */
   double (*f)[D]; /* force */
-  double epot;
+  double epot, ep0, eps;
+  double vir;
   double ekin;
   double epot_shift;
   double epot_tail;
@@ -238,7 +239,7 @@ static void lj_vv(lj_t *lj, double dt)
     vsinc(lj->v[i], lj->f[i], dth);
     vsinc(lj->x[i], lj->v[i], dt);
   }
-  lj->epot = lj_force(lj, lj->x, lj->f, NULL, NULL, NULL);
+  lj->epot = lj_force(lj, lj->x, lj->f, &lj->vir, &lj->ep0, &lj->eps);
   for (i = 0; i < n; i++) /* VV part 2 */
     vsinc(lj->v[i], lj->f[i], dth);
 }
@@ -275,6 +276,25 @@ static double lj_vrescale_low(double (*v)[D], int n, int dof, double tp, double 
   s = sqrt(ek2/ek1);
   for (i = 0; i < n; i++) vsmul(v[i], s);
   return ek2;
+}
+
+
+
+/* position Langevin barostat, with coordinates only
+ * NOTE: the first parameter is the degree of freedom
+ * the scaling is r = r*s
+ * set cutoff to half of the box */
+__inline static void lj_langp0(lj_t *lj, double dt,
+    double tp, double pext, int ensx)
+{
+  double pintv, amp, dlnv;
+
+  pintv = (lj->vir + lj->dof * tp)/D + lj->p_tail * lj->vol;
+  amp = sqrt(2 * dt);
+  dlnv = ((pintv - pext * lj->vol)/tp + 1 - ensx) * dt + amp * randgaus();
+  lj->vol *= exp( dlnv );
+  lj_setrho(lj, lj->n / lj->vol);
+  lj->epot = lj_force(lj, lj->x, lj->f, &lj->vir, &lj->ep0, &lj->eps);
 }
 
 

@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <math.h>
+#include <float.h>
 
 #ifndef xnew
 #define xnew(x, n) { \
@@ -52,7 +53,7 @@ __inline double *histgetsums_(const double *h, int rows, int n,
       xav[r]  += w*x;
       xxc[r]  += w*x*x;
     }
-    if (sums[r] > 1e-5) {
+    if (sums[r] > DBL_MIN) {
       xav[r] /= sums[r];
       xxc[r] = xxc[r]/sums[r] - xav[r]*xav[r];
     }
@@ -133,11 +134,11 @@ __inline int histsave(const double *h, int rows, int n, double xmin, double dx,
     }
 
     sm = (r == rows) ? smtot[0] : sums[r];
-    if (fabs(sm) < 1e-6) fac = 1.;
+    if (fabs(sm) < DBL_MIN) fac = 1.;
     else fac = 1.0/(sm*dx);
 
     for (i = imin; i < imax; i++) {
-      if ((flags & HIST_NOZEROES) && p[i] < 1e-6)
+      if ((flags & HIST_NOZEROES) && p[i] < DBL_MIN)
         continue;
       fprintf(fp, "%g ", xmin+(i+delta)*dx);
       if (flags & HIST_KEEPHIST)
