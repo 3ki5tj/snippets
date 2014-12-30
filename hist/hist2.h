@@ -18,12 +18,12 @@ __inline static double *hist2getsums_(const double *h, int rows, int n,
   int i, j, r;
 
   xav = sums + rows;
-  xxc = sums + rows*2;
-  yav = sums + rows*3;
-  yyc = sums + rows*4;
-  xyc = sums + rows*5;
+  yav = sums + rows*2;
+  xxc = sums + rows*3;
+  xyc = sums + rows*4;
+  yyc = sums + rows*5;
   for (r = 0; r < rows; r++) {
-    sums[r] = xav[r] = xxc[r] = yav[r] = yyc[r] = 0.;
+    sums[r] = xav[r] = yav[r] = xxc[r] = xyc[r] = yyc[r] = 0.;
     for (i = 0; i < n; i++) {
       x = xmin + (i+.5)*dx;
       for (j = 0; j < m; j++) {
@@ -37,12 +37,12 @@ __inline static double *hist2getsums_(const double *h, int rows, int n,
         xyc[r]  += w*x*y;
       }
     }
-    if (sums[r] > 1e-5) {
+    if (sums[r] > 0) {
       xav[r] /= sums[r];
-      xxc[r] = sqrt(xxc[r]/sums[r] - xav[r]*xav[r]);
       yav[r] /= sums[r];
-      yyc[r] = sqrt(yyc[r]/sums[r] - yav[r]*yav[r]);
+      xxc[r] = xxc[r]/sums[r] - xav[r]*xav[r];
       xyc[r] = xyc[r]/sums[r] - xav[r]*yav[r];
+      yyc[r] = yyc[r]/sums[r] - yav[r]*yav[r];
     }
   }
   return sums;
@@ -172,7 +172,7 @@ __inline static int hist2load(double *hist, int rows, int n, double xmin, double
   int ver, next, hashist;
   int i, j, r, r1, nm, nlin = 0;
   unsigned fflags;
-  double x, y, g, g2, fac, delta, *arr, *sums = NULL;
+  double x, y, xx, yy, xy, g, g2, fac, delta, *arr, *sums = NULL;
   double xmin1, dx1, ymin1, dy1;
 
   if ( (fp = fopen(fn, "r")) == NULL ) {
@@ -180,7 +180,7 @@ __inline static int hist2load(double *hist, int rows, int n, double xmin, double
     return -1;
   }
 
-  nm = n*m;
+  nm = n * m;
   /* check the first line */
   if (fgets(s, sizeof s, fp) == NULL || s[0] != '#') {
     fprintf(stderr, "%s: missing the first line\n", fn);
@@ -210,15 +210,16 @@ __inline static int hist2load(double *hist, int rows, int n, double xmin, double
   }
   if ((p = skipabar_(p)) == NULL) goto EXIT;
   for (r = 0; r < rows; r++) {
-    if (4 != sscanf(p, "%lf%lf%lf%lf%n", &x, &y, &g, &g2, &next)) {
-      fprintf(stderr, "cannot read average/stddev from at %d/%d, s:\n%s\np:\n%s\n", r, rows, s, p);
+    if (5 != sscanf(p, "%lf%lf%lf%lf%lf%n", &x, &y, &xx, &yy, &xy, &next)) {
+      fprintf(stderr, "cannot read ave./cov. from at %d/%d, s:\n%s\np:\n%s\n",
+          r, rows, s, p);
       goto EXIT;
     }
     p += next;
   }
   if ((p = skipabar_(p)) == NULL) goto EXIT;
 
-  if (!add) { /* clear histogram */
+  if ( !add ) { /* clear histogram */
     for (i = 0; i < rows*nm; i++) hist[i] = 0.;
   }
 
@@ -226,10 +227,10 @@ __inline static int hist2load(double *hist, int rows, int n, double xmin, double
   for (r = 0; r < rows; r++) {
     arr = hist + r*nm;
     fac = sums[r]*(dx*dx);
-    while (fgets(s, sizeof s, fp)) {
+    while ( fgets(s, sizeof s, fp) != NULL ) {
       nlin++;
-      for (p = s+strlen(s)-1; isspace((unsigned char)(*p)) && p >= s; p--)
-        *p = '\0'; /* trim ending */
+      for (p = s+strlen(s)-1; p >= s && isspace((unsigned char)(*p)); p--)
+        *p = '\0'; /* trim the ending */
       if (s[0] == '#') break;
       if (s[0] == '\0') continue;
 
@@ -325,14 +326,13 @@ typedef struct {
 
 
 
-#define hist2_clear(hs2) dblcleararr(hs2->arr, hs2->rows * hs2->n * hs2->m)
+__inline static void hist2_clear(hist2_t *hs2)
+{
+  int i, n = hs2->rows * hs2->n * hs2->m;
+  for ( i = 0; i < n; i++ ) hs2->arr[i] = 0;
+}
 
-#define hist2_open1(xmin, xmax, dx, ymin, ymax, dy) \
-  hist2_open(1, xmin, xmax, dx, ymin, ymax, dy)
-#define hist2_opensqr(rows, xmin, xmax, dx) \
-  hist2_open(rows, xmin, xmax, dx, xmin, xmax, dx)
-#define hist2_opensqr1(xmin, xmax, dx) \
-  hist2_opensqr(1, xmin, xmax, dx)
+
 
 __inline static hist2_t *hist2_open(int rows, double xmin, double xmax, double dx,
     double ymin, double ymax, double dy)
@@ -348,6 +348,7 @@ __inline static hist2_t *hist2_open(int rows, double xmin, double xmax, double d
   hs2->dy   = dy;
   hs2->m    = (int)((ymax - ymin)/dy + 0.99999999);
   xnew(hs2->arr, hs2->n * hs2->m * hs2->rows);
+  hist2_clear(hs2);
   return hs2;
 }
 

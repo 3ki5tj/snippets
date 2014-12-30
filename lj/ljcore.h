@@ -46,6 +46,7 @@ static void lj_shiftang(double (*x)[D], double (*v)[D], int n);
 static void lj_setrho(lj_t *lj, double rho)
 {
   double irc;
+
   lj->rho = rho;
   lj->vol = lj->n/rho;
   lj->l = pow(lj->vol, 1./D);
@@ -229,6 +230,14 @@ __inline static double lj_force(lj_t *lj, double (*x)[D], double (*f)[D],
 
 
 
+/* compute pressure */
+static double lj_calcp(lj_t *lj, double tp)
+{
+  return (lj->dof * tp + lj->vir) / (D * lj->vol) + lj->p_tail;
+}
+
+
+
 /* velocity-verlet */
 static void lj_vv(lj_t *lj, double dt)
 {
@@ -287,13 +296,17 @@ static double lj_vrescale_low(double (*v)[D], int n, int dof, double tp, double 
 __inline static void lj_langp0(lj_t *lj, double dt,
     double tp, double pext, int ensx)
 {
-  double pintv, amp, dlnv;
+  double pint, amp, s, dlnv;
+  int i;
 
-  pintv = (lj->vir + lj->dof * tp)/D + lj->p_tail * lj->vol;
+  pint = lj_calcp(lj, tp);
   amp = sqrt(2 * dt);
-  dlnv = ((pintv - pext * lj->vol)/tp + 1 - ensx) * dt + amp * randgaus();
+  dlnv = ((pint - pext) * lj->vol / tp + 1 - ensx) * dt + amp * randgaus();
+  s = exp( dlnv / D );
   lj->vol *= exp( dlnv );
   lj_setrho(lj, lj->n / lj->vol);
+  for ( i = 0; i < lj->n; i++ )
+    vsmul(lj->x[i], s);
   lj->epot = lj_force(lj, lj->x, lj->f, &lj->vir, &lj->ep0, &lj->eps);
 }
 

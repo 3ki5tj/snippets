@@ -1,3 +1,4 @@
+/* basic molecular dynamics simulation in the NVT or NVE ensemble */
 #ifndef D
 #define D 3
 #endif
@@ -12,7 +13,7 @@
 
 int main(void)
 {
-  int n = 108, t, nequil = 10000, nsteps = 100000;
+  int n = 108, t, nequil = 10000, nsteps = 100000, tstat = 0;
   double rho = 0.7, rcdef = 2.5, dt = 0.002, thdt = 0.02, tp = 1.5;
   lj_t *lj;
   double epsm = 0;
@@ -20,10 +21,13 @@ int main(void)
   lj = lj_open(n, rho, rcdef);
   for ( t = 1; t <= nequil + nsteps; t++ ) {
     lj_vv(lj, dt);
-    lj->ekin = lj_vrescale(lj, tp, thdt);
+    if ( tstat ) {
+      lj->ekin = lj_vrescale(lj, tp, thdt);
+    } else {
+      lj->ekin = lj_ekin(lj->v, n);
+      if ( t % 1000 == 0 ) printf("%d, ep %g, ek %g, e %g\n", t, lj->epot, lj->ekin, lj->epot + lj->ekin);
+    }
     if ( t <= nequil ) continue;
-    //lj->ekin = lj_ekin(lj->v, n);
-    //printf("%d, ep %g, ek %g, e %g\n", t, lj->epot, lj->ekin, lj->epot + lj->ekin);
     epsm += lj->epot;
   }
   lj_writepos(lj, lj->x, lj->v, "a.pos");

@@ -39,7 +39,7 @@ static wham2_t *wham2_open(const double *bx, const double *by, hist2_t *hist)
   w->hist = hist;
   xnew(w->lntot, hist->rows);
   xnew(w->res, hist->rows);
-  xnew(w->lndos, hist->n);
+  xnew(w->lndos, nm);
 
   /* compute the total */
   for ( k = 0; k < nbeta; k++ ) {
@@ -123,7 +123,7 @@ static void wham2_getav(wham2_t *w, const char *fn)
       x = (i + .5) * hist->dx;
       lnx = log(x);
       for ( j = 0; j < m; j++ ) {
-        ij = i * m + j;
+        ij = i*m + j;
         if ( w->lndos[ij] <= LOG0 ) continue;
         y = (j + .5) * hist->dy;
         lny = log(y);
@@ -190,7 +190,7 @@ static void wham2_estimatelnz(wham2_t *w, double *lnz)
     for ( i = 0; i < n; i++ ) {
       x = hist->xmin + (i + .5) * hist->dx;
       for ( j = 0; j < m; j++ ) {
-        ij = i * n + j;
+        ij = i*m + j;
         h = hist->arr[k*nm + ij];
         if ( h <= 0 ) continue;
         y = hist->ymin + (j + .5) * hist->dy;
@@ -222,7 +222,7 @@ static double wham2_step(wham2_t *w, double *lnz, double *res, int update)
     x = hist->xmin + (i + .5) * hist->dx;
     for ( j = 0; j < m; j++ ) {
       y = hist->ymin + (j + .5) * hist->dy;
-      ij = i * m + j;
+      ij = i*m + j;
 
       num = 0;
       lnden = LOG0;
@@ -260,7 +260,7 @@ static double wham2_step(wham2_t *w, double *lnz, double *res, int update)
     for ( i = 0; i < n; i++ ) {
       x = hist->xmin + (i + .5) * hist->dx;
       for ( j = 0; j < m; j++ ) {
-        ij = i * m + j;
+        ij = i*m + j;
         if ( w->lndos[ij] <= LOG0) continue;
         y = hist->ymin + (j + .5) * hist->dy;
 

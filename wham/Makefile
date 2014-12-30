@@ -1,6 +1,6 @@
-CC = icc -Wall -Wremarks
+CC = icc -g -Wall -Wremarks
 LM =
-#CC = gcc -O3 -Wall -Wextra
+#CC = gcc -g -O3 -Wall -Wextra
 #LM = -lm
 
 srcs = $(wildcard *.c)

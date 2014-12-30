@@ -62,8 +62,8 @@ int main(int argc, char **argv)
       hist_add(hs, epot, 1, 0);
     }
 
-    fprintf(stderr, "simulation ended, doing WHAM\n");
     hist_save(hs, fnhist, HIST_ADDAHALF);
+    fprintf(stderr, "simulation ended, doing WHAM\n");
   }
 
   if ( method == METHOD_DIRECT ) {
