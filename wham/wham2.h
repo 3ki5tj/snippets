@@ -24,6 +24,7 @@ typedef struct {
   double *lndos; /* density of states */
   double *lntot;
   hist2_t *hist; /* histograms, reference */
+  int imin, imax, jmin, jmax;
 } wham2_t;
 
 
@@ -31,7 +32,8 @@ typedef struct {
 static wham2_t *wham2_open(const double *bx, const double *by, hist2_t *hist)
 {
   wham2_t *w;
-  int ij, nm = hist->n * hist->m, k, nbeta = hist->rows;
+  int i, j, ij, n = hist->n, m = hist->m, nm = n * m, k, nbeta = hist->rows;
+  double h;
 
   xnew(w, 1);
   w->bx = bx;
@@ -43,12 +45,58 @@ static wham2_t *wham2_open(const double *bx, const double *by, hist2_t *hist)
 
   /* compute the total */
   for ( k = 0; k < nbeta; k++ ) {
-    double x = 0;
+    h = 0;
     for ( ij = 0; ij < nm; ij++ )
-      x += hist->arr[k * nm + ij];
-    w->lntot[k] = (x > 0) ? log(x) : LOG0;
+      h += hist->arr[k * nm + ij];
+    w->lntot[k] = (h > 0) ? log(h) : LOG0;
   }
 
+  /* determine the boundaries */
+  /* find imin */
+  for ( i = 0; i < n; i++ ) {
+    for ( j = 0; j < m; j++ ) {
+      for ( ij = i * m + j, h = 0, k = 0; k < nbeta; k++ )
+        h += hist->arr[k * nm + ij];
+      if ( h > 0 ) break;
+    }
+    if ( j < m ) break;
+  }
+  w->imin = i;
+
+  /* find imax */
+  for ( i = n - 1; i >= 0; i-- ) {
+    for ( j = 0; j < m; j++ ) {
+      for ( ij = i * m + j, h = 0, k = 0; k < nbeta; k++ )
+        h += hist->arr[k * nm + ij];
+      if ( h > 0 ) break;
+    }
+    if ( j < m ) break;
+  }
+  w->imax = i + 1;
+
+  /* find jmin */
+  for ( j = 0; j < m; j++ ) {
+    for ( i = 0; i < n; i++ ) {
+      for ( ij = i * m + j, h = 0, k = 0; k < nbeta; k++ )
+        h += hist->arr[k * nm + ij];
+      if ( h > 0 ) break;
+    }
+    if ( i < n ) break;
+  }
+  w->jmin = j;
+
+  /* find jmax */
+  for ( j = m - 1; j >= 0; j-- ) {
+    for ( i = 0; i < n; i++ ) {
+      for ( ij = i * m + j, h = 0, k = 0; k < nbeta; k++ )
+        h += hist->arr[k * nm + ij];
+      if ( h > 0 ) break;
+    }
+    if ( i < n ) break;
+  }
+  w->jmax = j + 1;
+
+  printf("i: [%d, %d), j: [%d, %d)\n", w->imin, w->imax, w->jmin, w->jmax);
   return w;
 }
 
@@ -79,16 +127,16 @@ static int wham2_savelndos(wham2_t *w, const char *fn)
 {
   hist2_t *hist = w->hist;
   FILE *fp;
-  int i, j, ij, n = hist->n, m = hist->m;
+  int i, j, ij, m = hist->m;
   double x, y;
 
   if ((fp = fopen(fn, "w")) == NULL) {
     fprintf(stderr, "cannot write %s\n", fn);
     return -1;
   }
-  for ( i = 0; i < n; i++ ) {
+  for ( i = w->imin; i < w->imax; i++ ) {
     x = hist->xmin + (i + .5) * hist->dx;
-    for ( j = 0; j < m; j++ ) {
+    for ( j = w->jmin; j < w->jmax; j++ ) {
       y = hist->ymin + (j + .5) * hist->dy;
       ij = i*m + j;
       if ( w->lndos[ij] > LOG0 )
@@ -109,7 +157,7 @@ static void wham2_getav(wham2_t *w, const char *fn)
   hist2_t *hist = w->hist;
   double bx, by, x, y, xx, xy, yy, lnw, lnx, lny;
   double lnz, slnx, slny, slnxx, slnxy, slnyy;
-  int i, j, ij, n = hist->n, m = hist->m, nbeta = hist->rows, k;
+  int i, j, ij, m = hist->m, nbeta = hist->rows, k;
   FILE *fp = NULL;
 
   if ( fn != NULL && (fp = fopen(fn, "w")) == NULL )
@@ -119,16 +167,16 @@ static void wham2_getav(wham2_t *w, const char *fn)
     bx = w->bx[k];
     by = w->by[k];
     lnz = slnx = slny = slnxx = slnxy = slnyy = LOG0;
-    for ( i = 0; i < n; i++ ) {
+    for ( i = w->imin; i < w->imax; i++ ) {
       x = (i + .5) * hist->dx;
       lnx = log(x);
-      for ( j = 0; j < m; j++ ) {
+      for ( j = w->jmin; j < w->jmax; j++ ) {
         ij = i*m + j;
         if ( w->lndos[ij] <= LOG0 ) continue;
         y = (j + .5) * hist->dy;
         lny = log(y);
 
-        lnw = w->lndos[i] - bx * x - by * y;
+        lnw = w->lndos[ij] - bx * x - by * y;
         lnz = wham2_lnadd(lnz, lnw);
         slnx = wham2_lnadd(slnx, lnx + lnw);
         slny = wham2_lnadd(slny, lny + lnw);
@@ -187,10 +235,11 @@ static void wham2_estimatelnz(wham2_t *w, double *lnz)
      * = ---------------------------------------------------------------------
      *                     Sum_{x, y} h_k(x, y)
      **/
-    for ( i = 0; i < n; i++ ) {
+    for ( i = w->imin; i < w->imax; i++ ) {
       x = hist->xmin + (i + .5) * hist->dx;
-      for ( j = 0; j < m; j++ ) {
+      for ( j = w->jmin; j < w->jmax; j++ ) {
         ij = i*m + j;
+
         h = hist->arr[k*nm + ij];
         if ( h <= 0 ) continue;
         y = hist->ymin + (j + .5) * hist->dy;
@@ -199,11 +248,7 @@ static void wham2_estimatelnz(wham2_t *w, double *lnz)
         dlnz = wham2_lnadd(dlnz, log(h) + dbx * x + dby * y);
       }
     }
-    if ( s <= 0 ) {
-      lnz[k] = lnz[kk];
-      continue;
-    }
-    lnz[k] = lnz[kk] - dlnz + log(s);
+    lnz[k] = lnz[kk] + (s > 0 ? log(s) - dlnz : 0);
   }
 }
 
@@ -214,13 +259,12 @@ static double wham2_step(wham2_t *w, double *lnz, double *res, int update)
   hist2_t *hist = w->hist;
   int i, j, ij, ijmin, n = hist->n, m = hist->m, nm = n * m;
   int k, nbeta = hist->rows;
-  double x, y, bx, by;
-  double num, lnden, err;
+  double x, y, bx, by, h, num, lnden, err;
 
   ijmin = -1;
-  for ( i = 0; i < n; i++ ) {
+  for ( i = w->imin; i < w->imax; i++ ) {
     x = hist->xmin + (i + .5) * hist->dx;
-    for ( j = 0; j < m; j++ ) {
+    for ( j = w->jmin; j < w->jmax; j++ ) {
       y = hist->ymin + (j + .5) * hist->dy;
       ij = i*m + j;
 
@@ -231,9 +275,8 @@ static double wham2_step(wham2_t *w, double *lnz, double *res, int update)
        *        den     Sum_k tot_k exp(-bx_k * x - by_k * y) / Z_k
        * */
       for ( k = 0; k < nbeta; k++ ) {
-        x = hist->arr[k*nm + ij];
-        if ( x <= 0 ) continue;
-        num += x;
+        if ( (h = hist->arr[k*nm + ij]) <= 0 ) continue;
+        num += h;
         bx = w->bx[k];
         by = w->by[k];
         lnden = wham2_lnadd(lnden, w->lntot[k] - bx * x - by * y - lnz[k]);
@@ -247,7 +290,7 @@ static double wham2_step(wham2_t *w, double *lnz, double *res, int update)
     }
   }
 
-  /* shift the origin of the density of states */
+  /* shift the baseline of the density of states */
   for ( x = w->lndos[ijmin], ij = 0; ij < nm; ij++ )
     if ( w->lndos[ij] > LOG0 )
       w->lndos[ij] -= x;
@@ -257,14 +300,15 @@ static double wham2_step(wham2_t *w, double *lnz, double *res, int update)
     bx = w->bx[k];
     by = w->by[k];
     res[k] = LOG0;
-    for ( i = 0; i < n; i++ ) {
+    for ( i = w->imin; i < w->imax; i++ ) {
       x = hist->xmin + (i + .5) * hist->dx;
-      for ( j = 0; j < m; j++ ) {
+      for ( j = w->jmin; j < w->jmax; j++ ) {
         ij = i*m + j;
         if ( w->lndos[ij] <= LOG0) continue;
         y = hist->ymin + (j + .5) * hist->dy;
 
-        res[k] = wham2_lnadd(res[k], w->lndos[i] - bx * x - by * y);
+        /* res[k] is the new partition function */
+        res[k] = wham2_lnadd(res[k], w->lndos[ij] - bx * x - by * y);
       }
     }
   }

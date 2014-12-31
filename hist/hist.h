@@ -3,8 +3,7 @@
 
 
 
-/* histogram routines, copied from the zcom project
- * slightly modified and simplified */
+/* one-dimensional histograms */
 
 
 
@@ -37,48 +36,6 @@
 
 
 
-/* skip a | */
-__inline static char *hist_skipabar(char *p)
-{
-  int next = -1;
-  sscanf(p, " | %n", &next);
-  return (next < 0) ? NULL : (p + next);
-}
-
-
-
-/* fetch histogram size */
-__inline static int hist_getinfo(const char *fn, int *row,
-    double *xmin, double *xmax, double *xdel,
-    int *version, unsigned *fflags)
-{
-  FILE *fp;
-  char s[1024];
-  int n;
-
-  if ((fp = fopen(fn, "r")) == NULL) {
-    fprintf(stderr, "cannot read %s\n", fn);
-    return -1;
-  }
-  if (fgets(s, sizeof s, fp) == NULL) {
-    fprintf(stderr, "%s: missing the first line\n", fn);
-    fclose(fp);
-    return -1;
-  }
-  if (6 != sscanf(s, "# %d 0x %X | %d %d %lf %lf ",
-        version, fflags, row, &n, xmin, xdel)) {
-    fprintf(stderr, "%s: bad first line\n%s", fn, s);
-    fclose(fp);
-    return -1;
-  }
-  *xmax = *xmin + *xdel * n;
-  fclose(fp);
-  return 0;
-}
-
-
-
-/* object wrappers */
 typedef struct {
   int rows;
   int n;
@@ -258,6 +215,16 @@ __inline static int hist_save(const hist_t *hs, const char *fn, unsigned flags)
 
 
 
+/* skip a | */
+__inline static char *hist_skipabar(char *p)
+{
+  int next = -1;
+  sscanf(p, " | %n", &next);
+  return (next < 0) ? NULL : (p + next);
+}
+
+
+
 /* load a previous histogram
  * flags can have HIST_ADDITION and/or HIST_VERBOSE */
 __inline static int hist_load(hist_t *hs, const char *fn, unsigned flags)
@@ -428,8 +395,8 @@ __inline static int hist_add1(hist_t *hs, int r, double x, double w,
 
 
 
-/* add x[r] of weight w into the rth row of the histogram, h
- * return the number of successful rows */
+/* add x[r] of weight w into the rth histogram, r = 0..rows-1
+ * return the number of successes */
 __inline static int hist_add(hist_t *hs, const double *x, double w, unsigned flags)
 {
   int r, good = 0;
@@ -437,6 +404,37 @@ __inline static int hist_add(hist_t *hs, const double *x, double w, unsigned fla
   for ( r = 0; r < hs->rows; r++ )
     good += (hist_add1(hs, r, x[r], w, flags) == 0);
   return good;
+}
+
+
+
+/* fetch histogram size */
+__inline static int hist_getinfo(const char *fn, int *row,
+    double *xmin, double *xmax, double *xdel,
+    int *version, unsigned *fflags)
+{
+  FILE *fp;
+  char s[1024];
+  int n;
+
+  if ((fp = fopen(fn, "r")) == NULL) {
+    fprintf(stderr, "cannot read %s\n", fn);
+    return -1;
+  }
+  if (fgets(s, sizeof s, fp) == NULL) {
+    fprintf(stderr, "%s: missing the first line\n", fn);
+    fclose(fp);
+    return -1;
+  }
+  if (6 != sscanf(s, "# %d 0x %X | %d %d %lf %lf ",
+        version, fflags, row, &n, xmin, xdel)) {
+    fprintf(stderr, "%s: bad first line\n%s", fn, s);
+    fclose(fp);
+    return -1;
+  }
+  *xmax = *xmin + *xdel * n;
+  fclose(fp);
+  return 0;
 }
 
 

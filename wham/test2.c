@@ -10,14 +10,16 @@ double rcdef = 2.5;
 double dt = 0.002; /* MD time step */
 double thdt = 0.02; /* thermostat time step */
 double pdt = 1e-5; /* barostat time step */
-int nequil = 10000;
-int nsteps = 100000;
+int nequil = 1000;
+int nsteps = 10000;
 
-int ntp = 4;
-double emin = -800, emax =   0, de = 1.0;
+int nt = 10;
+int np = 10;
+int ntp = 100;
+double emin = -800, emax = 200, de = 1.0;
 double vmin =  100, vmax = 400, dv = 1.0;
 int itmax = 100000;
-double tol = 1e-7;
+double tol = 1e-8;
 int nbases = 5;
 
 const char *fnlndos = "lndos2.dat";
@@ -32,14 +34,15 @@ int method = METHOD_DIRECT;
 int main(int argc, char **argv)
 {
   hist2_t *hs;
-  double *beta, *pres, *bp, *lnz, *epot, *vols;
+  double *beta, *pres, *bp, *lnz, *epot, *vols, T, p;
   lj_t **lj;
-  int itp, istep;
+  int it, ip, itp, istep;
 
   if ( argc > 1 ) { /* choose the method of WHAM */
     method = atoi(argv[1]);
   }
 
+  ntp = nt * np;
   xnew(lj, ntp);
   xnew(beta, ntp);
   xnew(pres, ntp);
@@ -49,20 +52,24 @@ int main(int argc, char **argv)
   xnew(vols, ntp);
 
   /* initialize the systems */
-  for ( itp = 0; itp < ntp; itp++ ) {
-    lj[itp] = lj_open(n, rho, rcdef);
-    beta[itp] = 1./(1.2 + .3 * itp);
-    pres[itp] = 1. + .1 * itp;
-    bp[itp] = beta[itp] * pres[itp];
-    lnz[itp] = epot[itp] = 0;
+  itp = 0;
+  for ( it = 0; it < nt; it++ ) {
+    T = 1.0 + 0.1 * it;
+    for ( ip = 0; ip < np; ip++ ) {
+      p = 1.0 + 0.1 * ip;
+      lj[itp] = lj_open(n, rho, rcdef);
+      beta[itp] = 1./T;
+      pres[itp] = p;
+      bp[itp] = beta[itp] * pres[itp];
+      lnz[itp] = epot[itp] = 0;
+      itp++;
+    }
   }
   hs = hist2_open(ntp, emin, emax, de, vmin, vmax, dv);
 
   /* try to load the histogram, if it fails, do simulations */
   if ( 0 != hist2_load(hs, fnhist, HIST2_VERBOSE) ) {
-    hist2_clear(hs);
-
-    /* do the simulations */
+    /* do simulations */
     for ( istep = 1; istep <= nequil + nsteps; istep++ ) {
       for ( itp = 0; itp < ntp; itp++ ) { /* loop over replicas */
         lj_vv(lj[itp], dt);
@@ -73,9 +80,9 @@ int main(int argc, char **argv)
         epot[itp] = lj[itp]->epot;
         vols[itp] = lj[itp]->vol;
       }
+      if ( istep % 1000 == 0 ) printf("t %d\n", istep);
       if ( istep <= nequil ) continue;
       hist2_add(hs, epot, vols, 1, 1.0, HIST2_VERBOSE);
-      if ( istep % 1000 == 0 ) printf("t %d\n", istep);
     }
 
     hist2_save(hs, fnhist, HIST2_ADDAHALF);

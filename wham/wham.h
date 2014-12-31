@@ -155,11 +155,7 @@ static void wham_estimatelnz(wham_t *w, double *lnz)
       s += h;
       dlnz = wham_lnadd(dlnz, log(h) + db * e);
     }
-    if ( s <= 0 ) {
-      lnz[j] = lnz[j - 1];
-      continue;
-    }
-    lnz[j] = lnz[j - 1] - dlnz + log(s);
+    lnz[j] = lnz[j - 1] + (s > 0 ? log(s) - dlnz : 0);
   }
 }
 
@@ -194,7 +190,7 @@ static double wham_step(wham_t *w, double *lnz, double *res, int update)
     }
   }
 
-  /* shift the origin of the density of states */
+  /* shift the baseline of the density of states */
   for ( x = w->lndos[imin], i = 0; i < n; i++ )
     if ( w->lndos[i] > LOG0 )
       w->lndos[i] -= x;

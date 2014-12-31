@@ -36,47 +36,6 @@
 
 
 
-/* skip a | */
-__inline static char *hist2_skipabar(char *p)
-{
-  int next = -1;
-  sscanf(p, " | %n", &next);
-  return (next < 0) ? NULL : (p + next);
-}
-
-
-
-__inline static void hist2_getsums(const double *h, int n,
-    double xmin, double dx, int m, double ymin, double dy, double *s)
-{
-  double x, y, w;
-  int i, j;
-
-  s[0] = s[1] = s[2] = s[3] = s[4] = s[5] = 0;
-  for (i = 0; i < n; i++) {
-    x = xmin + (i+.5)*dx;
-    for (j = 0; j < m; j++) {
-      y = ymin + (j+.5)*dy;
-      w = h[i*m + j];
-      s[0]  += w;
-      s[1]  += w * x;
-      s[2]  += w * y;
-      s[3]  += w * x * x;
-      s[4]  += w * x * y;
-      s[5]  += w * y * y;
-    }
-  }
-  if ( s[0] > 0 ) {
-    s[1] /= s[0];
-    s[2] /= s[0];
-    s[3]  = s[3] / s[0] - s[1] * s[1];
-    s[4]  = s[4] / s[0] - s[1] * s[2];
-    s[5]  = s[5] / s[0] - s[2] * s[2];
-  }
-}
-
-
-
 typedef struct {
   int rows;
   int n, m;
@@ -119,6 +78,37 @@ static void hist2_close(hist2_t *hs2)
 {
   free(hs2->arr);
   free(hs2);
+}
+
+
+
+__inline static void hist2_getsums(const double *h, int n,
+    double xmin, double dx, int m, double ymin, double dy, double *s)
+{
+  double x, y, w;
+  int i, j;
+
+  s[0] = s[1] = s[2] = s[3] = s[4] = s[5] = 0;
+  for (i = 0; i < n; i++) {
+    x = xmin + (i+.5)*dx;
+    for (j = 0; j < m; j++) {
+      y = ymin + (j+.5)*dy;
+      w = h[i*m + j];
+      s[0]  += w;
+      s[1]  += w * x;
+      s[2]  += w * y;
+      s[3]  += w * x * x;
+      s[4]  += w * x * y;
+      s[5]  += w * y * y;
+    }
+  }
+  if ( s[0] > 0 ) {
+    s[1] /= s[0];
+    s[2] /= s[0];
+    s[3]  = s[3] / s[0] - s[1] * s[1];
+    s[4]  = s[4] / s[0] - s[1] * s[2];
+    s[5]  = s[5] / s[0] - s[2] * s[2];
+  }
 }
 
 
@@ -231,6 +221,16 @@ __inline static int hist2_save(const hist2_t *hs, const char *fn, unsigned flags
   }
   free(sums);
   return 0;
+}
+
+
+
+/* skip a | */
+__inline static char *hist2_skipabar(char *p)
+{
+  int next = -1;
+  sscanf(p, " | %n", &next);
+  return (next < 0) ? NULL : (p + next);
 }
 
 
@@ -390,6 +390,8 @@ __inline static int hist2_add1(hist2_t *hs, int r,
 
 
 
+/* add (x[r], y[r]) of weight w into the rth histogram, r = 0..rows-1
+ * return the number of successes */
 __inline static int hist2_add(hist2_t *hs, const double *x, const double *y,
     int stride, double w, unsigned flags)
 {
