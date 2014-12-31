@@ -10,12 +10,12 @@ double rcdef = 2.5;
 double dt = 0.002; /* MD time step */
 double thdt = 0.02; /* thermostat time step */
 double pdt = 1e-5; /* barostat time step */
-int nequil = 40;
-int nsteps = 400;
+int nequil = 10000;
+int nsteps = 100000;
 
-int ntp = 5;
-double emin = -700, emax =   0, de = 1.0;
-double vmin =  100, vmax = 300, dv = 1.0;
+int ntp = 4;
+double emin = -800, emax =   0, de = 1.0;
+double vmin =  100, vmax = 400, dv = 1.0;
 int itmax = 100000;
 double tol = 1e-7;
 int nbases = 5;
@@ -51,15 +51,15 @@ int main(int argc, char **argv)
   /* initialize the systems */
   for ( itp = 0; itp < ntp; itp++ ) {
     lj[itp] = lj_open(n, rho, rcdef);
-    beta[itp] = 1./(0.8 + .3 * itp);
-    pres[itp] = 1. + .2 * itp;
+    beta[itp] = 1./(1.2 + .3 * itp);
+    pres[itp] = 1. + .1 * itp;
     bp[itp] = beta[itp] * pres[itp];
     lnz[itp] = epot[itp] = 0;
   }
   hs = hist2_open(ntp, emin, emax, de, vmin, vmax, dv);
 
   /* try to load the histogram, if it fails, do simulations */
-  if ( 0 != hist2_load(hs, fnhist, HIST_VERBOSE) ) {
+  if ( 0 != hist2_load(hs, fnhist, HIST2_VERBOSE) ) {
     hist2_clear(hs);
 
     /* do the simulations */
@@ -74,11 +74,11 @@ int main(int argc, char **argv)
         vols[itp] = lj[itp]->vol;
       }
       if ( istep <= nequil ) continue;
-      hist2_add(hs, epot, vols, 1, 1.0, HIST_VERBOSE);
+      hist2_add(hs, epot, vols, 1, 1.0, HIST2_VERBOSE);
       if ( istep % 1000 == 0 ) printf("t %d\n", istep);
     }
 
-    hist2_save(hs, fnhist, HIST_ADDAHALF);
+    hist2_save(hs, fnhist, HIST2_ADDAHALF);
     fprintf(stderr, "simulation ended, doing WHAM\n");
   }
 

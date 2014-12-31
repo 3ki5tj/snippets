@@ -1,4 +1,4 @@
-CC = icc -g -Wall -Wremarks
+CC = icc -g -O2 -Wall -Wremarks
 LM =
 #CC = gcc -g -O3 -Wall -Wextra
 #LM = -lm
