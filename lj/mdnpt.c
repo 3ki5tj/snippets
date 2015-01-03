@@ -10,11 +10,23 @@
 
 
 
+int n = 108;
+int nequil = 10000;
+int nsteps = 100000;
+double rho = 0.65;
+double tp = 1.25;
+double pres = 1.0;
+double rcdef = 1e9;
+double dt = 0.002;
+double thdt = 0.02;
+double pdt = 1e-5;
+const char *fnpos = "lj.pos";
+
+
+
 int main(void)
 {
-  int n = 108, t, nequil = 10000, nsteps = 100000;
-  double rho = 0.65, rcdef = 10000, tp = 1.25, pres = 1.0;
-  double dt = 0.002, thdt = 0.02, pdt = 1e-5;
+  int t;
   double usm = 0, psm = 0, rhosm = 0;
   lj_t *lj;
 

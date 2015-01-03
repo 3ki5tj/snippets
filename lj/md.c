@@ -11,10 +11,21 @@
 
 
 
+int n = 108;
+int nequil = 10000;
+int nsteps = 100000;
+double rho = 0.7;
+double tp = 1.5;
+double rcdef = 2.5;
+double dt = 0.002;
+double thdt = 0.02;
+const char *fnpos = "lj.pos";
+
+
+
 int main(void)
 {
-  int n = 108, t, nequil = 10000, nsteps = 100000, tstat = 0;
-  double rho = 0.7, rcdef = 2.5, dt = 0.002, thdt = 0.02, tp = 1.5;
+  int t, tstat = 1;
   lj_t *lj;
   double epsm = 0;
 
@@ -23,7 +34,7 @@ int main(void)
     lj_vv(lj, dt);
     if ( tstat ) {
       lj->ekin = lj_vrescale(lj, tp, thdt);
-    } else {
+    } else { /* test energy conservation */
       lj->ekin = lj_ekin(lj->v, n);
       if ( t % 1000 == 0 ) printf("%d, ep %g, ek %g, e %g\n", t, lj->epot, lj->ekin, lj->epot + lj->ekin);
     }

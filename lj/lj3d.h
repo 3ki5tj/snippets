@@ -16,17 +16,21 @@
 static void lj_initfcc(lj_t *lj)
 {
   int i, j, k, id, n1, n = lj->n;
-  double a;
+  double a, noise;
 
   n1 = (int) (pow(2*n, 1.0/D) + .999999); /* # of particles per side */
-  a = lj->l/n1;
+  a = lj->l / n1;
+  noise = a * 1e-5;
   for (id = 0, i = 0; i < n1 && id < n; i++)
     for (j = 0; j < n1 && id < n; j++)
       for (k = 0; k < n1 && id < n; k++) {
         if ((i+j+k) % 2 != 0) continue;
-        lj->x[id][0] = (i + .5) * a;
-        lj->x[id][1] = (j + .5) * a;
-        lj->x[id][2] = (k + .5) * a;
+        /* add some noise to prevent two atoms happened to
+         * be separated by precisely some special cutoff distance,
+         * which might be half of the box */
+        lj->x[id][0] = (i + .5) * a + noise * (2*rand01() - 1);
+        lj->x[id][1] = (j + .5) * a + noise * (2*rand01() - 1);
+        lj->x[id][2] = (k + .5) * a + noise * (2*rand01() - 1);
         id++;
       }
 }

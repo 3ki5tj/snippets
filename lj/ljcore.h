@@ -125,7 +125,6 @@ __inline static int lj_writepos(lj_t *lj,
   FILE *fp;
   int i, d, n = lj->n;
 
-  if (fn == NULL) fn = "lj.pos";
   if ( (fp = fopen(fn, "w")) == NULL ) {
     fprintf(stderr, "cannot open %s\n", fn);
     return -1;
@@ -169,8 +168,11 @@ static double lj_pbcdist2(double *dx, const double *a, const double *b,
 
 
 
+#define lj_energy(lj) \
+  lj->epot = lj_energy_low(lj, lj->x, &lj->vir, &lj->ep0, &lj->eps)
+
 /* compute force and virial, return energy */
-__inline static double lj_energy(lj_t *lj, double (*x)[D],
+__inline static double lj_energy_low(lj_t *lj, double (*x)[D],
     double *virial, double *ep0, double *eps)
 {
   double dx[D], dr2, dr6, ep, vir, rc2 = lj->rc2;
@@ -196,8 +198,11 @@ __inline static double lj_energy(lj_t *lj, double (*x)[D],
 
 
 
+#define lj_force(lj) \
+  lj->epot = lj_force_low(lj, lj->x, lj->f, &lj->vir, &lj->ep0, &lj->eps)
+
 /* compute force and virial, return energy */
-__inline static double lj_force(lj_t *lj, double (*x)[D], double (*f)[D],
+__inline static double lj_force_low(lj_t *lj, double (*x)[D], double (*f)[D],
     double *virial, double *ep0, double *eps)
 {
   double dx[D], fi[D], dr2, dr6, fs, ep, vir, rc2 = lj->rc2;
@@ -239,7 +244,7 @@ static double lj_calcp(lj_t *lj, double tp)
 
 
 /* velocity-verlet */
-static void lj_vv(lj_t *lj, double dt)
+__inline static void lj_vv(lj_t *lj, double dt)
 {
   int i, n = lj->n;
   double dth = dt * .5;
@@ -248,7 +253,7 @@ static void lj_vv(lj_t *lj, double dt)
     vsinc(lj->v[i], lj->f[i], dth);
     vsinc(lj->x[i], lj->v[i], dt);
   }
-  lj->epot = lj_force(lj, lj->x, lj->f, &lj->vir, &lj->ep0, &lj->eps);
+  lj_force(lj);
   for (i = 0; i < n; i++) /* VV part 2 */
     vsinc(lj->v[i], lj->f[i], dth);
 }
@@ -270,7 +275,8 @@ static double lj_ekin(double (*v)[D], int n)
   lj_vrescale_low(lj->v, lj->n, lj->dof, tp, dt)
 
 /* exact velocity rescaling thermostat */
-static double lj_vrescale_low(double (*v)[D], int n, int dof, double tp, double dt)
+__inline static double lj_vrescale_low(double (*v)[D], int n,
+    int dof, double tp, double dt)
 {
   int i;
   double ek1, ek2, s, c, r, r2;
@@ -307,7 +313,101 @@ __inline static void lj_langp0(lj_t *lj, double dt,
   lj_setrho(lj, lj->n / lj->vol);
   for ( i = 0; i < lj->n; i++ )
     vsmul(lj->x[i], s);
-  lj->epot = lj_force(lj, lj->x, lj->f, &lj->vir, &lj->ep0, &lj->eps);
+  lj_force(lj);
+}
+
+
+
+/* displace a random particle i, return i */
+static int lj_randmv(lj_t *lj, double *xi, double amp)
+{
+  int i, d;
+
+  i = (int) (rand01() * lj->n);
+  for ( d = 0; d < D; d++ )
+    xi[d] = lj->x[i][d] + (rand01() * 2 - 1) * amp;
+  return i;
+}
+
+
+
+/* compute pair energy */
+static int lj_pair(double *xi, double *xj, double l, double invl,
+    double rc2, double *u, double *vir)
+{
+  double dx[D], dr2, invr2, invr6;
+
+  dr2 = lj_pbcdist2(dx, xi, xj, l, invl);
+  if (dr2 < rc2) {
+    invr2 = 1 / dr2;
+    invr6 = invr2 * invr2 * invr2;
+    *vir = invr6 * (48 * invr6 - 24); /* f.r */
+    *u  = 4.f * invr6 * (invr6 - 1);
+    return 1;
+  } else {
+    *vir = 0;
+    *u = 0;
+    return 0;
+  }
+}
+
+
+
+/* return the energy change from displacing x[i] to xi */
+__inline static double lj_depot(lj_t *lj, int i, double *xi, double *vir)
+{
+  int j, n = lj->n;
+  double l = lj->l, invl = 1/l, rc2 = lj->rc2, u, du, dvir;
+
+  u = 0;
+  *vir = 0.0;
+  for ( j = 0; j < n; j++ ) { /* pair */
+    if ( j == i ) continue;
+    if ( lj_pair(lj->x[i], lj->x[j], l, invl, rc2, &du, &dvir) ) {
+      u -= du;
+      *vir -= dvir;
+    }
+    if ( lj_pair(xi, lj->x[j], l, invl, rc2, &du, &dvir) ) {
+      u += du;
+      *vir += dvir;
+    }
+  }
+  return u;
+}
+
+
+
+/* commit a particle displacement */
+__inline static void lj_commit(lj_t *lj, int i,
+    const double *xi, double du, double dvir)
+{
+  vcopy(lj->x[i], xi);
+  lj->ep0 += du;
+  lj->epot += du;
+  lj->vir += dvir;
+}
+
+
+
+/* metropolis algorithm */
+__inline static int lj_metro(lj_t *lj, double amp, double bet)
+{
+  int i, acc = 0;
+  double xi[D], r, du = 0., dvir = 0.;
+
+  i = lj_randmv(lj, xi, amp);
+  du = lj_depot(lj, i, xi, &dvir);
+  if ( du < 0 ) {
+    acc = 1;
+  } else {
+    r = rand01();
+    acc = ( r < exp( -bet * du ) );
+  }
+  if ( acc ) {
+    lj_commit(lj, i, xi, du, dvir);
+    return 1;
+  }
+  return 0;
 }
 
 

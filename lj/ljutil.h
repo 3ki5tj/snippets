@@ -34,6 +34,14 @@ __inline static void vzero(double *x)
 
 
 
+__inline static void vcopy(double *x, const double *y)
+{
+  int d;
+  for ( d = 0; d < D; d++ ) x[d] = y[d];
+}
+
+
+
 #define vinc(x, dx) vsinc(x, dx, 1)
 #define vdec(x, dx) vsinc(x, dx, -1)
 
