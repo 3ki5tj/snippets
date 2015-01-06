@@ -95,7 +95,7 @@ static lj_t *lj_open(int n, double rho, double rcdef)
 
   lj_initfcc(lj);
 
-  /* init. random velocities */
+  /* initalize random velocities */
   for (i = 0; i < n; i++)
     for ( d = 0; d < D; d++ )
       lj->v[i][d] = randgaus();
@@ -389,7 +389,7 @@ __inline static void lj_commit(lj_t *lj, int i,
 
 
 
-/* metropolis algorithm */
+/* Metropolis algorithm */
 __inline static int lj_metro(lj_t *lj, double amp, double bet)
 {
   int i, acc = 0;

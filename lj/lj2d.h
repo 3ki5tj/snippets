@@ -25,7 +25,7 @@ static void lj_initfcc(lj_t *lj)
     for (j = 0; j < n1 && id < n; j++) {
       if ((i+j) % 2 != 0) continue;
       /* add some noise to prevent two atoms happened to
-       * be separated by precisely some special cutoff distance,
+       * be separated precisely by the cutoff distance,
        * which might be half of the box */
       lj->x[id][0] = (i + .5) * a + noise * (2*rand01() - 1);
       lj->x[id][1] = (j + .5) * a + noise * (2*rand01() - 1);

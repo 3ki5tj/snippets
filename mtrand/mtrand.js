@@ -1,4 +1,11 @@
 /* Mersenne Twister was developed by Makoto Matsumoto and Takuji Nishimura */
+
+
+
+"use strict";
+
+
+
 var MT_N = 624;
 var MT_M = 397;
 var MT_UMASK = 0x80000000;
