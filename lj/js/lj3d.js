@@ -136,8 +136,10 @@ function ljdraw3d(lj, target)
   ctx.fillStyle = "#f0f0f0";
   ctx.fillRect(0, 0, width, height);
 
-  var scale = Math.min(width, height) / lj.l;
+  // the system dimension is L + two radii
+  var scale = 0.9 * Math.min(width, height) / (lj.l + 1.0);
   var radius = 0.5 * scale;
+  var margin = 0.5 * scale;
 
   // draw each particle
   var xyz = sortbyz(lj.x);
@@ -147,11 +149,11 @@ function ljdraw3d(lj, target)
     var y = xyz[i][1] * scale;
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
-    var spotcolor = "#a0a0e0";
-    var color = rgb2str(32, 64, 120 + 100 * zf);
+    var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
+    var color = rgb2str(20, 32, 80 + 160 * zf);
     // make closer particles larger
     var rz = radius * (0.7 + 0.3 * zf);
-    drawBall(ctx, x, y, rz, color, spotcolor);
+    drawBall(ctx, x + margin, y + margin, rz, color, spotcolor);
   }
 }
 

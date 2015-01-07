@@ -35,7 +35,6 @@ function lj_gettail2d(lj, rho, n)
 {
   var irc, irc2, irc6, utail, ptail;
 
-  console.log(lj, rho, n);
   irc = 1 / lj.rc;
   irc2 = irc * irc;
   irc6 = irc2 * irc2 * irc2;
@@ -78,11 +77,16 @@ function ljdraw2d(lj, target)
   var height = c.height;
 
   // draw the background
-  ctx.fillStyle = "#f0f0f0";
+  ctx.fillStyle = "#d0d0d0";
   ctx.fillRect(0, 0, width, height);
 
-  var scale = Math.min(width, height) / lj.l;
+  // the system dimension is L + two radii
+  var scale = Math.min(width, height) / (lj.l + 1);
   var radius = 0.5 * scale;
+  var margin = 0.5 * scale;
+
+  ctx.fillStyle = "#f0f0f0";
+  ctx.fillRect(margin, margin, width - 2*margin, height - 2*margin);
 
   // draw each particle
   for (var i = 0; i < lj.n; i++) {
@@ -90,7 +94,7 @@ function ljdraw2d(lj, target)
     var y = lj.x[i][1] * scale;
     var spotcolor = "#a0a0e0"
     var color = "#2040a0";
-    drawBall(ctx, x, y, radius, color, spotcolor);
+    drawBall(ctx, x + margin, y + margin, radius, color, spotcolor);
   }
 }
 

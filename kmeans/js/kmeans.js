@@ -1,3 +1,11 @@
+/* K-means clustering */
+
+
+
+"use strict";
+
+
+
 // small amount to be added to the variance
 // to ensure the stability of cholesky decomposition
 var KMEANS_EPSILON = 1e-8;

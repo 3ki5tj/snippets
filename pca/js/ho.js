@@ -1,3 +1,10 @@
+
+
+
+"use strict";
+
+
+
 var N = 3;
 
 
@@ -19,6 +26,8 @@ var ksmallworld = 1.0;
 var smallworld;
 
 var nstepsperframe = 1000; // number of steps per frame
+var timer_interval = 100; // interval of animation, in milliseconds
+
 var nstequiv = 10000; // number of steps for equilibration
 var nstpca = 1000000; // number of steps of doing PCA
 
@@ -31,8 +40,8 @@ var qqsum; // correlations
 var avq;
 var varqq;
 var invvarqq;
-var eval;
-var evec;
+var eigval;
+var eigvec;
 
 var mdstep = 0;
 var smcnt = 0, smT = 0, smU = 0;
@@ -55,8 +64,8 @@ function getparams()
   avq = newarr(N);
   varqq = newarr(N*N);
   invvarqq = newarr(N*N);
-  eval = newarr(N);
-  evec = newarr(N*N);
+  eigval = newarr(N);
+  eigvec = newarr(N*N);
   nsamps = 0;
   nstequiv = get_int("nstequiv", 10000);
   mddt = get_float("mddt", 0.005);
@@ -264,7 +273,7 @@ function sample()
 function initmd()
 {
   /* initialize the random velocities */
-  for ( i = 0; i < N; i++ ) {
+  for ( var i = 0; i < N; i++ ) {
     x[i] = 0.001 * randgaus();
     v[i] = Math.sqrt(temp/mass[i]) * randgaus();
   }
@@ -372,19 +381,19 @@ function prmat(m, nm)
 
 
 
-var eval_min = 1e-8;
+var eigval_min = 1e-8;
 
 /* add the zero modes */
-function add_zero_modes(c, eval, evec)
+function add_zero_modes(c, eigval, eigvec)
 {
   var k, i, j;
   var big = N*100;
   var v = new Array(N);
 
   for ( k = 0; k < N; k++ ) {
-    if ( eval[k] > eval_min ) continue;
+    if ( eigval[k] > eigval_min ) continue;
     for ( i = 0; i < N; i++ )
-      v[i] = evec[i*N + k];
+      v[i] = eigvec[i*N + k];
     for ( i = 0; i < N; i++ )
       for ( j = 0; j < N; j++ )
         c[i*N + j] += v[i] * v[j] * big;
@@ -410,21 +419,21 @@ function pca()
     }
   //prmat(varqq, "q-q correlation");
 
-  eigsym(varqq, eval, evec, N);
-  //prvec(eval, "eigenvalues (omega^(-2))");
-  //prmat(evec, "eigenvectors");
+  eigsym(varqq, eigval, eigvec, N);
+  //prvec(eigval, "eigenvalues (omega^(-2))");
+  //prmat(eigvec, "eigenvectors");
 
   // compute the frequencies
-  omgs = []
-  modes = []
+  var omgs = []
+  var modes = []
   for ( i = 0; i < N; i++ ) {
-    var omg = eval[i];
+    var omg = eigval[i];
     var mode = new Array(N);
     var mmax = 0;
 
     // copy the vector for mode i
     for ( j = 0; j < N; j++ ) {
-      mode[j] = evec[j*N+i];
+      mode[j] = eigvec[j*N+i];
       if ( Math.abs(mode[j]) > Math.abs(mmax) )
         mmax = mode[j];
     }
@@ -448,8 +457,8 @@ function pca()
 
   // compute the inverse of the correlation matrix
   // the zero modes must be added to avoid a singular matrix
-  add_zero_modes(varqq, eval, evec);
-  //console.log(varqq, eval, evec);
+  add_zero_modes(varqq, eigval, eigvec);
+  //console.log(varqq, eigval, eigvec);
   luinv(varqq, invvarqq, N, 1e-10);
   for ( i = 0; i < N; i++ )
     for ( j = 0; j < N; j++ )
@@ -472,6 +481,7 @@ var modesplot = null;
 /* update the position plot */
 function updateposplot()
 {
+  var i;
   var dat = "<i>i</i>,<i>x<sub>i</sub></i>\n";
   for ( i = 0; i < N; i++ ) {
     posymax = Math.max(Math.abs(x[i]), posymax);
@@ -504,6 +514,7 @@ function updateposplot()
 /* update the frequency plot */
 function updateomgplot(omgs)
 {
+  var i;
   var dat = "<i>k</i>,<i>&omega;<sub>k</sub></i>\n";
   for ( i = 0; i < N; i++ )
     dat += "" + (i+1) + "," + omgs[i] + "\n";
@@ -534,7 +545,7 @@ function updatemodesplot(omgs, modes)
   var nmodes = get_int("nmodesplot", 5);
   nmodes = Math.min(N, nmodes);
 
-  dat = "<i>x</i>,";
+  var dat = "<i>x</i>,";
   for ( j = 0; j < nmodes; j++ )
     dat += "Mode " + (j+1) + "(<i>&omega;</i> = " + roundto(omgs[j], 4) + "),";
   dat += "Zero\n";
@@ -606,7 +617,7 @@ function drawhess(hmat, target)
 /* upon a timer event */
 function pulse()
 {
-  sinfo = domd();
+  var sinfo = domd();
   grab("info").innerHTML = sinfo;
   updateposplot();
   nstpca = get_int("nstpca", 500000);
@@ -641,13 +652,13 @@ function stopmd()
 
 function startmd()
 {
-  getparams();
-  initff();
-  initmd();
   // stop the previous timer, if any
   stopmd();
 
-  timer_interval = 100; // in milliseconds
+  getparams();
+  initff();
+  initmd();
+
   nstepsperframe = get_int("nstepspersec", 1000)*timer_interval/1000;
   mdstep = 0;
   smcnt = 1e-30;

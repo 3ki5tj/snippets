@@ -1,8 +1,17 @@
+/* eigenvalue and eigenvectors of a real symmetric square matrix */
+
+
+
+"use strict";
+
+
+
 /* return sqrt(a*a + b*b) */
 function dblhypot(x, y)
 {
   return Math.sqrt(x*x + y*y);
 }
+
 
 
 /* To reduce a real symmetric matrix 'm' to tridiagonal by Householder transformations.

@@ -1,4 +1,10 @@
 
+
+
+"use strict";
+
+
+
 var datarr = [];
 var color = [];
 
@@ -217,7 +223,7 @@ function doclus()
   }
 
   for ( var k = 0; k < K; k++ ) {
-    abth = get_abth(km.var[k]);
+    var abth = get_abth(km.var[k]);
     //console.log(k, km.av[k], km.var[k]);
     ret[k] = {
       xc: km.av[k][0],
