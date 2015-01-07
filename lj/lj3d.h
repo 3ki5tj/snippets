@@ -45,9 +45,9 @@ static double lj_gettail(lj_t *lj, double rho, int n, double *ptail)
   irc = 1/lj->rc;
   irc3 = irc * irc * irc;
   irc6 = irc3 * irc3;
-  utail = ( 8*M_PI*rho*n/9*(irc6 - 3)*irc3 );
+  utail = 8*M_PI*rho*n/9*(irc6 - 3)*irc3;
   if (ptail != NULL)
-    *ptail = ( 32*M_PI*rho*rho/9*(irc6 - 1.5)*irc3 );
+    *ptail = 32*M_PI*rho*rho/9*(irc6 - 1.5)*irc3;
   return utail;
 }
 

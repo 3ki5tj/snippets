@@ -2,20 +2,21 @@
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-  <title> Two-dimensional Lennard-Jones </title>
+  <title> Lennard-Jones fluid </title>
   <link rel="stylesheet" type="text/css" href="./css/default.css" />
   <script type="text/javascript" src="./js/util.js"></script>
   <script type="text/javascript" src="./js/mtrand.js"></script>
   <script type="text/javascript" src="./js/draw.js"></script>
   <script type="text/javascript" src="./js/ljcore.js"></script>
-  <script type="text/javascript" src="./js/vct2d.js"></script>
+  <script type="text/javascript" src="./js/vct.js"></script>
   <script type="text/javascript" src="./js/lj2d.js"></script>
+  <script type="text/javascript" src="./js/lj3d.js"></script>
   <script type="text/javascript" src="./js/ljmain.js"></script>
 </head>
 <body>
 
 <h2 class="center">
-  Molecular dynamics of two-dimensional Lennard-Jones fluid
+  Molecular dynamics of Lennard-Jones fluid
 </h2>
 
 
@@ -23,20 +24,27 @@
 <form>
   <div class="panel">
   <div class="panel-title">System</div>
-  
-  Number of particles
+
+  Number of particles,
   <span class="math"><i>N</i></span>:
   <input type="text" size="6" value="55" id="n"
     onchange="changeparams()">.
 
-  Density
+  Density,
   <span class="math"><i>&rho;</i></span>:
   <input type="text" size="6" value="0.7" id="density"
     onchange="changeparams()">.
 
-  Temperature
+  Temperature,
   <span class="math"><i>T</i></span>:
   <input type="text" size="6" value="1.5" id="temp"
+    onchange="changeparams()">.
+  &nbsp;
+  <br>
+
+  Dimension,
+  <span class="math"><i>D</i></span>:
+  <input type="text" size="6" value="2" id="dimension"
     onchange="changeparams()">.
   &nbsp;
   <br>
@@ -72,7 +80,7 @@
 
 
   <input type="button" value="Start simulation"
-    id="start" class="largebtn" onclick="startmd(2)">
+    id="start" class="largebtn" onclick="startmd()">
 
   <input type="button" value="Stop"
     id="start" class="largebtn" onclick="stopmd()">

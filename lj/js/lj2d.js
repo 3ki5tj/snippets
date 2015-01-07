@@ -1,4 +1,4 @@
-/* Two-dimensional Lennard-Jones */
+/* Two-dimensional Lennard-Jones fluid */
 
 
 
@@ -7,7 +7,7 @@
 
 
 /* initialize a fcc lattice */
-function lj_initfcc(lj)
+function lj_initfcc2d(lj)
 {
   var i, j, id = 0, n = lj.n;
   var n1 = Math.floor( Math.sqrt(2*n) + .999999 ); // # of particles per side
@@ -22,7 +22,7 @@ function lj_initfcc(lj)
         // which might be half of the box
         lj.x[id][0] = (i + .5) * a + noise * (2*rand01() - 1);
         lj.x[id][1] = (j + .5) * a + noise * (2*rand01() - 1);
-        id += 1;
+        id++;
       }
     }
   }
@@ -31,10 +31,11 @@ function lj_initfcc(lj)
 
 
 /* get the tail correction */
-function lj_gettail(lj, rho, n)
+function lj_gettail2d(lj, rho, n)
 {
   var irc, irc2, irc6, utail, ptail;
 
+  console.log(lj, rho, n);
   irc = 1 / lj.rc;
   irc2 = irc * irc;
   irc6 = irc2 * irc2 * irc2;
@@ -46,7 +47,7 @@ function lj_gettail(lj, rho, n)
 
 
 /* annihilate the total angular momentum */
-function lj_shiftang(x, v, n)
+function lj_shiftang2d(x, v, n)
 {
   var i;
   var am, r2, xc = [0, 0], xi = [0, 0];
@@ -55,7 +56,7 @@ function lj_shiftang(x, v, n)
   vsmul(xc, 1.0 / n);
   for (am = r2 = 0.0, i = 0; i < n; i++) {
     vdiff(xi, x[i], xc);
-    am += vcross(xi, v[i]);
+    am += vcross2d(xi, v[i]);
     r2 += vsqr(x[i]);
   }
   am = -am / r2;
@@ -69,7 +70,7 @@ function lj_shiftang(x, v, n)
 
 
 // draw all atoms in the box
-function ljdraw(lj, target)
+function ljdraw2d(lj, target)
 {
   var c = grab(target);
   var ctx = c.getContext("2d");

@@ -6,6 +6,22 @@
 
 
 
+function lj_initfcc(lj)
+{
+  if ( lj.dim == 2 ) return lj_initfcc2d(lj);
+  else if ( lj.dim == 3 ) return lj_initfcc3d(lj);
+}
+
+
+
+function lj_gettail(lj, rho, n)
+{
+  if ( lj.dim == 2 ) return lj_gettail2d(lj, rho, n);
+  else if ( lj.dim == 3 ) return lj_gettail3d(lj, rho, n);
+}
+
+
+
 function lj_setrho(lj, rho)
 {
   lj.rho = rho;
@@ -17,7 +33,7 @@ function lj_setrho(lj, rho)
   var irc2 = irc * irc;
   var irc6 = irc2 * irc2 * irc2;
   lj.epot_shift = 4 * irc6 * (irc6 - 1);
-  var ret = lj_gettail(lj, rho, lj.n); /* to be defined in lj2d.h or lj3d.h */
+  var ret = lj_gettail(lj, rho, lj.n); // to be defined in lj2d.h or lj3d.h
   lj.epot_tail = ret[0];
   lj.p_tail = ret[1];
 }
@@ -37,6 +53,13 @@ function lj_rmcom(x, dim, n)
     vdec(x[i], rc);
 }
 
+
+
+function lj_shiftang(x, v, n)
+{
+  if ( D === 2 ) lj_shiftang2d(x, v, n);
+  else if ( D === 3 ) lj_shiftang3d(x, v, n);
+}
 
 
 

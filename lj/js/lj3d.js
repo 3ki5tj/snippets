@@ -1,0 +1,158 @@
+/* Three-dimensional Lennard-Jones fluid */
+
+
+
+"use strict";
+
+
+
+/* initialize a fcc lattice */
+function lj_initfcc3d(lj)
+{
+  var i, j, k, id, n = lj.n;
+
+  var n1 = Math.floor(Math.pow(2*n, 1.0/3) + .999999); // # of particles per side
+  var a = lj.l / n1;
+  var noise = a * 1e-5;
+  for (id = 0, i = 0; i < n1 && id < n; i++)
+    for (j = 0; j < n1 && id < n; j++)
+      for (k = 0; k < n1 && id < n; k++) {
+        if ((i+j+k) % 2 == 0) {
+          /* add some noise to prevent two atoms happened to
+           * be separated by precisely some special cutoff distance,
+           * which might be half of the box */
+          lj.x[id][0] = (i + .5) * a + noise * (2*rand01() - 1);
+          lj.x[id][1] = (j + .5) * a + noise * (2*rand01() - 1);
+          lj.x[id][2] = (k + .5) * a + noise * (2*rand01() - 1);
+          id++;
+        }
+      }
+}
+
+
+
+/* get the tail correction */
+function lj_gettail3d(lj, rho, n)
+{
+  var irc, irc3, irc6, utail, ptail;
+
+  irc = 1 / lj.rc;
+  irc3 = irc * irc * irc;
+  irc6 = irc3 * irc3;
+  utail = 8 * Math.PI * rho * n / 9 * (irc6 - 3) * irc3;
+  ptail = 32 * Math.PI * rho * rho / 9 * (irc6 - 1.5) * irc3;
+  return [utail, ptail];
+}
+
+
+
+/* annihilate the total angular momentum
+ * solve
+ *   /  y^2 + z^2    -x y      -x y      \
+ *   |  -x y       X^2 + z^2   -y z      |  c  =  I
+ *   \  -x z         -y z     x^2 + y^2  /
+ * use a velocity field
+ *    v = c X r
+ *   */
+function lj_shiftang3d(x, v, n)
+{
+  var i;
+  var xc = [0, 0, 0], xi = [0, 0, 0], ang = [0, 0, 0], am = [0, 0, 0];
+  var dv = [0, 0, 0];
+  var mat = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  var xx = 0, yy = 0, zz = 0, xy = 0, zx = 0, yz = 0;
+
+  for (i = 0; i < n; i++) vinc(xc, x[i]);
+  vsmul(xc, 1.0/n);
+  for (i = 0; i < n; i++) {
+    vdiff(xi, x[i], xc);
+    vcross3d(ang, xi, v[i]);
+    vinc(am, ang);
+    xx += xi[0]*xi[0];
+    yy += xi[1]*xi[1];
+    zz += xi[2]*xi[2];
+    xy += xi[0]*xi[1];
+    yz += xi[1]*xi[2];
+    zx += xi[2]*xi[0];
+  }
+  mat[0][0] = yy+zz;
+  mat[1][1] = xx+zz;
+  mat[2][2] = xx+yy;
+  mat[0][1] = mat[1][0] = -xy;
+  mat[1][2] = mat[2][1] = -yz;
+  mat[0][2] = mat[2][0] = -zx;
+  var inv = rm3_inv(mat);
+  ang[0] = -vdot(inv[0], am);
+  ang[1] = -vdot(inv[1], am);
+  ang[2] = -vdot(inv[2], am);
+  // ang is the solution of M^(-1) * I
+  for (i = 0; i < n; i++) {
+    vdiff(xi, x[i], xc);
+    vcross3d(dv, ang, xi);
+    vinc(v[i], dv);
+  }
+}
+
+
+
+function sortbyz(x)
+{
+  var i, j, k, l, n = x.length;
+  var xyz = newarr2d(n, 3), rt = [0, 0, 0];
+  // use bubble sort
+  for ( i = 0; i < n; i++ ) {
+    vcopy(xyz[i], x[i]);
+  }
+  for ( i = 0; i < n; i++ ) {
+    // find the ith smallest z
+    k = i;
+    for ( j = i + 1; j < n; j++ ) {
+      if ( xyz[j][2] < xyz[k][2] ) {
+        l = k;
+        k = j;
+        j = l;
+      }
+    }
+    if ( k != i ) {
+      vcopy(rt, xyz[k]);
+      vcopy(xyz[k], xyz[i]);
+      vcopy(xyz[i], rt);
+    }
+  }
+  return xyz;
+}
+
+
+
+// draw all atoms in the box
+function ljdraw3d(lj, target)
+{
+  var c = grab(target);
+  var ctx = c.getContext("2d");
+  var width = c.width;
+  var height = c.height;
+
+  // draw the background
+  ctx.fillStyle = "#f0f0f0";
+  ctx.fillRect(0, 0, width, height);
+
+  var scale = Math.min(width, height) / lj.l;
+  var radius = 0.5 * scale;
+
+  // draw each particle
+  var xyz = sortbyz(lj.x);
+  var zmax = xyz[lj.n - 1][2], zmin = xyz[0][2];
+  for (var i = 0; i < lj.n; i++) {
+    var x = xyz[i][0] * scale;
+    var y = xyz[i][1] * scale;
+    var z = xyz[i][2];
+    var zf = (z - zmin) / (zmax - zmin);
+    var spotcolor = "#a0a0e0";
+    var color = rgb2str(32, 64, 120 + 100 * zf);
+    // make closer particles larger
+    var rz = radius * (0.7 + 0.3 * zf);
+    drawBall(ctx, x, y, rz, color, spotcolor);
+  }
+}
+
+

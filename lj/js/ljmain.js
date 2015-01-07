@@ -15,6 +15,10 @@ var mdtimer = null;
 function getparams()
 {
   n = get_int("n", 55);
+  var dim = get_int("dimension", 2);
+  if ( dim === 2 || dim === 3 ) {
+    D = dim;
+  }
   rho = get_float("density", 0.7);
   temp = get_float("temp", 1.5);
   rcdef = get_float("rcutoff", 1000.0);
@@ -41,7 +45,11 @@ function domd()
 function pulse()
 {
   domd();
-  ljdraw(lj, "ljbox");
+  if ( lj.dim === 2 ) {
+    ljdraw2d(lj, "ljbox");
+  } else if ( lj.dim === 3 ) {
+    ljdraw3d(lj, "ljbox");
+  }
 }
 
 
@@ -51,16 +59,17 @@ function stopmd()
   if ( mdtimer != null ) {
     clearInterval(mdtimer);
     mdtimer = null;
+    lj = null;
   }
 }
 
 
 
-function startmd(dim)
+function startmd()
 {
   stopmd();
   getparams();
-  lj = new LJ(n, dim, rho, rcdef);
+  lj = new LJ(n, D, rho, rcdef);
   mdtimer = setInterval( function(){ pulse() }, timer_interval );
 }
 
