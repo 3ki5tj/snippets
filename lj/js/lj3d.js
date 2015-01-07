@@ -95,6 +95,82 @@ function lj_shiftang3d(x, v, n)
 
 
 
+var mousex = -1;
+var mousey = -1;
+var viewmat = [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]];
+var userscale = 1.0;
+
+
+
+function ljmousedown(e)
+{
+  if ( !e ) e = window.event;
+  mousex = e.clientX;
+  mousey = e.clientY;
+  //console.log("mousedown", e.clientX, e.clientY, m2str(viewmat));
+}
+
+
+
+function ljmouseup(e)
+{
+  if ( !e ) e = window.event;
+  //console.log("mouseup", e.clientX, e.clientY, m2str(viewmat));
+  mousex = -1;
+  mousey = -1;
+}
+
+
+
+function ljmousemove(e)
+{
+  if ( mousex < 0 || mousey < 0 ) return;
+  if ( !e ) e = window.event;
+  var target = e.target ? e.target : e.srcElement;
+  viewmat = mxrot3d(viewmat, 180. * (mousey - e.clientY) / target.height);
+  viewmat = myrot3d(viewmat, 180. * (e.clientX - mousex) / target.width);
+  mousex = e.clientX;
+  mousey = e.clientY;
+  //console.log("mousemove", e.clientX, e.clientY, m2str(viewmat));
+}
+
+
+
+/* for mouse wheel event */
+function ljwheel(e){
+  var delta = 0; // positive for scrolling up
+  if ( !e ) e = window.event;
+  if ( e.wheelDelta ) { // IE/Opera
+    delta = e.wheelDelta / 120;
+  } else if ( e.detail ) { // Firefox
+    delta = -e.detail / 3;
+  }
+  if ( delta > 0 ) userscale *= 1.05;
+  else if ( delta < 0 ) userscale *= 0.95;
+  //console.log("wheel", delta);
+  if ( e.preventDefault )
+    e.preventDefault();
+  e.returnValue = false;
+}
+
+
+
+function transform(x, l)
+{
+  var n = x.length;
+  var xyz = newarr(n), xc = [l * 0.5, l * 0.5, l * 0.5], xi = [0, 0, 0];
+
+  for ( var i = 0; i < n; i++ ) {
+    vdiff(xi, x[i], xc);
+    xyz[i] = mmulv(viewmat, xi);
+    //console.log(x[i], xi, xc, xyz[i]);
+    vinc(xyz[i], xc);
+  }
+  return xyz;
+}
+
+
+
 function sortbyz(x)
 {
   var i, j, k, l, n = x.length;
@@ -137,23 +213,24 @@ function ljdraw3d(lj, target)
   ctx.fillRect(0, 0, width, height);
 
   // the system dimension is L + two radii
-  var scale = 0.9 * Math.min(width, height) / (lj.l + 1.0);
+  var scale = userscale * Math.min(width, height) / (lj.l + 1.0);
   var radius = 0.5 * scale;
-  var margin = 0.5 * scale;
+
+  var xyz = transform(lj.x, lj.l); // apply the rotation matrix
+  xyz = sortbyz(xyz); // sort particles by the z order
 
   // draw each particle
-  var xyz = sortbyz(lj.x);
   var zmax = xyz[lj.n - 1][2], zmin = xyz[0][2];
   for (var i = 0; i < lj.n; i++) {
-    var x = xyz[i][0] * scale;
-    var y = xyz[i][1] * scale;
+    var x = (xyz[i][0] - lj.l * 0.5) * scale + width * 0.5;
+    var y = (xyz[i][1] - lj.l * 0.5) * scale + height * 0.5;
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
     var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
     var color = rgb2str(20, 32, 80 + 160 * zf);
     // make closer particles larger
     var rz = radius * (0.7 + 0.3 * zf);
-    drawBall(ctx, x + margin, y + margin, rz, color, spotcolor);
+    drawBall(ctx, x, y, rz, color, spotcolor);
   }
 }
 

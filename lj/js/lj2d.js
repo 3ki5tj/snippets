@@ -90,11 +90,11 @@ function ljdraw2d(lj, target)
 
   // draw each particle
   for (var i = 0; i < lj.n; i++) {
-    var x = lj.x[i][0] * scale;
-    var y = lj.x[i][1] * scale;
+    var x = (lj.x[i][0] - lj.l * 0.5) * scale + width * 0.5;
+    var y = (lj.x[i][1] - lj.l * 0.5) * scale + height * 0.5;
     var spotcolor = "#a0a0e0"
     var color = "#2040a0";
-    drawBall(ctx, x + margin, y + margin, radius, color, spotcolor);
+    drawBall(ctx, x, y, radius, color, spotcolor);
   }
 }
 

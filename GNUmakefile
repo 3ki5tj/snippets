@@ -5,5 +5,7 @@ clean:
 	rm -rf $(prog) a.out *~ .*.un~ */*~ */.*.un~ */*/*~ */*/.*.un~
 	rstrip.py -Rlv
 
+exclude = --exclude=".*" --exclude="*~"
+
 Dropbox: clean
-	rsync -avzL * ~/Dropbox/code/
+	rsync -avzL $(exclude) * ~/Dropbox/code/

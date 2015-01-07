@@ -61,6 +61,33 @@ function stopmd()
     mdtimer = null;
     lj = null;
   }
+  munit(viewmat);
+}
+
+
+
+// for the wheel event
+function installwheel(target, handler)
+{
+  if ( target.addEventListener ) {
+    // for IE9+, Chrome, Safari, Opera
+    target.addEventListener('mousewheel', handler, false);
+    // for Firefox
+    target.addEventListener('DOMMouseScroll', handler, false);
+  } else { // for IE 6/7/8
+    target.attachEvent("onmousewheel", handler);
+  }
+}
+
+
+
+function installmouse()
+{
+  var target = grab("ljbox");
+  target.onmousedown = ljmousedown;
+  target.onmouseup = ljmouseup;
+  target.onmousemove = ljmousemove;
+  installwheel(target, ljwheel);
 }
 
 
@@ -70,6 +97,7 @@ function startmd()
   stopmd();
   getparams();
   lj = new LJ(n, D, rho, rcdef);
+  installmouse();
   mdtimer = setInterval( function(){ pulse() }, timer_interval );
 }
 
