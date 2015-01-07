@@ -10,6 +10,7 @@
   <script type="text/javascript" src="./js/ljcore.js"></script>
   <script type="text/javascript" src="./js/vct2d.js"></script>
   <script type="text/javascript" src="./js/lj2d.js"></script>
+  <script type="text/javascript" src="./js/ljmain.js"></script>
 </head>
 <body>
 
@@ -20,14 +21,64 @@
 
 
 <form>
+  <div class="panel">
+  <div class="panel-title">System</div>
+  
   Number of particles
   <span class="math"><i>N</i></span>:
-  <input type="text" size="6" value="55" id="npt"
+  <input type="text" size="6" value="55" id="n"
+    onchange="changeparams()">.
+
+  Density
+  <span class="math"><i>&rho;</i></span>:
+  <input type="text" size="6" value="0.7" id="density"
+    onchange="changeparams()">.
+
+  Temperature
+  <span class="math"><i>T</i></span>:
+  <input type="text" size="6" value="1.5" id="temp"
+    onchange="changeparams()">.
+  &nbsp;
+  <br>
+
+  Cutoff
+  <span class="math"><i>r<sub>c</sub></i></span>:
+  <input type="text" size="6" value="2.5" id="rcutoff"
+    onchange="changeparams()">.
+  &nbsp;
+
+  </div>
+
+  <div class="panel">
+  <div class="panel-title">Molecular dynamics (MD)</div>
+
+  Number of MD steps per second:
+  <input type="text" size="10" value="100"
+    id="nstepspersec" onchange="changeparams()">.
+  <br>
+
+  MD time step:
+  <input type="text" size="6" value="0.002" id="mddt"
     onchange="changeparams()">.
   <br>
 
+  Thermostat time step:
+  <input type="text" size="6" value="0.02" id="thermostatdt"
+    onchange="changeparams()">.
+  <br>
+
+  </div>
+
+
+
   <input type="button" value="Start simulation"
-    id="start" class="largebtn" onclick="startmd()">
+    id="start" class="largebtn" onclick="startmd(2)">
+
+  <input type="button" value="Stop"
+    id="start" class="largebtn" onclick="stopmd()">
+
+  <input type="reset" value="Reset"
+    id="reset" class="largebtn">
 
   <hr>
 
