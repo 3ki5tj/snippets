@@ -10,18 +10,18 @@
 function lj_initfcc2d(lj)
 {
   var i, j, id = 0, n = lj.n;
-  var n1 = Math.floor( Math.sqrt(2*n) + .999999 ); // # of particles per side
+  var n1 = Math.floor( Math.sqrt(2*n) + 0.999999 ); // # of particles per side
   var a = lj.l / n1;
   var noise = a * 1e-5;
 
   for ( id = 0, i = 0; i < n1 && id < n; i++ ) {
     for ( j = 0; j < n1 && id < n; j++ ) {
-      if ( (i+j) % 2 == 0 ) {
+      if ( (i+j) % 2 === 0 ) {
         // add some noise to prevent two atoms happened to
         // be separated precisely by the cutoff distance,
         // which might be half of the box
-        lj.x[id][0] = (i + .5) * a + noise * (2*rand01() - 1);
-        lj.x[id][1] = (j + .5) * a + noise * (2*rand01() - 1);
+        lj.x[id][0] = (i + 0.5) * a + noise * (2*rand01() - 1);
+        lj.x[id][1] = (j + 0.5) * a + noise * (2*rand01() - 1);
         id++;
       }
     }
@@ -51,7 +51,9 @@ function lj_shiftang2d(x, v, n)
   var i;
   var am, r2, xc = [0, 0], xi = [0, 0];
 
-  for (i = 0; i < n; i++) vinc(xc, x[i]);
+  for (i = 0; i < n; i++) {
+    vinc(xc, x[i]);
+  }
   vsmul(xc, 1.0 / n);
   for (am = r2 = 0.0, i = 0; i < n; i++) {
     vdiff(xi, x[i], xc);
@@ -92,7 +94,7 @@ function ljdraw2d(lj, target)
   for (var i = 0; i < lj.n; i++) {
     var x = (lj.x[i][0] - lj.l * 0.5) * scale + width * 0.5;
     var y = (lj.x[i][1] - lj.l * 0.5) * scale + height * 0.5;
-    var spotcolor = "#a0a0e0"
+    var spotcolor = "#a0a0e0";
     var color = "#2040a0";
     drawBall(ctx, x, y, radius, color, spotcolor);
   }

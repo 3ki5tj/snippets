@@ -126,8 +126,9 @@ function rm3_inv(a)
   var detm = a[0][0]*d00 + a[0][1]*d01 + a[0][2]*d02;
   var dmin = 1e-20;
 
-  if (detm < dmin && detm > -dmin)
+  if (detm < dmin && detm > -dmin) {
     detm = (detm < 0) ? -dmin: dmin;
+  }
   var b = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
   b[0][0] = d00/detm;
   b[0][1] = (a[2][1]*a[0][2] - a[0][1]*a[2][2])/detm;
@@ -156,8 +157,12 @@ function vpbc(v, l, invl)
 function vwrap(v, l)
 {
   for ( var d = 0; d < D; d++ ) {
-    while ( v[d] < 0 ) v[d] += l;
-    while ( v[d] > l ) v[d] -= l;
+    while ( v[d] < 0 ) {
+      v[d] += l;
+    }
+    while ( v[d] > l ) {
+      v[d] -= l;
+    }
   }
 }
 
@@ -215,7 +220,7 @@ function mxrot3d(m, theta)
     m2[1][d] = c * m[1][d] - s * m[2][d];
     m2[2][d] = s * m[1][d] + c * m[2][d];
   }
-  return m2
+  return m2;
 }
 
 
@@ -258,9 +263,12 @@ function m2str(m)
 {
   var s = "[";
   for ( var d = 0; d < D; d++ ) {
-    if ( d > 0 ) s += ", ";
+    if ( d > 0 ) {
+      s += ", ";
+    }
     s += m[d].toString();
   }
   s += "]";
   return s;
 }
+

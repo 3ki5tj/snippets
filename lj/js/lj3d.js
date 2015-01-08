@@ -11,22 +11,24 @@ function lj_initfcc3d(lj)
 {
   var i, j, k, id, n = lj.n;
 
-  var n1 = Math.floor(Math.pow(2*n, 1.0/3) + .999999); // # of particles per side
+  var n1 = Math.floor(Math.pow(2*n, 1.0/3) + 0.999999); // # of particles per side
   var a = lj.l / n1;
   var noise = a * 1e-5;
-  for (id = 0, i = 0; i < n1 && id < n; i++)
-    for (j = 0; j < n1 && id < n; j++)
+  for (id = 0, i = 0; i < n1 && id < n; i++) {
+    for (j = 0; j < n1 && id < n; j++) {
       for (k = 0; k < n1 && id < n; k++) {
-        if ((i+j+k) % 2 == 0) {
+        if ((i+j+k) % 2 === 0) {
           /* add some noise to prevent two atoms happened to
            * be separated by precisely some special cutoff distance,
            * which might be half of the box */
-          lj.x[id][0] = (i + .5) * a + noise * (2*rand01() - 1);
-          lj.x[id][1] = (j + .5) * a + noise * (2*rand01() - 1);
-          lj.x[id][2] = (k + .5) * a + noise * (2*rand01() - 1);
+          lj.x[id][0] = (i + 0.5) * a + noise * (2*rand01() - 1);
+          lj.x[id][1] = (j + 0.5) * a + noise * (2*rand01() - 1);
+          lj.x[id][2] = (k + 0.5) * a + noise * (2*rand01() - 1);
           id++;
         }
       }
+    }
+  }
 }
 
 
@@ -62,7 +64,9 @@ function lj_shiftang3d(x, v, n)
   var mat = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
   var xx = 0, yy = 0, zz = 0, xy = 0, zx = 0, yz = 0;
 
-  for (i = 0; i < n; i++) vinc(xc, x[i]);
+  for (i = 0; i < n; i++) {
+    vinc(xc, x[i]);
+  }
   vsmul(xc, 1.0/n);
   for (i = 0; i < n; i++) {
     vdiff(xi, x[i], xc);
@@ -104,7 +108,7 @@ var userscale = 1.0;
 
 function ljmousedown(e)
 {
-  if ( !e ) e = window.event;
+  e = e || window.event;
   mousex = e.clientX;
   mousey = e.clientY;
   //console.log("mousedown", e.clientX, e.clientY, m2str(viewmat));
@@ -114,7 +118,7 @@ function ljmousedown(e)
 
 function ljmouseup(e)
 {
-  if ( !e ) e = window.event;
+  e = e || window.event;
   //console.log("mouseup", e.clientX, e.clientY, m2str(viewmat));
   mousex = -1;
   mousey = -1;
@@ -124,11 +128,12 @@ function ljmouseup(e)
 
 function ljmousemove(e)
 {
-  if ( mousex < 0 || mousey < 0 ) return;
-  if ( !e ) e = window.event;
-  var target = e.target ? e.target : e.srcElement;
-  viewmat = mxrot3d(viewmat, 180. * (mousey - e.clientY) / target.height);
-  viewmat = myrot3d(viewmat, 180. * (e.clientX - mousex) / target.width);
+  e = e || window.event;
+  if ( mousex >= 0 && mousey >= 0 ) {
+    var target = e.target ? e.target : e.srcElement;
+    viewmat = mxrot3d(viewmat, 180.0 * (mousey - e.clientY) / target.height);
+    viewmat = myrot3d(viewmat, 180.0 * (e.clientX - mousex) / target.width);
+  }
   mousex = e.clientX;
   mousey = e.clientY;
   //console.log("mousemove", e.clientX, e.clientY, m2str(viewmat));
@@ -139,17 +144,21 @@ function ljmousemove(e)
 /* for mouse wheel event */
 function ljwheel(e){
   var delta = 0; // positive for scrolling up
-  if ( !e ) e = window.event;
+  e = e || window.event;
   if ( e.wheelDelta ) { // IE/Opera
     delta = e.wheelDelta / 120;
   } else if ( e.detail ) { // Firefox
     delta = -e.detail / 3;
   }
-  if ( delta > 0 ) userscale *= 1.05;
-  else if ( delta < 0 ) userscale *= 0.95;
+  if ( delta > 0 ) {
+    userscale *= 1.05;
+  } else if ( delta < 0 ) {
+    userscale *= 0.95;
+  }
   //console.log("wheel", delta);
-  if ( e.preventDefault )
+  if ( e.preventDefault ) {
     e.preventDefault();
+  }
   e.returnValue = false;
 }
 

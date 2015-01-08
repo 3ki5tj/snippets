@@ -8,16 +8,22 @@
 
 function lj_initfcc(lj)
 {
-  if ( lj.dim == 2 ) return lj_initfcc2d(lj);
-  else if ( lj.dim == 3 ) return lj_initfcc3d(lj);
+  if ( lj.dim == 2 ) {
+    return lj_initfcc2d(lj);
+  } else if ( lj.dim == 3 ) {
+    return lj_initfcc3d(lj);
+  }
 }
 
 
 
 function lj_gettail(lj, rho, n)
 {
-  if ( lj.dim == 2 ) return lj_gettail2d(lj, rho, n);
-  else if ( lj.dim == 3 ) return lj_gettail3d(lj, rho, n);
+  if ( lj.dim == 2 ) {
+    return lj_gettail2d(lj, rho, n);
+  } else if ( lj.dim == 3 ) {
+    return lj_gettail3d(lj, rho, n);
+  }
 }
 
 
@@ -46,19 +52,24 @@ function lj_rmcom(x, dim, n)
   var i;
   var rc = newarr(dim);
 
-  for ( i = 0; i < n; i++ )
+  for ( i = 0; i < n; i++ ) {
     vinc(rc, x[i]);
-  vsmul(rc, 1./n);
-  for ( i = 0; i < n; i++ )
+  }
+  vsmul(rc, 1.0 / n);
+  for ( i = 0; i < n; i++ ) {
     vdec(x[i], rc);
+  }
 }
 
 
 
 function lj_shiftang(x, v, n)
 {
-  if ( D === 2 ) lj_shiftang2d(x, v, n);
-  else if ( D === 3 ) lj_shiftang3d(x, v, n);
+  if ( D === 2 ) {
+    lj_shiftang2d(x, v, n);
+  } else if ( D === 3 ) {
+    lj_shiftang3d(x, v, n);
+  }
 }
 
 
@@ -76,15 +87,17 @@ function LJ(n, dim, rho, rcdef)
   this.f = newarr2d(n, dim);
 
   lj_setrho(this, rho);
-  lj_initfcc(this); /* to be defined later in lj2d.js or lj3d.js */
+  lj_initfcc(this);
 
   // initialize random velocities
-  for ( i = 0; i < n; i++ )
-    for ( d = 0; d < dim; d++ )
+  for ( i = 0; i < n; i++ ) {
+    for ( d = 0; d < dim; d++ ) {
       this.v[i][d] = randgaus();
+    }
+  }
 
   lj_rmcom(this.v, dim, n);
-  lj_shiftang(this.x, this.v, n); /* to be defined later in lj2d.js or lj3d.js */
+  lj_shiftang(this.x, this.v, n);
 
   this.epot = 0;
   this.eps = 0;
@@ -99,7 +112,7 @@ function LJ(n, dim, rho, rcdef)
 LJ.prototype.setrho = function(rho)
 {
   lj_setrho(this, rho);
-}
+};
 
 
 
@@ -120,18 +133,19 @@ LJ.prototype.energy_low = function(x)
   for (ep = vir = 0, i = 0; i < n - 1; i++) {
     for (j = i + 1; j < n; j++) {
       dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
-      if (dr2 > rc2) continue;
-      dr2 = 1 / dr2;
-      dr6 = dr2 * dr2 * dr2;
-      vir += dr6 * (48 * dr6 - 24); // f.r
-      ep += 4 * dr6 * (dr6 - 1);
-      npr++;
+      if (dr2 < rc2) {
+        dr2 = 1 / dr2;
+        dr6 = dr2 * dr2 * dr2;
+        vir += dr6 * (48 * dr6 - 24); // f.r
+        ep += 4 * dr6 * (dr6 - 1);
+        npr++;
+      }
     }
   }
   return [ep + this.epot_tail, ep,
     ep - npr * this.epot_shift, // shifted energy
     vir];
-}
+};
 
 
 
@@ -143,7 +157,7 @@ LJ.prototype.energy = function()
   this.eps  = ret[2];
   this.vir  = ret[3];
   return this.epot;
-}
+};
 
 
 
@@ -155,28 +169,31 @@ LJ.prototype.force_low = function(x, f)
   var l = this.l, invl = 1/l;
   var i, j, npr = 0, n = this.n;
 
-  for (i = 0; i < n; i++) vzero(f[i]);
+  for (i = 0; i < n; i++) {
+    vzero(f[i]);
+  }
   for (ep = vir = 0, i = 0; i < n - 1; i++) {
     vzero(fi);
     for (j = i + 1; j < n; j++) {
       dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
-      if (dr2 > rc2) continue;
-      dr2 = 1 / dr2;
-      dr6 = dr2 * dr2 * dr2;
-      fs = dr6 * (48 * dr6 - 24); // f.r
-      vir += fs; // f.r
-      fs *= dr2; // f.r / r^2
-      vsinc(fi, dx, fs);
-      vsinc(f[j], dx, -fs);
-      ep += 4 * dr6 * (dr6 - 1);
-      npr++;
+      if (dr2 < rc2) {
+        dr2 = 1 / dr2;
+        dr6 = dr2 * dr2 * dr2;
+        fs = dr6 * (48 * dr6 - 24); // f.r
+        vir += fs; // f.r
+        fs *= dr2; // f.r / r^2
+        vsinc(fi, dx, fs);
+        vsinc(f[j], dx, -fs);
+        ep += 4 * dr6 * (dr6 - 1);
+        npr++;
+      }
     }
     vinc(f[i], fi);
   }
   return [ep + this.epot_tail, ep,
     ep - npr * this.epot_shift, // shifted energy
     vir];
-}
+};
 
 
 
@@ -187,8 +204,8 @@ LJ.prototype.force = function()
   this.ep0  = ret[1];
   this.eps  = ret[2];
   this.vir  = ret[3];
-  return this.epot
-}
+  return this.epot;
+};
 
 
 
@@ -196,7 +213,7 @@ LJ.prototype.force = function()
 LJ.prototype.calcp = function(tp)
 {
   return (this.dof * tp + this.vir) / (this.dim * this.vol) + this.p_tail;
-}
+};
 
 
 
@@ -204,17 +221,18 @@ LJ.prototype.calcp = function(tp)
 LJ.prototype.vv = function(dt)
 {
   var i, n = this.n;
-  var dth = dt * .5, l = this.l;
+  var dth = dt * 0.5, l = this.l;
 
-  for (i = 0; i < n; i++) { /* VV part 1 */
+  for (i = 0; i < n; i++) { // VV part 1
     vsinc(this.v[i], this.f[i], dth);
     vsinc(this.x[i], this.v[i], dt);
     vwrap(this.x[i], l);
   }
   this.force();
-  for (i = 0; i < n; i++) /* VV part 2 */
+  for (i = 0; i < n; i++) { // VV part 2
     vsinc(this.v[i], this.f[i], dth);
-}
+  }
+};
 
 
 
@@ -223,7 +241,9 @@ function lj_ekin(v, n)
 {
   var i;
   var ek = 0;
-  for ( i = 0; i < n; i++ ) ek += vsqr( v[i] );
+  for ( i = 0; i < n; i++ ) {
+    ek += vsqr( v[i] );
+  }
   return ek/2;
 }
 
@@ -239,9 +259,11 @@ function lj_vrescale_low(v, n, dof, tp, dt)
   var r2 = randchisqr(dof - 1);
   var ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
       + 2 * r * Math.sqrt(c * (1 - c) * ek1 * tp / 2);
-  if (ek2 < 0) ek2 = 0;
+  ek2 = Math.max(ek2, 0.0);
   var s = Math.sqrt(ek2/ek1);
-  for (i = 0; i < n; i++) vsmul(v[i], s);
+  for (i = 0; i < n; i++) {
+    vsmul(v[i], s);
+  }
   return ek2;
 }
 
@@ -250,7 +272,7 @@ function lj_vrescale_low(v, n, dof, tp, dt)
 LJ.prototype.vrescale = function(tp, dt)
 {
   return lj_vrescale_low(this.v, this.n, this.dof, tp, dt);
-}
+};
 
 
 
@@ -269,10 +291,11 @@ LJ.prototype.langp0 = function(dt, tp, pext, ensx)
   s = Math.exp( dlnv / D );
   this.vol *= Math.exp( dlnv );
   this.setrho(this.n / this.vol);
-  for ( i = 0; i < this.n; i++ )
+  for ( i = 0; i < this.n; i++ ) {
     vsmul(this.x[i], s);
+  }
   this.force();
-}
+};
 
 
 
@@ -280,23 +303,24 @@ LJ.prototype.langp0 = function(dt, tp, pext, ensx)
 LJ.prototype.randmv = function(xi, amp)
 {
   var i = Math.floor(rand01() * this.n), d;
-  for ( d = 0; d < D; d++ )
+  for ( d = 0; d < D; d++ ) {
     xi[d] = this.x[i][d] + (rand01() * 2 - 1) * amp;
+  }
   return i;
-}
+};
 
 
 
 /* compute pair energy */
 function lj_pair(xi, xj, l, invl, rc2)
 {
-  var dx = [0,0,0], dr2, invr2, invr6;
+  var dx = [0,0,0], dr2, invr2, invr6, vir, u;
 
   dr2 = lj_pbcdist2(dx, xi, xj, l, invl);
   if (dr2 < rc2) {
     invr2 = 1 / dr2;
     invr6 = invr2 * invr2 * invr2;
-    vir = invr6 * (48 * invr6 - 24); /* f.r */
+    vir = invr6 * (48 * invr6 - 24); // f.r
     u  = 4 * invr6 * (invr6 - 1);
     return [true, u, vir];
   } else {
@@ -314,8 +338,10 @@ LJ.prototype.depot = function(i, xi)
 
   u = 0;
   vir = 0.0;
-  for ( j = 0; j < n; j++ ) { /* pair */
-    if ( j == i ) continue;
+  for ( j = 0; j < n; j++ ) { // pair
+    if ( j === i ) {
+      continue;
+    }
     ret = lj_pair(this.x[i], this.x[j], l, invl, rc2);
     if ( ret[0] ) {
       u -= ret[1];
@@ -328,18 +354,18 @@ LJ.prototype.depot = function(i, xi)
     }
   }
   return [u, vir];
-}
+};
 
 
 
 /* commit a particle displacement */
-LJ.prototype.commit = function(i, xi, du, dvir)
+LJ.prototype.commit = function(i, xi, du, dvir, l)
 {
-  vcopy(this.x[i], xi);
+  vwrap( vcopy(this.x[i], xi), l );
   this.ep0 += du;
   this.epot += du;
   this.vir += dvir;
-}
+};
 
 
 
@@ -360,12 +386,11 @@ LJ.prototype.metro = function(amp, bet)
     acc = ( r < Math.exp( -bet * du ) );
   }
   if ( acc ) {
-    this.commit(i, xi, du, dvir);
+    this.commit(i, xi, du, dvir, this.l);
     return 1;
   }
   return 0;
-}
-
+};
 
 
 

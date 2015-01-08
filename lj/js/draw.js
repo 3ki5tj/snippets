@@ -39,8 +39,21 @@ function drawBall(ctx, x, y, r, color, spotcolor,
 
 function rgb2str(r, g, b)
 {
-  r = Math.floor(r).toString(16); if ( r.length == 1 ) r = "0" + r;
-  g = Math.floor(g).toString(16); if ( g.length == 1 ) g = "0" + g;
-  b = Math.floor(b).toString(16); if ( b.length == 1 ) b = "0" + b;
+  r = Math.floor(r).toString(16);
+  if ( r.length == 1 ) {
+    r = "0" + r;
+  }
+
+  g = Math.floor(g).toString(16);
+  if ( g.length == 1 ) {
+    g = "0" + g;
+  }
+
+  b = Math.floor(b).toString(16);
+  if ( b.length == 1 ) {
+    b = "0" + b;
+  }
+
   return "#" + r + g + b;
 }
+

@@ -16,7 +16,7 @@
 <body>
 
 <h2 class="center">
-  Molecular dynamics of Lennard-Jones fluid
+  Molecular dynamics and Monte Carlo of the Lennard-Jones fluid
 </h2>
 
 
@@ -44,25 +44,34 @@
 
   Dimension,
   <span class="math"><i>D</i></span>:
-  <input type="text" size="6" value="2" id="dimension"
-    onchange="changeparams()">.
+  <select id="dimension" onchange="changeparams()">
+    <option value="2">2</option>
+    <option value="3">3</option>
+  </select>
   &nbsp;
-  <br>
 
-  Cutoff
+  Cutoff,
   <span class="math"><i>r<sub>c</sub></i></span>:
   <input type="text" size="6" value="2.5" id="rcutoff"
     onchange="changeparams()">.
   &nbsp;
+  <br>
 
+  Simulation method
+  <select id="simulmethod" onchange="changeparams()">
+    <option value="MD">molecular dynamics (MD)</option>
+    <option value="MC">Monte Carlo (MC)</option>
+  </select>
   </div>
+
+
 
   <div class="panel">
   <div class="panel-title">Molecular dynamics (MD)</div>
 
   Number of MD steps per second:
-  <input type="text" size="10" value="100"
-    id="nstepspersec" onchange="changeparams()">.
+  <input type="text" size="10" value="200"
+    id="nstepspersecmd" onchange="changeparams()">.
   <br>
 
   MD time step:
@@ -79,11 +88,28 @@
 
 
 
+  <div class="panel">
+  <div class="panel-title">Monte Carlo (MC)</div>
+
+  Number of MC steps per second:
+  <input type="text" size="10" value="10000"
+    id="nstepspersecmc" onchange="changeparams()">.
+  <br>
+
+  MC move amplitude:
+  <input type="text" size="6" value="0.1" id="mcamp"
+    onchange="changeparams()">.
+  <br>
+
+  </div>
+
+
+
   <input type="button" value="Start simulation"
-    id="start" class="largebtn" onclick="startmd()">
+    id="start" class="largebtn" onclick="startsimul()">
 
   <input type="button" value="Stop"
-    id="start" class="largebtn" onclick="stopmd()">
+    id="start" class="largebtn" onclick="stopsimul()">
 
   <input type="reset" value="Reset"
     id="reset" class="largebtn">
@@ -92,6 +118,8 @@
 
   <div style="text-align: center">
     <canvas id="ljbox" width="480" height="480"></canvas>
+    <br>
+    <span id="sinfo" style="width: 480px"></span>
   </div>
 </form>
 
