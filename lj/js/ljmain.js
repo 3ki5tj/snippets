@@ -43,7 +43,7 @@ function getparams()
     D = dim;
   }
   rho = get_float("density", 0.7);
-  temp = get_float("temp", 1.5);
+  tp = get_float("temperature", 1.5);
   rcdef = get_float("rcutoff", 1000.0);
 
   simulmethod = grab("simulmethod").value;
@@ -55,12 +55,23 @@ function getparams()
   mcamp = get_float("mcamp", 0.2);
   nstepspsmc = get_int("nstepspersecmc", 10000);
   nstepspfmc = nstepspsmc * timer_interval / 1000;
+
+  userscale = get_float("ljscale");
 }
 
 
 
-/* for mouse wheel event */
-function ljwheel(e){
+function changescale()
+{
+  userscale = get_float("ljscale");
+  paint();
+}
+
+
+
+/* for the mouse wheel event */
+function ljwheel(e)
+{
   var delta = 0; // positive for scrolling up
   e = e || window.event;
   if ( e.wheelDelta ) { // IE/Opera
@@ -73,6 +84,7 @@ function ljwheel(e){
   } else if ( delta < 0 ) {
     userscale *= 0.95;
   }
+  grab("ljscale").value = userscale;
   //console.log("wheel", delta);
   if ( e.preventDefault ) {
     e.preventDefault();
@@ -83,7 +95,7 @@ function ljwheel(e){
 
 
 
-/* for the wheel event */
+/* install the mouse wheel event */
 function installwheel(target, handler)
 {
   if ( target.addEventListener ) {
@@ -206,6 +218,7 @@ function pausesimul()
 }
 
 
+
 function startsimul()
 {
   stopsimul();
@@ -220,9 +233,11 @@ function startsimul()
 
 
 
+/* respond to critical parameter changes: restart simulation */
 function changeparams()
 {
   if ( ljtimer !== null ) {
     startsimul();
   }
 }
+

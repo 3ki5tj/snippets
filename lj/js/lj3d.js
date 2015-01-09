@@ -227,7 +227,6 @@ function ljdraw3d(lj, target, userscale)
 
   // the system dimension is L + two radii
   var scale = userscale * Math.min(width, height) / (lj.l + 1.0);
-  var radius = 0.5 * scale;
 
   var xyz = transform(lj.x, lj.l); // apply the rotation matrix
   xyz = sortbyz(xyz); // sort particles by the z order
@@ -235,14 +234,15 @@ function ljdraw3d(lj, target, userscale)
   // draw each particle
   var zmax = xyz[lj.n - 1][2], zmin = xyz[0][2];
   for (var i = 0; i < lj.n; i++) {
-    var x = Math.floor(  (xyz[i][0] - lj.l * 0.5) * scale + width  * 0.5 );
-    var y = Math.floor( -(xyz[i][1] - lj.l * 0.5) * scale + height * 0.5 );
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
+    // make closer particles larger
+    var scl = scale * (0.7 + 0.3 * zf);
+    var x = Math.floor(  (xyz[i][0] - lj.l * 0.5) * scl + width  * 0.5 );
+    var y = Math.floor( -(xyz[i][1] - lj.l * 0.5) * scl + height * 0.5 );
     var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
     var color = rgb2str(20, 32, 80 + 160 * zf);
-    // make closer particles larger
-    var rz = Math.floor( radius * (0.7 + 0.3 * zf) );
+    var rz = Math.floor( 0.5 * scl );
     drawBall(ctx, x, y, rz, color, spotcolor);
   }
 }
