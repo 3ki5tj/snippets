@@ -99,10 +99,10 @@ function lj_shiftang3d(x, v, n)
 
 
 
+var mousedown = false;
 var mousex = -1;
 var mousey = -1;
 var viewmat = [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]];
-var userscale = 1.0;
 
 
 
@@ -111,6 +111,7 @@ function ljmousedown(e)
   e = e || window.event;
   mousex = e.clientX;
   mousey = e.clientY;
+  mousedown = true;
   //console.log("mousedown", e.clientX, e.clientY, m2str(viewmat));
 }
 
@@ -119,20 +120,23 @@ function ljmousedown(e)
 function ljmouseup(e)
 {
   e = e || window.event;
-  //console.log("mouseup", e.clientX, e.clientY, m2str(viewmat));
   mousex = -1;
   mousey = -1;
+  mousedown = false;
+  //console.log("mouseup", e.clientX, e.clientY, m2str(viewmat));
 }
 
 
 
 function ljmousemove(e)
 {
+  if ( !mousedown ) return;
   e = e || window.event;
   if ( mousex >= 0 && mousey >= 0 ) {
     var target = e.target ? e.target : e.srcElement;
-    viewmat = mxrot3d(viewmat, 180.0 * (mousey - e.clientY) / target.height);
+    viewmat = mxrot3d(viewmat, 180.0 * (e.clientY - mousey) / target.height);
     viewmat = myrot3d(viewmat, 180.0 * (e.clientX - mousex) / target.width);
+    paint(); // defined in ljmain.js
   }
   mousex = e.clientX;
   mousey = e.clientY;
@@ -210,7 +214,7 @@ function sortbyz(x)
 
 
 // draw all atoms in the box
-function ljdraw3d(lj, target)
+function ljdraw3d(lj, target, userscale)
 {
   var c = grab(target);
   var ctx = c.getContext("2d");
@@ -218,7 +222,7 @@ function ljdraw3d(lj, target)
   var height = c.height;
 
   // draw the background
-  ctx.fillStyle = "#f0f0f0";
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
 
   // the system dimension is L + two radii
@@ -231,14 +235,14 @@ function ljdraw3d(lj, target)
   // draw each particle
   var zmax = xyz[lj.n - 1][2], zmin = xyz[0][2];
   for (var i = 0; i < lj.n; i++) {
-    var x = (xyz[i][0] - lj.l * 0.5) * scale + width * 0.5;
-    var y = (xyz[i][1] - lj.l * 0.5) * scale + height * 0.5;
+    var x = Math.floor(  (xyz[i][0] - lj.l * 0.5) * scale + width  * 0.5 );
+    var y = Math.floor( -(xyz[i][1] - lj.l * 0.5) * scale + height * 0.5 );
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
     var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
     var color = rgb2str(20, 32, 80 + 160 * zf);
     // make closer particles larger
-    var rz = radius * (0.7 + 0.3 * zf);
+    var rz = Math.floor( radius * (0.7 + 0.3 * zf) );
     drawBall(ctx, x, y, rz, color, spotcolor);
   }
 }

@@ -18,38 +18,13 @@ function rotate(x, y, th)
 
 
 
-function mkpoints()
-{
-  var ngaus = get_int("ngaus", 1);
-
-  datarr = [];
-  color = new Array(ngaus);
-  for ( var i = 0; i < ngaus; i++ ) {
-    var i1 = i + 1;
-    var xc = get_float("xc_" + i1, 0.0);
-    var yc = get_float("yc_" + i1, 0.0);
-    var a = get_float("a_" + i1, 1.0);
-    var b = get_float("b_" + i1, 1.0);
-    var theta = get_float("theta_" + i1, 0.0);
-    var th = theta * Math.PI / 180.0;
-    var npt = get_int("npt_" + i1, 100);
-    for ( var j = 0; j < npt; j++ ) {
-      var xy = rotate(a*randgaus(), b*randgaus(), th);
-      datarr.push( [xc + xy[0], yc + xy[1]] );
-    }
-    color[i] = random_color();
-  }
-}
-
-
-
 function random_color(cmin, cmax)
 {
   var x = Math.random() * 6;
   var i = Math.floor( x ), r = 0, g = 0, b = 0;
 
-  if ( cmin == undefined || cmin == null ) cmin = 0;
-  if ( cmax == undefined || cmax == null ) cmax = 255;
+  if ( cmin === undefined || cmin === null ) cmin = 0;
+  if ( cmax === undefined || cmax === null ) cmax = 255;
   var cvar = cmax - cmin + 1;
   x -= i;
   if ( i < 1 ) { // red to yellow
@@ -72,6 +47,31 @@ function random_color(cmin, cmax)
     r = cmax;
   }
   return [r, g, b];
+}
+
+
+
+function mkpoints()
+{
+  var ngaus = get_int("ngaus", 1);
+
+  datarr = [];
+  color = new Array(ngaus);
+  for ( var i = 0; i < ngaus; i++ ) {
+    var i1 = i + 1;
+    var xc = get_float("xc_" + i1, 0.0);
+    var yc = get_float("yc_" + i1, 0.0);
+    var a = get_float("a_" + i1, 1.0);
+    var b = get_float("b_" + i1, 1.0);
+    var theta = get_float("theta_" + i1, 0.0);
+    var th = theta * Math.PI / 180.0;
+    var npt = get_int("npt_" + i1, 100);
+    for ( var j = 0; j < npt; j++ ) {
+      var xy = rotate(a*randgaus(), b*randgaus(), th);
+      datarr.push( [xc + xy[0], yc + xy[1]] );
+    }
+    color[i] = random_color();
+  }
 }
 
 

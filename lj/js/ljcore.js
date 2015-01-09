@@ -288,7 +288,7 @@ LJ.prototype.langp0 = function(dt, tp, pext, ensx)
   pint = this.calcp(tp);
   amp = Math.sqrt(2 * dt);
   dlnv = ((pint - pext) * this.vol / tp + 1 - ensx) * dt + amp * randgaus();
-  s = Math.exp( dlnv / D );
+  s = Math.exp( dlnv / this.dim );
   this.vol *= Math.exp( dlnv );
   this.setrho(this.n / this.vol);
   for ( i = 0; i < this.n; i++ ) {
@@ -303,7 +303,7 @@ LJ.prototype.langp0 = function(dt, tp, pext, ensx)
 LJ.prototype.randmv = function(xi, amp)
 {
   var i = Math.floor(rand01() * this.n), d;
-  for ( d = 0; d < D; d++ ) {
+  for ( d = 0; d < this.dim; d++ ) {
     xi[d] = this.x[i][d] + (rand01() * 2 - 1) * amp;
   }
   return i;

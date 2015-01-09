@@ -25,6 +25,15 @@
   <div class="panel">
   <div class="panel-title">System</div>
 
+  Dimension,
+  <span class="math"><i>D</i></span>:
+  <select id="dimension" onchange="changeparams()">
+    <option value="2">2</option>
+    <option value="3">3</option>
+  </select>.
+  &nbsp;
+  <br>
+
   Number of particles,
   <span class="math"><i>N</i></span>:
   <input type="text" size="6" value="55" id="n"
@@ -41,14 +50,6 @@
     onchange="changeparams()">.
   &nbsp;
   <br>
-
-  Dimension,
-  <span class="math"><i>D</i></span>:
-  <select id="dimension" onchange="changeparams()">
-    <option value="2">2</option>
-    <option value="3">3</option>
-  </select>
-  &nbsp;
 
   Cutoff,
   <span class="math"><i>r<sub>c</sub></i></span>:
@@ -97,26 +98,30 @@
   <br>
 
   MC move amplitude:
-  <input type="text" size="6" value="0.1" id="mcamp"
+  <input type="text" size="6" value="0.2" id="mcamp"
     onchange="changeparams()">.
   <br>
 
   </div>
 
 
+  <div class="center">
+    <input type="button" value="Start simulation"
+      id="start" class="largebtn" onclick="startsimul()">
 
-  <input type="button" value="Start simulation"
-    id="start" class="largebtn" onclick="startsimul()">
+    <input type="button" value="Pause"
+      id="pause" class="largebtn" onclick="pausesimul()">
 
-  <input type="button" value="Stop"
-    id="start" class="largebtn" onclick="stopsimul()">
+    <input type="button" value="Stop"
+      id="stop" class="largebtn" onclick="stopsimul()">
 
-  <input type="reset" value="Reset"
-    id="reset" class="largebtn">
+    <input type="reset" value="Reset"
+      id="reset" class="largebtn">
+  </div>
 
   <hr>
 
-  <div style="text-align: center">
+  <div class="center">
     <canvas id="ljbox" width="480" height="480"></canvas>
     <br>
     <span id="sinfo" style="width: 480px"></span>

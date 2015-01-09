@@ -71,29 +71,35 @@ function lj_shiftang2d(x, v, n)
 
 
 // draw all atoms in the box
-function ljdraw2d(lj, target)
+function ljdraw2d(lj, target, userscale)
 {
   var c = grab(target);
   var ctx = c.getContext("2d");
   var width = c.width;
   var height = c.height;
 
+  // the system dimension is L + two radii
+  var scale = userscale * Math.min(width, height) / (lj.l + 1);
+  var radius = Math.floor( 0.5 * scale );
+
   // draw the background
-  ctx.fillStyle = "#d0d0d0";
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
 
-  // the system dimension is L + two radii
-  var scale = Math.min(width, height) / (lj.l + 1);
-  var radius = 0.5 * scale;
-  var margin = 0.5 * scale;
+  ctx.fillStyle = "#d0d0d0";
+  ctx.fillRect( -(lj.l + 1) * 0.5 * scale + width  * 0.5,
+                -(lj.l + 1) * 0.5 * scale + height * 0.5,
+                scale * (lj.l + 1), scale * (lj.l + 1));
 
   ctx.fillStyle = "#f0f0f0";
-  ctx.fillRect(margin, margin, width - 2*margin, height - 2*margin);
+  ctx.fillRect( -lj.l * 0.5 * scale + width  * 0.5,
+                -lj.l * 0.5 * scale + height * 0.5,
+                scale * lj.l, scale * lj.l);
 
   // draw each particle
   for (var i = 0; i < lj.n; i++) {
-    var x = (lj.x[i][0] - lj.l * 0.5) * scale + width * 0.5;
-    var y = (lj.x[i][1] - lj.l * 0.5) * scale + height * 0.5;
+    var x = Math.floor(  (lj.x[i][0] - lj.l * 0.5) * scale + width  * 0.5 );
+    var y = Math.floor( -(lj.x[i][1] - lj.l * 0.5) * scale + height * 0.5 );
     var spotcolor = "#a0a0e0";
     var color = "#2040a0";
     drawBall(ctx, x, y, radius, color, spotcolor);

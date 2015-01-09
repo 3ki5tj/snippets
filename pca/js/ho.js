@@ -116,7 +116,7 @@ function initff()
   var massdistr = grab("massdistr").value;
   var massslope = get_float("massslope", 1);
   for ( i = 0; i < N; i++ ) {
-    if ( massdistr == "triangular" ) {
+    if ( massdistr === "triangular" ) {
       mass[i] = -Math.abs(2.*i/(N-1) - 1)*massslope + 1;
       if ( massslope > 0 ) mass[i] += massslope;
     } else {
@@ -145,7 +145,7 @@ function force()
 
   for ( i = 0; i < N; i++ ) f[i] = 0;
 
-  if ( N == 1 ) {
+  if ( N === 1 ) {
     tmp = getpairpot(-x[0], hess[0], quartic_a, quartic_b);
     U = tmp[0];
     f[0] = tmp[1];
@@ -288,7 +288,7 @@ function domd()
   var Ep, Ek;
   var i, dof, istep;
 
-  dof = ( thermostat == "Andersen" || N == 1 ) ? N : N - 1;
+  dof = ( thermostat === "Andersen" || N === 1 ) ? N : N - 1;
   for ( Ek = 0, i = 0; i < N; i++ )
     Ek += .5 * mass[i] * v[i] * v[i];
   Ep = force();
@@ -309,11 +309,11 @@ function domd()
     }
 
     /* apply the thermostat */
-    if ( thermostat == "Andersen" || N == 1 ) {
+    if ( thermostat === "Andersen" || N === 1 ) {
       Ek = andersen();
-    } else if ( thermostat == "Langevin" ) {
+    } else if ( thermostat === "Langevin" ) {
       Ek = langevin(thdt);
-    } else if ( thermostat == "vrescale" ) {
+    } else if ( thermostat === "vrescale" ) {
       Ek = vrescale(thdt, dof);
     } else {
       throw new Error("Unknown thermostat " + thermostat);
@@ -325,7 +325,7 @@ function domd()
     smU += Ep/N;
     smcnt += 1;
 
-    if ( mdstep % nstsamp == 0 ) {
+    if ( mdstep % nstsamp === 0 ) {
       if ( N > 1  && thermostat != "Andersen" ) rmcom(v);
       if ( N > 1 ) rmcom(x);
       sample();
@@ -487,7 +487,7 @@ function updateposplot()
     posymax = Math.max(Math.abs(x[i]), posymax);
     dat += "" + (i+1) + "," + x[i] + "\n";
   }
-  if ( posplot == null ) {
+  if ( posplot === null ) {
     var options = {
       title: 'Positions of oscillators',
       xlabel: 'Particle index, <i>i</i>',
@@ -504,7 +504,7 @@ function updateposplot()
   } else {
     posplot.updateOptions({
       file: dat,
-      valueRange: [-posymax, posymax],
+      valueRange: [-posymax, posymax]
     });
   }
 }
@@ -518,7 +518,7 @@ function updateomgplot(omgs)
   var dat = "<i>k</i>,<i>&omega;<sub>k</sub></i>\n";
   for ( i = 0; i < N; i++ )
     dat += "" + (i+1) + "," + omgs[i] + "\n";
-  if ( omgplot == null ) {
+  if ( omgplot === null ) {
     var options = {
       title: 'Frequencies of modes',
       xlabel: 'Mode, <i>k</i>',
@@ -531,7 +531,7 @@ function updateomgplot(omgs)
     };
     omgplot = new Dygraph(grab("omgplot"), dat, options);
   } else {
-    omgplot.updateOptions({ file: dat, });
+    omgplot.updateOptions({ file: dat });
   }
 }
 
@@ -557,7 +557,7 @@ function updatemodesplot(omgs, modes)
   }
   //console.log(dat);
 
-  if ( modesplot == null ) {
+  if ( modesplot === null ) {
     var options = {
       title: 'Modes',
       xlabel: 'Particle index, <i>i</i>',
@@ -570,7 +570,7 @@ function updatemodesplot(omgs, modes)
     };
     modesplot = new Dygraph(grab("modesplot"), dat, options);
   } else {
-    modesplot.updateOptions({ file: dat, });
+    modesplot.updateOptions({ file: dat });
   }
 }
 
@@ -621,9 +621,9 @@ function pulse()
   grab("info").innerHTML = sinfo;
   updateposplot();
   nstpca = get_int("nstpca", 500000);
-  if ( mdstep % nstpca == 0 ) {
+  if ( mdstep % nstpca === 0 ) {
     var ret = pca();
-    if ( ret == null ) return;
+    if ( ret === null ) return;
     var omgs = ret[0];
     var modes = ret[1];
     var hessmatb = ret[2];
@@ -670,6 +670,8 @@ function startmd()
 
 function changeparams()
 {
-  if ( mdtimer != null ) startmd();
+  if ( mdtimer != null ) {
+    startmd();
+  }
 }
 

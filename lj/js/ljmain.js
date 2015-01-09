@@ -6,32 +6,6 @@
 
 
 
-// for the wheel event
-function installwheel(target, handler)
-{
-  if ( target.addEventListener ) {
-    // for IE9+, Chrome, Safari, Opera
-    target.addEventListener('mousewheel', handler, false);
-    // for Firefox
-    target.addEventListener('DOMMouseScroll', handler, false);
-  } else { // for IE 6/7/8
-    target.attachEvent("onmousewheel", handler);
-  }
-}
-
-
-
-function installmouse()
-{
-  var target = grab("ljbox");
-  target.onmousedown = ljmousedown;
-  target.onmouseup = ljmouseup;
-  target.onmousemove = ljmousemove;
-  installwheel(target, ljwheel);
-}
-
-
-
 var lj = null;
 var n = 55;
 var rho = 0.7;
@@ -56,6 +30,8 @@ var mcacc = 0.0;
 var sum1 = 1e-30;
 var sumU = 0.0;
 var sumP = 0.0;
+
+var userscale = 1.0;
 
 
 
@@ -83,6 +59,56 @@ function getparams()
 
 
 
+/* for mouse wheel event */
+function ljwheel(e){
+  var delta = 0; // positive for scrolling up
+  e = e || window.event;
+  if ( e.wheelDelta ) { // IE/Opera
+    delta = e.wheelDelta / 120;
+  } else if ( e.detail ) { // Firefox
+    delta = -e.detail / 3;
+  }
+  if ( delta > 0 ) {
+    userscale *= 1.05;
+  } else if ( delta < 0 ) {
+    userscale *= 0.95;
+  }
+  //console.log("wheel", delta);
+  if ( e.preventDefault ) {
+    e.preventDefault();
+  }
+  e.returnValue = false;
+  paint();
+}
+
+
+
+/* for the wheel event */
+function installwheel(target, handler)
+{
+  if ( target.addEventListener ) {
+    // for IE9+, Chrome, Safari, Opera
+    target.addEventListener('mousewheel', handler, false);
+    // for Firefox
+    target.addEventListener('DOMMouseScroll', handler, false);
+  } else { // for IE 6/7/8
+    target.attachEvent("onmousewheel", handler);
+  }
+}
+
+
+
+function installmouse()
+{
+  var target = grab("ljbox");
+  target.onmousedown = ljmousedown;
+  target.onmouseup = ljmouseup;
+  target.onmousemove = ljmousemove;
+  installwheel(target, ljwheel);
+}
+
+
+
 function domd()
 {
   var istep, sinfo = "";
@@ -95,7 +121,7 @@ function domd()
     sumP += lj.calcp(tp);
   }
   sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
-  sinfo += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3);
+  sinfo += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3) + ".";
   return sinfo;
 }
 
@@ -114,8 +140,20 @@ function domc()
   }
   sinfo += "acc: " + roundto(100.0 * mcacc / mctot, 2) + "%, ";
   sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
-  sinfo += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3);
+  sinfo += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3) + ".";
   return sinfo;
+}
+
+
+
+function paint()
+{
+  if ( !lj ) return;
+  if ( lj.dim === 2 ) {
+    ljdraw2d(lj, "ljbox", userscale);
+  } else if ( lj.dim === 3 ) {
+    ljdraw3d(lj, "ljbox", userscale);
+  }
 }
 
 
@@ -131,11 +169,7 @@ function pulse()
   }
   grab("sinfo").innerHTML = sinfo;
 
-  if ( lj.dim === 2 ) {
-    ljdraw2d(lj, "ljbox");
-  } else if ( lj.dim === 3 ) {
-    ljdraw3d(lj, "ljbox");
-  }
+  paint();
 }
 
 
@@ -146,7 +180,6 @@ function stopsimul()
     clearInterval(ljtimer);
     ljtimer = null;
   }
-  lj = null;
   mctot = 0.0;
   mcacc = 0.0;
   sum1 = 1e-30;
@@ -155,6 +188,22 @@ function stopsimul()
   munit(viewmat);
 }
 
+
+
+function pausesimul()
+{
+  if ( !lj ) return;
+  if ( ljtimer !== null ) {
+    clearInterval(ljtimer);
+    ljtimer = null;
+    grab("pause").value = "Resume";
+  } else {
+    ljtimer = setInterval(
+        function() { pulse(); },
+        timer_interval);
+    grab("pause").value = "Pause";
+  }
+}
 
 
 function startsimul()

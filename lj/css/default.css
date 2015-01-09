@@ -1,8 +1,37 @@
-form {
-  width: 800px;
-  padding: 20px 20px;
-  border: double;
+body {
+  width: 1000px;
   margin: auto;
+}
+
+form {
+  width: 840px;
+  padding: 20px 20px;
+  background-color: #f0f0f0;
+  margin: auto;
+}
+
+h1, h2, h3 {
+  font-family: Georgia, serif;
+  text-align: center;
+  background-color: #f0f0ff;
+  padding: 15px;
+  margin-bottom: 0px;
+  border-top: 1px solid #cccccc;
+  border-bottom: 1px solid #cccccc;
+}
+
+h1 {
+  font-size: 160%;
+}
+
+h2 {
+  font-size: 140%;
+  font-weight: normal;
+}
+
+h3 {
+  font-size: 120%;
+  font-weight: normal;
 }
 
 th {
