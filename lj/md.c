@@ -41,7 +41,7 @@ int main(void)
     if ( t <= nequil ) continue;
     epsm += lj->epot;
   }
-  lj_writepos(lj, lj->x, lj->v, "a.pos");
+  lj_writepos(lj, lj->x, lj->v, fnpos);
   lj_close(lj);
   printf("rho %g, tp %g, ep %g\n", rho, tp, epsm/nsteps/n);
   return 0;
