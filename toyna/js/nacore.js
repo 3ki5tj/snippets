@@ -9,7 +9,7 @@
 function na_initchain(na)
 {
   var i, ib, is, nr = na.nr;
-  var rb = 10.0, rs = 7.0, ang = 2*Math.PI/10, dh = 3.4, th, c, s;
+  var rb = 10.0, rs = 4.0, ang = 2*Math.PI/10, dh = 3.4, th, c, s;
 
   for ( i = 0; i < nr; i++ ) {
     th = ang * i;
@@ -17,12 +17,12 @@ function na_initchain(na)
     s = Math.sin(th);
     ib = i*2;
     is = i*2 + 1;
-    na.x[ib][0] = rb * c;
-    na.x[ib][1] = rb * s;
-    na.x[ib][2] = dh * i;
-    na.x[is][0] = rs * c;
-    na.x[is][1] = rs * s;
-    na.x[is][2] = dh * i;
+    na.x[ib][2] = rb * c;
+    na.x[ib][0] = rb * s;
+    na.x[ib][1] = dh * i;
+    na.x[is][2] = rs * c;
+    na.x[is][0] = rs * s;
+    na.x[is][1] = dh * i;
   }
 }
 

@@ -101,6 +101,11 @@ div.panel {
   border-radius: 10px;
 }
 
+input[type=range] {
+  background-color: #dddddd;
+  padding: 2px 10px;
+}
+
 .panel-title {
   background-color: #f0f0f0;
   text-align: center;

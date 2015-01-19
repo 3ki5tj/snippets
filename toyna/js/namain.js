@@ -211,7 +211,7 @@ function transform(x)
     //console.log(x[i], xi, xc, xyz[i]);
     //vinc(xyz[i], xc);
     for ( d = 0; d < D; d++ ) {
-      l = Math.abs( xi[d], l );
+      l = Math.max( Math.abs( xi[d] ), l );
     }
   }
   return [xyz, xc, l];
@@ -296,8 +296,8 @@ function nadraw(na, target, userscale)
   // xyz[i]           --> xt[ idmap[i] ]
   // xyz[ invmap[i] ] --> xt[ i ]
 
-  // the system dimension is L + two radii
-  var scale = userscale * Math.min(width, height) / (na.l + 1.0);
+  var scale = userscale * Math.min(width, height) / (na.l * 2.0);
+  console.log(scale, userscale, na.l);
 
   // draw each particle
   var zmax = xyz[na.n - 1][2], zmin = xyz[0][2];
@@ -350,7 +350,7 @@ function nadraw(na, target, userscale)
       rad = 1.5;
     } else {
       color = rgb2str(80 + 160 * zf, 32, 20);
-      rad = 2.0;
+      rad = 1.0;
     }
     var rz = Math.floor( rad * scl );
     paintBall(ctx, x, y, rz, color, spotcolor);
