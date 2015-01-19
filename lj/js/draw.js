@@ -6,11 +6,47 @@
 
 
 
+/* draw line */
+function drawLine(ctx, xi, yi, xj, yj, color, lineWidth)
+{
+  if ( color  ) {
+    ctx.strokeStyle = color;
+  }
+  if ( lineWidth ) {
+    ctx.lineWidth = lineWidth;
+  }
+  ctx.beginPath();
+  ctx.moveTo(xi, yi);
+  ctx.lineTo(xj, yj);
+  ctx.stroke();
+}
+
+
+
+/* draw a ball that is centered at (x, y) with radius r
+ * color is the color of the ball
+ * the format of color is "#rrggbb" */
+function drawBall(ctx, x, y, r, color, lineWidth)
+{
+  if ( color  ) {
+    ctx.strokeStyle = color;
+  }
+  if ( lineWidth ) {
+    ctx.lineWidth = lineWidth;
+  }
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 2*Math.PI);
+  ctx.closePath();
+  ctx.stroke();
+}
+
+
+
 /* draw a ball that is centered at (x, y) with radius r
  * color is the color of the ball
  * spotcolor is the color of the spotlight
  * the format of color is "#rrggbb" */
-function drawBall(ctx, x, y, r, color, spotcolor,
+function paintBall(ctx, x, y, r, color, spotcolor,
     spotx, spoty, spotr)
 {
   if ( spotcolor === undefined || spotcolor === null ) {

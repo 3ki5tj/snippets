@@ -193,18 +193,28 @@ function domc()
 
 
 
-function transform(x, l)
+function transform(x)
 {
-  var n = x.length;
-  var xyz = newarr(n), xc = [l * 0.5, l * 0.5, l * 0.5], xi = [0, 0, 0];
+  var i, d, n = x.length, l = 0;
+  var xyz = newarr(n), xc = [0, 0, 0], xi = [0, 0, 0];
 
-  for ( var i = 0; i < n; i++ ) {
+  // compute the center of mass
+  for ( i = 0; i < n; i++ ) {
+    vinc(xc, x[i]);
+  }
+  vsmul(xc, 1.0/n);
+
+  // rotate the coordinates of each particle
+  for ( i = 0; i < n; i++ ) {
     vdiff(xi, x[i], xc);
     xyz[i] = mmulv(viewmat, xi);
     //console.log(x[i], xi, xc, xyz[i]);
-    vinc(xyz[i], xc);
+    //vinc(xyz[i], xc);
+    for ( d = 0; d < D; d++ ) {
+      l = Math.abs( xi[d], l );
+    }
   }
-  return xyz;
+  return [xyz, xc, l];
 }
 
 
@@ -212,28 +222,54 @@ function transform(x, l)
 function sortbyz(x)
 {
   var i, j, k, l, n = x.length;
-  var xyz = newarr2d(n, 3), rt = [0, 0, 0];
+  var xyz = newarr2d(n, 3), rt = newarr(D);
+  var idmap = newarr(n);
+  var invmap = newarr(n);
+
+  for ( i = 0; i < n; i++ ) {
+    idmap[i] = i;
+    // i:         index of the output array `xyz`
+    // idmap[i]:  index of the input array `x`
+    // so xyz[i] --> x[ idmap[i] ];
+    invmap[i] = i;
+  }
+
   // use bubble sort
   for ( i = 0; i < n; i++ ) {
     vcopy(xyz[i], x[i]);
   }
+
   for ( i = 0; i < n; i++ ) {
     // find the ith smallest z
     k = i;
+    var zmin = x[ idmap[i] ][2];
     for ( j = i + 1; j < n; j++ ) {
-      if ( xyz[j][2] < xyz[k][2] ) {
-        l = k;
+      if ( x[ idmap[j] ][2] < zmin ) {
         k = j;
-        j = l;
+        zmin = x[ idmap[j] ][2];
       }
     }
     if ( k != i ) {
-      vcopy(rt, xyz[k]);
-      vcopy(xyz[k], xyz[i]);
-      vcopy(xyz[i], rt);
+      // before
+      //  xyz[i] --> x[ idmap[i] ]
+      //  xyz[k] --> x[ idmap[k] ]
+      // after
+      //  xyz[i] --> x[ idmap[k] ]
+      //  xyz[k] --> x[ idmap[i] ]
+      l = idmap[i];
+      idmap[i] = idmap[k];
+      idmap[k] = l;
     }
   }
-  return xyz;
+
+  for ( i = 0; i < n; i++ ) {
+    vcopy(xyz[i], x[ idmap[i] ]);
+  }
+  // compute the inverse map
+  for ( i = 0; i < n; i++ ) {
+    invmap[ idmap[i] ] = i;
+  }
+  return [xyz, idmap, invmap];
 }
 
 
@@ -245,30 +281,79 @@ function nadraw(na, target, userscale)
   var ctx = c.getContext("2d");
   var width = c.width;
   var height = c.height;
+  var i, j, k, ir, ic, ret;
 
   // draw the background
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
 
+  ret = transform(na.x); // apply the rotation matrix
+  var xt = ret[0];
+  na.l = ret[2];
+  ret = sortbyz(xt); // sort particles by the z order
+  var xyz = ret[0];
+  var idmap = ret[1], invmap = ret[2];
+  // xyz[i]           --> xt[ idmap[i] ]
+  // xyz[ invmap[i] ] --> xt[ i ]
+
   // the system dimension is L + two radii
   var scale = userscale * Math.min(width, height) / (na.l + 1.0);
 
-  var xyz = transform(na.x, na.l); // apply the rotation matrix
-  xyz = sortbyz(xyz); // sort particles by the z order
-
   // draw each particle
   var zmax = xyz[na.n - 1][2], zmin = xyz[0][2];
+
+  // draw lines that were used to group clusters
+  {
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#808080';
+    for ( var ir = 0; ir < na.nr; ir++ ) {
+      i = invmap[ ir*2 ];
+      j = invmap[ ir*2 + 1 ];
+      var zfi = (xyz[i][2] - zmin) / (zmax - zmin);
+      var scli = scale * (0.7 + 0.3 * zfi);
+      var xi = Math.floor(  xyz[i][0] * scli + width  * 0.5 );
+      var yi = Math.floor( -xyz[i][1] * scli + height * 0.5 );
+      var zfj = (xyz[j][2] - zmin) / (zmax - zmin);
+      var sclj = scale * (0.7 + 0.3 * zfj);
+      var xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
+      var yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
+      drawLine(ctx, xi, yi, xj, yj, '#aaaaaa', 4);
+      drawLine(ctx, xi, yi, xj, yj, '#bbbbbb', 2);
+      drawLine(ctx, xi, yi, xj, yj, '#cccccc', 1);
+
+      if ( ir < na.nr - 1 ) {
+        k = invmap[ (ir + 1) * 2 ];
+        var zfk = (xyz[k][2] - zmin) / (zmax - zmin);
+        var sclk = scale * (0.7 + 0.3 * zfk);
+        var xk = Math.floor(  xyz[k][0] * sclk + width  * 0.5 );
+        var yk = Math.floor( -xyz[k][1] * sclk + height * 0.5 );
+        drawLine(ctx, xi, yi, xk, yk, '#aaaaaa', 4);
+        drawLine(ctx, xi, yi, xk, yk, '#bbbbbb', 2);
+        drawLine(ctx, xi, yi, xk, yk, '#cccccc', 1);
+      }
+    }
+  }
+
+
   for (var i = 0; i < na.n; i++) {
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
     // make closer particles larger
     var scl = scale * (0.7 + 0.3 * zf);
-    var x = Math.floor(  (xyz[i][0] - na.l * 0.5) * scl + width  * 0.5 );
-    var y = Math.floor( -(xyz[i][1] - na.l * 0.5) * scl + height * 0.5 );
+    var x = Math.floor(  xyz[i][0] * scl + width  * 0.5 );
+    var y = Math.floor( -xyz[i][1] * scl + height * 0.5 );
     var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
-    var color = rgb2str(20, 32, 80 + 160 * zf);
-    var rz = Math.floor( 0.5 * scl );
-    drawBall(ctx, x, y, rz, color, spotcolor);
+    var color, rad;
+    var i0 = idmap[ i ];
+    if ( i0 % 2 === 0 ) {
+      color = rgb2str(20, 32, 80 + 160 * zf);
+      rad = 1.5;
+    } else {
+      color = rgb2str(80 + 160 * zf, 32, 20);
+      rad = 2.0;
+    }
+    var rz = Math.floor( rad * scl );
+    paintBall(ctx, x, y, rz, color, spotcolor);
   }
 }
 

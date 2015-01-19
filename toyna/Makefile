@@ -19,4 +19,5 @@ clean:
 	rstrip.py -Rlv
 
 Dropbox: clean
-	rsync -avzL --exclude="*~" * ~/Dropbox/code/toyna/
+	rsync -avzL --exclude="*~" --exclude=".*" \
+	  * ~/Dropbox/code/toyna/

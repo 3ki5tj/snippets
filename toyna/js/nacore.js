@@ -218,7 +218,6 @@ NA.prototype.vv = function(dt)
   for (i = 0; i < n; i++) { // VV part 1
     vsinc(this.v[i], this.f[i], dth);
     vsinc(this.x[i], this.v[i], dt);
-    vwrap(this.x[i], l);
   }
   this.force();
   for (i = 0; i < n; i++) { // VV part 2
