@@ -6,7 +6,7 @@
 
 
 
-function na_initchain(na)
+function na_initchain2(na)
 {
   var i, ib, is, nr = na.nr;
   var rb = 10.0, rs = 4.0, ang = 2*Math.PI/10, dh = 3.4, th, c, s;
@@ -23,6 +23,56 @@ function na_initchain(na)
     na.x[is][2] = rs * c;
     na.x[is][0] = rs * s;
     na.x[is][1] = dh * i;
+  }
+}
+
+
+
+function na_initchain3(na)
+{
+  var i, nr = na.nr;
+
+  var ang = 32.7*Math.PI/180, dh = 2.81;
+  var rp = 8.710, thp = -70.502*Math.PI/180, dhp = 3.750;
+  var rs = 9.064, ths = -43.651*Math.PI/180, dhs = 2.806;
+  var rb = 5.6, thb = -43.651*Math.PI/180, dhb = 0.8;
+
+  for ( i = 0; i < nr; i++ ) {
+    var th = ang * i;
+
+    var ip = i*3;
+    var cp = Math.cos(th + thp);
+    var sp = Math.sin(th + thp);
+    na.x[ip][2] = rp * cp;
+    na.x[ip][0] = rp * sp;
+    na.x[ip][1] = dh * i + dhp;
+
+    var is = i*3 + 1;
+    var cs = Math.cos(th + ths);
+    var ss = Math.sin(th + ths);
+    na.x[is][2] = rs * cs;
+    na.x[is][0] = rs * ss;
+    na.x[is][1] = dh * i + dhs;
+
+    var ib = i*3 + 2;
+    if ( na.seq[i] == 'A' ) {
+      rb = 5.458;
+      thb = -25.976*Math.PI/180;
+    } else if ( na.seq[i] == 'C' ) {
+      rb = 5.643;
+      thb = -33.975*Math.PI/180;
+    } else if ( na.seq[i] == 'G' ) {
+      rb = 5.631;
+      thb = -22.124*Math.PI/180;
+    } else if ( na.seq[i] == 'U' ) {
+      rb = 5.633;
+      thb = -34.102*Math.PI/180;
+    }
+    var cb = Math.cos(th + thb);
+    var sb = Math.sin(th + thb);
+    na.x[ib][2] = rb * cb;
+    na.x[ib][0] = rb * sb;
+    na.x[ib][1] = dh * i + dhb;
   }
 }
 
@@ -101,8 +151,20 @@ function NA(nr, rc)
 {
   var i, d, n;
 
-  this.nr = nr;
-  this.n = n = nr * 2;
+  if ( isNaN(nr) ) {
+    this.seq = nr;
+    this.nr = nr = this.seq.length;
+    console.log( this.seq, this.nr );
+  } else {
+    this.nr = nr;
+    this.seq = "";
+    for ( i = 0; i < nr; i++ ) {
+      this.seq += "A";
+    }
+  }
+
+  this.apr = 3; // atoms per residue
+  this.n = n = this.nr * this.apr;
   this.dof = n * D - D * (D + 1) / 2;
   this.rc = rc;
   this.l = 10.0; // TODO
@@ -110,7 +172,11 @@ function NA(nr, rc)
   this.v = newarr2d(n, D);
   this.f = newarr2d(n, D);
 
-  na_initchain(this);
+  if ( this.apr == 2 ) {
+    na_initchain(this);
+  } else {
+    na_initchain3(this);
+  }
 
   // initialize random velocities
   for ( i = 0; i < n; i++ ) {

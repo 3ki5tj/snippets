@@ -53,6 +53,10 @@ def vang(a, b, c):
 
 
 def vdih(xi, xj, xk, xl):
+  ''' return the dihedral angle of i-j-k-l,
+      which is computed as the angle between the jik and jlk
+      the dihedral angle is 0 in the cis configuration
+      and pi in the trans configuration '''
   xij = vdiff(xi, xj)
   xkj = vdiff(xk, xj)
   xkl = vdiff(xk, xl)

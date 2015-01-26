@@ -29,8 +29,8 @@ typedef struct {
 
 
 
-/* initialize a chain */
-static void na_initchain(na_t *na)
+/* initialize an RNA chain */
+static void na_initchain2(na_t *na)
 {
   int i, ib, is, nr = na->nr;
   double rb = 10.0, rs = 7.0, ang = 2*PI/10, dh = 3.4, th, c, s;
@@ -115,7 +115,7 @@ static void na_shiftang(double (*x)[D], double (*v)[D], int n)
 
 
 /* open an LJ system */
-static na_t *na_open(int nr, double rc)
+static na_t *na_open(int nr, double rc, int model)
 {
   na_t *na;
   int i, d, n;
@@ -131,7 +131,11 @@ static na_t *na_open(int nr, double rc)
   xnew(na->v, n);
   xnew(na->f, n);
 
-  na_initchain(na);
+  if ( model == 2 ) {
+    na_initchain2(na);
+  } else {
+    na_initchain3(na);
+  }
 
   /* initalize random velocities */
   for (i = 0; i < n; i++)

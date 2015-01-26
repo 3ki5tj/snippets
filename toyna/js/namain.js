@@ -274,6 +274,29 @@ function sortbyz(x)
 
 
 
+// draw a metallic line
+function drawLineFancy(ctx, xi, yi, xj, yj)
+{
+  drawLine(ctx, xi, yi, xj, yj, '#aaaaaa', 4);
+  drawLine(ctx, xi, yi, xj, yj, '#bbbbbb', 2);
+  drawLine(ctx, xi, yi, xj, yj, '#cccccc', 1);
+}
+
+
+
+// get the scaling factor due to z
+function getzscale(r, zmin, zmax, ortho)
+{
+  if ( ortho ) {
+    return 1.0;
+  } else {
+    var zf = (r[2] - zmin) / (zmax - zmin);
+    return 0.7 + 0.3 * zf;
+  }
+}
+
+
+
 // draw all atoms in the box
 function nadraw(na, target, userscale)
 {
@@ -281,7 +304,8 @@ function nadraw(na, target, userscale)
   var ctx = c.getContext("2d");
   var width = c.width;
   var height = c.height;
-  var i, j, k, ir, ic, ret;
+  var i, j, jb, k, ir, ic, ret;
+  var apr = na.apr;
 
   // draw the background
   ctx.fillStyle = "#ffffff";
@@ -296,6 +320,7 @@ function nadraw(na, target, userscale)
   // xyz[i]           --> xt[ idmap[i] ]
   // xyz[ invmap[i] ] --> xt[ i ]
 
+  var ortho = grab("orthographic").checked;
   var scale = userscale * Math.min(width, height) / (na.l * 2.0);
   console.log(scale, userscale, na.l);
 
@@ -307,29 +332,41 @@ function nadraw(na, target, userscale)
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#808080';
     for ( var ir = 0; ir < na.nr; ir++ ) {
-      i = invmap[ ir*2 ];
-      j = invmap[ ir*2 + 1 ];
-      var zfi = (xyz[i][2] - zmin) / (zmax - zmin);
-      var scli = scale * (0.7 + 0.3 * zfi);
+      i = invmap[ ir*apr ];
+      j = invmap[ ir*apr + 1 ];
+      if ( apr == 3 ) {
+        jb = invmap[ ir*apr + 2 ];
+      }
+
+      var scli = scale * getzscale(xyz[i], zmin, zmax, ortho);
       var xi = Math.floor(  xyz[i][0] * scli + width  * 0.5 );
       var yi = Math.floor( -xyz[i][1] * scli + height * 0.5 );
-      var zfj = (xyz[j][2] - zmin) / (zmax - zmin);
-      var sclj = scale * (0.7 + 0.3 * zfj);
+
+      var sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
       var xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
       var yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
-      drawLine(ctx, xi, yi, xj, yj, '#aaaaaa', 4);
-      drawLine(ctx, xi, yi, xj, yj, '#bbbbbb', 2);
-      drawLine(ctx, xi, yi, xj, yj, '#cccccc', 1);
+
+      var scljb = scale * getzscale(xyz[jb], zmin, zmax, ortho);
+      var xjb = Math.floor(  xyz[jb][0] * scljb + width  * 0.5 );
+      var yjb = Math.floor( -xyz[jb][1] * scljb + height * 0.5 );
+
+      if ( apr === 2 ) {
+        drawLineFancy(ctx, xi, yi, xj, yj);
+      } else {
+        drawLineFancy(ctx, xi, yi, xj, yj);
+        drawLineFancy(ctx, xj, yj, xjb, yjb);
+      }
 
       if ( ir < na.nr - 1 ) {
-        k = invmap[ (ir + 1) * 2 ];
-        var zfk = (xyz[k][2] - zmin) / (zmax - zmin);
-        var sclk = scale * (0.7 + 0.3 * zfk);
+        k = invmap[ (ir + 1) * apr ];
+        var sclk = scale * getzscale(xyz[k], zmin, zmax, ortho);
         var xk = Math.floor(  xyz[k][0] * sclk + width  * 0.5 );
         var yk = Math.floor( -xyz[k][1] * sclk + height * 0.5 );
-        drawLine(ctx, xi, yi, xk, yk, '#aaaaaa', 4);
-        drawLine(ctx, xi, yi, xk, yk, '#bbbbbb', 2);
-        drawLine(ctx, xi, yi, xk, yk, '#cccccc', 1);
+        if ( apr === 2 ) {
+          drawLineFancy(ctx, xi, yi, xk, yk);
+        } else {
+          drawLineFancy(ctx, xj, yj, xk, yk);
+        }
       }
     }
   }
@@ -339,23 +376,28 @@ function nadraw(na, target, userscale)
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
     // make closer particles larger
-    var scl = scale * (0.7 + 0.3 * zf);
+    var scl = scale * getzscale(xyz[i], zmin, zmax, ortho);
     var x = Math.floor(  xyz[i][0] * scl + width  * 0.5 );
     var y = Math.floor( -xyz[i][1] * scl + height * 0.5 );
     var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
     var color, rad;
     var i0 = idmap[ i ];
-    if ( i0 % 2 === 0 ) {
+    var tp = i0 % apr;
+    if ( tp === 0 ) {
       color = rgb2str(20, 32, 80 + 160 * zf);
       rad = 1.5;
-    } else {
+    } else if ( tp === apr - 1 ) {
       color = rgb2str(80 + 160 * zf, 32, 20);
       rad = 1.0;
+    } else {
+      color = rgb2str(20, 80 + 60 * zf, 20);
+      rad = 1.2;
     }
     var rz = Math.floor( rad * scl );
     paintBall(ctx, x, y, rz, color, spotcolor);
   }
 }
+
 
 
 function paint()
@@ -418,7 +460,7 @@ function startsimul()
 {
   stopsimul();
   getparams();
-  na = new NA(nr, rc);
+  na = new NA("ACGGUUCAGCU", rc);
   na.force();
   installmouse();
   natimer = setInterval(
