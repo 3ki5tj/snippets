@@ -243,7 +243,7 @@ function ljdraw3d(lj, target, userscale)
     var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
     var color = rgb2str(20, 32, 80 + 160 * zf);
     var rz = Math.floor( 0.5 * scl );
-    drawBall(ctx, x, y, rz, color, spotcolor);
+    paintBall(ctx, x, y, rz, color, spotcolor);
   }
 }
 

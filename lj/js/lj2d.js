@@ -102,7 +102,7 @@ function ljdraw2d(lj, target, userscale)
     var y = Math.floor( -(lj.x[i][1] - lj.l * 0.5) * scale + height * 0.5 );
     var spotcolor = "#a0a0e0";
     var color = "#2040a0";
-    drawBall(ctx, x, y, radius, color, spotcolor);
+    paintBall(ctx, x, y, radius, color, spotcolor);
   }
 }
 

@@ -7,6 +7,8 @@
 
 
 import os, sys
+from math import *
+from vct import *
 
 
 
@@ -25,16 +27,17 @@ def parsePDB(fnpdb):
   '''
   s = open(fnpdb).readlines()
   nres = max( int(ln[22:26]) for ln in s if ln.startswith("ATOM "))
-  res = [None] * nres
-  for i in range(nres):
+  res = [None] * (nres * 2)
+  for i in range(len(res)):
     res[i] = RNARes()
 
+  i0 = 0
   for ln in s:
     if ln.startswith("TER"):
-      break
+      i0 += nres
     if not ln.startswith("ATOM  "):
       continue
-    i = int(ln[22:26]) - 1
+    i = int(ln[22:26]) - 1 + i0
 
     atomname = ln[12:16].strip()
     # a hack for HO'
@@ -72,7 +75,7 @@ def parsePDB(fnpdb):
     res[i].resname = ln[17:20]
 
   # compute the center of mass of the sugar and base
-  for i in range(nres):
+  for i in range(len(res)):
     rS = [0, 0, 0]
     rw = 0.0
     for x, w in res[i].rwS:
@@ -121,9 +124,58 @@ def writetisPDB(res, fn):
 
 
 
+def measure(res):
+  nres = len(res)
+
+  # bond lengths
+  print "bond len. SB       PS       SP"
+  for i in range(nres):
+    dSB = vdist(res[i].rS, res[i].rB)
+    dPS = vdist(res[i].rP, res[i].rS)
+    if i < nres - 1:
+      dSP = vdist(res[i].rS, res[i+1].rP)
+    else:
+      dSP = 0
+    print  "%2d %s %8.5f %8.5f %8.5f" % (
+        i + 1, res[i].resname, dPS, dSP, dSB)
+
+  # bond angles
+  print "bond ang. PSB                BSP                PSP"
+  for i in range(nres):
+    aPSB = vang(res[i].rP, res[i].rS, res[i].rB)
+    if i < nres - 1:
+      aBSP = vang(res[i].rB, res[i].rS, res[i+1].rP)
+      aPSP = vang(res[i].rP, res[i].rS, res[i+1].rP)
+    else:
+      aBSP = 0
+      aPSP = 0
+    print  "%2d %s %8.5f(%8.2f) %8.5f(%8.2f) %8.5f(%8.2f)" % (
+        i + 1, res[i].resname,
+        aPSB, aPSB*180/pi,
+        aBSP, aBSP*180/pi,
+        aPSP, aPSP*180/pi)
+
+  # stacking interaction
+  print "stack     r0       phi1     phi2"
+  for i in range(nres - 1):
+    if i == nres/2 - 1: continue
+    dis = vdist(res[i].rB, res[i+1].rB)
+    dih1 = vdih(res[i].rP, res[i].rS, res[i+1].rP, res[i+1].rS)
+    if i < nres - 2 and i != nres/2 - 2:
+      dih2 = vdih(res[i].rS, res[i+1].rP, res[i+1].rS, res[i+2].rP)
+    else:
+      dih2 = 0
+    print "%2d %s-%s %8.5f %8.5f %8.5f" % (
+        i+1, res[i].resname, res[i+1].resname.strip(),
+        dis, dih1, dih2)
+
+
+
 def mktis(fnpdb):
   ''' make the three-interaction-site model '''
   res = parsePDB(fnpdb)
+
+  measure(res)
 
   fx = os.path.splitext(fnpdb)
   fnout = fx[0] + ".tis" + fx[1]

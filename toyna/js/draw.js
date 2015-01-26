@@ -1,1 +1,1 @@
-../../lj/js/draw.js
+../../js/draw.js

@@ -1,1 +1,1 @@
-../../lj/js/vct.js
+../../vct/vct.js
