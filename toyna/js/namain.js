@@ -54,7 +54,7 @@ function getparams()
   userscale = get_float("nascale");
 
   var conc = get_float("saltconc");
-  debyel = getDebyel([1.0], [1.0], 1, tp);
+  debyel = getDebyel([1.0], [conc], 1, tp);
 }
 
 
@@ -172,7 +172,7 @@ function domd()
   var istep, sinfo = "";
 
   for ( istep = 0; istep < nstepspfmd; istep++ ) {
-    na.vv(mddt, tp, debyel);
+    na.vv(mddt);
     na.vrescale(tp, thdt);
     sum1 += 1.0;
     sumU += na.epot;
@@ -469,8 +469,8 @@ function startsimul()
 {
   stopsimul();
   getparams();
-  na = new NA("ACGGUUCAGCU", rc);
-  na.force(tp, debyel);
+  na = new NA("ACGGUUCAGCU", tp, debyel);
+  na.force();
   installmouse();
   natimer = setInterval(
     function(){ pulse(); },

@@ -11,17 +11,17 @@ var TIS_IS = 1;
 var TIS_IB = 2;
 
 // bond length parameters
-var R0_PS = 4.247;
+var R0_PS = 4.660;
 var K0_PS = 64.0;
-var R0_SP = 3.878;
+var R0_SP = 3.766;
 var K0_SP = 23.0;
-var R0_SB = [4.684, 4.083, 4.830, 4.086];
+var R0_SB = [4.700, 4.157, 4.811, 4.163];
 var K0_SB = 10.0;
 
 // bond angle parameters
-var A0_PSB = [100.03*Math.PI/180,  93.19*Math.PI/180, 104.57*Math.PI/180,  92.99*Math.PI/180];
-var A0_BSP = [105.10*Math.PI/180, 107.58*Math.PI/180, 103.97*Math.PI/180, 107.63*Math.PI/180];
-var A0_PSP = 88.01*Math.PI/180;
+var A0_PSB = [D2R( 94.06), D2R( 86.52), D2R( 98.76), D2R( 86.31)];
+var A0_BSP = [D2R(106.69), D2R(108.27), D2R(106.17), D2R(108.28)];
+var A0_PSP = D2R(83.53);
 var KA_PSB = 5.0;
 var KA_BSP = 5.0;
 var KA_PSP = 20.0;
@@ -44,9 +44,11 @@ function na_initchain2(na)
     s = Math.sin(th);
     ib = i*2;
     is = i*2 + 1;
+    na.m[ib] = 100.0; // TODO
     na.x[ib][2] = rb * c;
     na.x[ib][0] = rb * s;
     na.x[ib][1] = dh * i;
+    na.m[is] = 100.0; // TODO
     na.x[is][2] = rs * c;
     na.x[is][0] = rs * s;
     na.x[is][1] = dh * i;
@@ -60,20 +62,23 @@ function na_initchain3(na)
   var i, ic, nr = na.nr;
 
   var ang = 32.7*Math.PI/180, dh = 2.81;
-  var rp = 8.710, thp = -70.502*Math.PI/180, dhp = 3.750;
-  var rs = 9.064, ths = -43.651*Math.PI/180, dhs = 2.806;
+  var rp = 8.710, thp = D2R(-70.502), dhp = 3.750;
+  var rs = 9.214, ths = D2R(-41.097), dhs = 2.864;
   var rbarr  = [5.458, 5.643, 5.631, 5.633];
-  var thbarr = [-D2R(25.976), -D2R(33.975), -D2R(22.124), -D2R(34.102)];
+  var thbarr = [D2R(-25.976), D2R(-33.975), D2R(-22.124), D2R(-34.102)];
   var dhbarr = [0.742, 0.934, 0.704, 0.932];
   var rb, thb, dhb, th;
+  var bmass = [134.0, 110.0, 150.0, 111.0];
 
   for ( i = 0; i < nr; i++ ) {
     var th = ang * i;
 
+    na.m[i*3 + TIS_IP] = 95.0;
     na.x[i*3 + TIS_IP][2] = rp * Math.cos(th + thp);
     na.x[i*3 + TIS_IP][0] = rp * Math.sin(th + thp);
     na.x[i*3 + TIS_IP][1] = dh * i + dhp;
 
+    na.m[i*3 + TIS_IS] = 99.0;
     na.x[i*3 + TIS_IS][2] = rs * Math.cos(th + ths);
     na.x[i*3 + TIS_IS][0] = rs * Math.sin(th + ths);
     na.x[i*3 + TIS_IS][1] = dh * i + dhs;
@@ -82,6 +87,7 @@ function na_initchain3(na)
     rb = rbarr[ ic ];
     thb = thbarr[ ic ];
     dhb = dhbarr[ ic ];
+    na.m[i*3 + TIS_IB] = bmass[ ic ];
     na.x[i*3 + TIS_IB][2] = rb * Math.cos(th + thb);
     na.x[i*3 + TIS_IB][0] = rb * Math.sin(th + thb);
     na.x[i*3 + TIS_IB][1] = dh * i + dhb;
@@ -91,17 +97,19 @@ function na_initchain3(na)
 
 
 /* remove the center of mass motion */
-function na_rmcom(x, dim, n)
+function na_rmcom(x, m, n)
 {
   var i;
-  var rc = newarr(dim);
+  var xc = [0,0,0];
+  var mtot = 0;
 
   for ( i = 0; i < n; i++ ) {
-    vinc(rc, x[i]);
+    vsinc(xc, x[i], m[i]);
+    mtot += m[i];
   }
-  vsmul(rc, 1.0 / n);
+  vsmul(xc, 1.0 / mtot);
   for ( i = 0; i < n; i++ ) {
-    vdec(x[i], rc);
+    vdec(x[i], xc);
   }
 }
 
@@ -109,34 +117,38 @@ function na_rmcom(x, dim, n)
 
 /* annihilate the total angular momentum
  * solve
- *   /  y^2 + z^2    -x y      -x y      \
- *   |  -x y       X^2 + z^2   -y z      |  c  =  I
- *   \  -x z         -y z     x^2 + y^2  /
+ *   /  m (y^2 + z^2)   -m x y          -m x y        \
+ *   |  -m x y          m (x^2 + z^2)   -m y z        |  c  =  L
+ *   \  -m x z          -m y z          m (x^2 + y^2) /
  * use a velocity field
- *    v = c X r
+ *    v' = v - c X r
  *   */
-function na_shiftang(x, v, n)
+function na_shiftang(x, v, m, n)
 {
   var i;
   var xc = [0, 0, 0], xi = [0, 0, 0], ang = [0, 0, 0], am = [0, 0, 0];
   var dv = [0, 0, 0];
   var mat = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
   var xx = 0, yy = 0, zz = 0, xy = 0, zx = 0, yz = 0;
+  var mtot = 0;
 
   for (i = 0; i < n; i++) {
-    vinc(xc, x[i]);
+    vsinc(xc, x[i], m[i]);
+    mtot += m[i];
   }
-  vsmul(xc, 1.0/n);
+  vsmul(xc, 1.0 / mtot);
+
   for (i = 0; i < n; i++) {
     vdiff(xi, x[i], xc);
     vcross3d(ang, xi, v[i]);
-    vinc(am, ang);
-    xx += xi[0]*xi[0];
-    yy += xi[1]*xi[1];
-    zz += xi[2]*xi[2];
-    xy += xi[0]*xi[1];
-    yz += xi[1]*xi[2];
-    zx += xi[2]*xi[0];
+    vsinc(am, ang, m[i]);
+
+    xx += m[i] * xi[0] * xi[0];
+    yy += m[i] * xi[1] * xi[1];
+    zz += m[i] * xi[2] * xi[2];
+    xy += m[i] * xi[0] * xi[1];
+    yz += m[i] * xi[1] * xi[2];
+    zx += m[i] * xi[2] * xi[0];
   }
   mat[0][0] = yy+zz;
   mat[1][1] = xx+zz;
@@ -148,7 +160,7 @@ function na_shiftang(x, v, n)
   ang[0] = -vdot(inv[0], am);
   ang[1] = -vdot(inv[1], am);
   ang[2] = -vdot(inv[2], am);
-  // ang is the solution of M^(-1) * I
+  // ang is the solution of M^(-1) * L
   for (i = 0; i < n; i++) {
     vdiff(xi, x[i], xc);
     vcross3d(dv, ang, xi);
@@ -159,7 +171,7 @@ function na_shiftang(x, v, n)
 
 
 
-function NA(nr, rc)
+function NA(nr, tp, debyel)
 {
   var i, d, n;
   var ch2int = {
@@ -192,8 +204,9 @@ function NA(nr, rc)
   this.apr = 3; // atoms per residue
   this.n = n = this.nr * this.apr;
   this.dof = n * D - D * (D + 1) / 2;
-  this.rc = rc;
-  this.l = 10.0; // TODO
+  this.tp = tp;
+  this.debyel = debyel;
+  this.m = newarr(n);
   this.x = newarr2d(n, D);
   this.v = newarr2d(n, D);
   this.f = newarr2d(n, D);
@@ -206,13 +219,14 @@ function NA(nr, rc)
 
   // initialize random velocities
   for ( i = 0; i < n; i++ ) {
+    var amp = Math.sqrt( BOLTZK * tp / this.m[i] );
     for ( d = 0; d < D; d++ ) {
-      this.v[i][d] = randgaus();
+      this.v[i][d] = amp * randgaus();
     }
   }
 
-  na_rmcom(this.v, D, n);
-  na_shiftang(this.x, this.v, n);
+  na_rmcom(this.v, this.m, n);
+  na_shiftang(this.x, this.v, this.m, n);
 
   this.epot = 0;
   this.ekin = 0;
@@ -283,9 +297,9 @@ NA.prototype.energyTIS_low = function(x, tp, debyel)
 
 
 
-NA.prototype.energy = function(tp, debyel)
+NA.prototype.energy = function()
 {
-  this.epot = this.energyTIS_low(this.x, tp, debyel);
+  this.epot = this.energyTIS_low(this.x, this.tp, this.debyel);
   return this.epot;
 };
 
@@ -356,27 +370,27 @@ NA.prototype.forceTIS_low = function(x, f)
 
 
 
-NA.prototype.force = function(tp, debyel)
+NA.prototype.force = function()
 {
-  this.epot = this.forceTIS_low(this.x, this.f, tp, debyel);
+  this.epot = this.forceTIS_low(this.x, this.f, this.tp, this.debyel);
   return this.epot;
 };
 
 
 
 /* velocity-verlet */
-NA.prototype.vv = function(dt, tp, debyel)
+NA.prototype.vv = function(dt)
 {
   var i, n = this.n;
-  var dth = dt * 0.5, l = this.l;
+  var dth = dt * 0.5;
 
   for (i = 0; i < n; i++) { // VV part 1
-    vsinc(this.v[i], this.f[i], dth);
+    vsinc(this.v[i], this.f[i], dth / this.m[i]);
     vsinc(this.x[i], this.v[i], dt);
   }
-  this.force(tp, debyel);
+  this.force();
   for (i = 0; i < n; i++) { // VV part 2
-    vsinc(this.v[i], this.f[i], dth);
+    vsinc(this.v[i], this.f[i], dth / this.m[i]);
   }
 };
 
@@ -457,7 +471,7 @@ function na_pair(xi, xj, rc2)
 NA.prototype.depot = function(i, xi)
 {
   var j, n = this.n;
-  var l = this.l, invl = 1/l, rc2 = this.rc2, u, ret;
+  var u, ret;
 
   u = 0;
   for ( j = 0; j < n; j++ ) { // pair

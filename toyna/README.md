@@ -1,5 +1,14 @@
 # Simulation of toy nucleic acids #
 
+## Files ##
+
+File            | Description
+----------------|--------------------------------------------------
+testf.c         | test if the force matches the energy
+md.c            | basic molecular dynamics simulation
+mktis.py        | Show geometric parameters from the ideal A-RNA or B-DNA structure
+
+
 ## Compilation ##
 
 Type

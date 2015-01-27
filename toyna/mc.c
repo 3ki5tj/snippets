@@ -7,8 +7,10 @@ const char seq[] = "ACGGUUCAGCU";
 int nequil = 100000;
 int nsteps = 1000000;
 double tp = 300.0;
-double rc = 1e9;
+double debyel;
 double amp = 0.2; /* Monte Carlo move size */
+double qv[1] = {1.0}; /* ion charge of the solvent */
+double conc[1] = {1.0}; /* solvent concentration */
 const char *fnpos = "na.pos";
 
 double mctot = 1e-30, mcacc = 0;
@@ -21,7 +23,8 @@ int main(void)
   na_t *na;
   double epsm = 0;
 
-  na = na_open(seq, rc, 3);
+  debyel = getDebyel(qv, conc, 1, tp);
+  na = na_open(seq, 3, tp, debyel);
   //na_energy(na);
   //for ( t = 1; t <= nequil + nsteps; t++ ) {
   //  mctot += 1;

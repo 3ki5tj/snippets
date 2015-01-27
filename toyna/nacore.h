@@ -21,17 +21,17 @@
 #define TIS_IB 2
 
 /* bond length parameters */
-const double R0_PS = 4.247;
+const double R0_PS = 4.660;
 const double K0_PS = 64.0;
-const double R0_SP = 3.878;
+const double R0_SP = 3.766;
 const double K0_SP = 23.0;
-const double R0_SB[4] = {4.684, 4.083, 4.830, 4.086};
+const double R0_SB[4] = {4.700, 4.157, 4.811, 4.163};
 const double K0_SB = 10.0;
 
 /* bond angle parameters */
-const double A0_PSB[4] = {D2R(100.03), D2R(93.19),  D2R(104.57), D2R(92.99)};
-const double A0_BSP[4] = {D2R(105.10), D2R(107.58), D2R(103.97), D2R(107.63)};
-const double A0_PSP = D2R(88.01);
+const double A0_PSB[4] = {D2R( 94.06), D2R( 86.52), D2R( 98.76), D2R( 86.31)};
+const double A0_BSP[4] = {D2R(106.69), D2R(108.27), D2R(106.17), D2R(108.28)};
+const double A0_PSP = D2R(83.53);
 const double KA_PSB = 5.0;
 const double KA_BSP = 5.0;
 const double KA_PSP = 20.0;
@@ -51,8 +51,11 @@ typedef struct {
   int apr; /* number of atoms per residue */
   int na; /* number of atoms */
   int dof; /* degrees of freedom */
-  double rc2, rc;
 
+  double tp; /* temperature */
+  double debyel; /* Debye screen length */
+
+  double *m; /* mass */
   double (*x)[D]; /* position */
   double (*v)[D]; /* velocity */
   double (*f)[D]; /* force */
@@ -74,9 +77,11 @@ static void na_initchain2(na_t *na)
     s = sin(th);
     ib = i*2;
     is = i*2 + 1;
+    na->m[ib] = 100; // TODO
     na->x[ib][0] = rb * c;
     na->x[ib][1] = rb * s;
     na->x[ib][2] = dh * i;
+    na->m[is] = 100; // TODO
     na->x[is][0] = rs * c;
     na->x[is][1] = rs * s;
     na->x[is][2] = dh * i;
@@ -90,20 +95,23 @@ static void na_initchain3(na_t *na)
 {
   int i, ic, nr = na->nr;
   double ang = D2R(32.7), dh = 2.81;
-  const double rp = 8.710, thp = -D2R(70.502), dhp = 3.750;
-  const double rs = 9.064, ths = -D2R(43.651), dhs = 2.806;
+  const double rp = 8.710, thp = D2R(-70.502), dhp = 3.750;
+  const double rs = 9.214, ths = D2R(-41.097), dhs = 2.864;
   const double rbarr[4] = {5.458, 5.643, 5.631, 5.633};
-  const double thbarr[4] = {-D2R(25.976), -D2R(33.975), -D2R(22.124), -D2R(34.102)};
+  const double thbarr[4] = {D2R(-25.976), D2R(-33.975), D2R(-22.124), D2R(-34.102)};
   const double dhbarr[4] = {0.742, 0.934, 0.704, 0.932};
   double rb, thb, dhb, th;
+  const double bmass[4] = {134.0, 110.0, 150.0, 111.0};
 
   for ( i = 0; i < nr; i++ ) {
     th = ang * i;
 
+    na->m[i*3 + TIS_IP] = 95.0;
     na->x[i*3 + TIS_IP][0] = rp * cos(th + thp);
     na->x[i*3 + TIS_IP][1] = rp * sin(th + thp);
     na->x[i*3 + TIS_IP][2] = dh * i + dhp;
 
+    na->m[i*3 + TIS_IS] = 99.0;
     na->x[i*3 + TIS_IS][0] = rs * cos(th + ths);
     na->x[i*3 + TIS_IS][1] = rs * sin(th + ths);
     na->x[i*3 + TIS_IS][2] = dh * i + dhs;
@@ -112,6 +120,7 @@ static void na_initchain3(na_t *na)
     rb = rbarr[ ic ];
     thb = thbarr[ ic ];
     dhb = dhbarr[ ic ];
+    na->m[i*3 + TIS_IB] = bmass[ ic ];
     na->x[i*3 + TIS_IB][0] = rb * cos(th + thb);
     na->x[i*3 + TIS_IB][1] = rb * sin(th + thb);
     na->x[i*3 + TIS_IB][2] = dh * i + dhb;
@@ -121,46 +130,57 @@ static void na_initchain3(na_t *na)
 
 
 /* remove the center of mass motion */
-static void na_rmcom(double (*x)[D], int n)
+static void na_rmcom(double (*x)[D], const double *m, int n)
 {
   int i;
-  double rc[D] = {0};
+  double xc[D] = {0}, mtot = 0;
 
-  for ( i = 0; i < n; i++ )
-    vinc(rc, x[i]);
-  vsmul(rc, 1./n);
-  for ( i = 0; i < n; i++ )
-    vdec(x[i], rc);
+  for ( i = 0; i < n; i++ ) {
+    vsinc(xc, x[i], m[i]);
+    mtot += m[i];
+  }
+  vsmul(xc, 1.0 / mtot);
+  for ( i = 0; i < n; i++ ) {
+    vdec(x[i], xc);
+  }
 }
 
 
 
 /* annihilate the total angular momentum
  * solve
- *   /  y^2 + z^2    -x y      -x y      \
- *   |  -x y       X^2 + z^2   -y z      |  c  =  I
- *   \  -x z         -y z     x^2 + y^2  /
+ *   /  m (y^2 + z^2)   -m x y          -m x y        \
+ *   |  -m x y          m (x^2 + z^2)   -m y z        |  c  =  L
+ *   \  -m x z          -m y z          m (x^2 + y^2) /
  * use a velocity field
- *    v = c X r
+ *    v' = v - c X r
  *   */
-static void na_shiftang(double (*x)[D], double (*v)[D], int n)
+static void na_shiftang(double (*x)[D], double (*v)[D],
+    const double *m, int n)
 {
   int i;
-  double xc[D] = {0, 0, 0}, xi[D], ang[D], am[D] = {0, 0, 0}, dv[D], mat[D][D], inv[D][D];
+  double xc[D] = {0, 0, 0}, xi[D], ang[D], am[D] = {0, 0, 0};
+  double dv[D], mat[D][D], inv[D][D];
   double xx = 0, yy = 0, zz = 0, xy = 0, zx = 0, yz = 0;
+  double mtot = 0;
 
-  for (i = 0; i < n; i++) vinc(xc, x[i]);
-  vsmul(xc, 1.f/n);
+  for (i = 0; i < n; i++) {
+    vsinc(xc, x[i], m[i]);
+    mtot += m[i];
+  }
+  vsmul(xc, 1.f / mtot);
+
   for (i = 0; i < n; i++) {
     vdiff(xi, x[i], xc);
     vcross(ang, xi, v[i]);
-    vinc(am, ang);
-    xx += xi[0]*xi[0];
-    yy += xi[1]*xi[1];
-    zz += xi[2]*xi[2];
-    xy += xi[0]*xi[1];
-    yz += xi[1]*xi[2];
-    zx += xi[2]*xi[0];
+    vsinc(am, ang, m[i]);
+
+    xx += m[i] * xi[0] * xi[0];
+    yy += m[i] * xi[1] * xi[1];
+    zz += m[i] * xi[2] * xi[2];
+    xy += m[i] * xi[0] * xi[1];
+    yz += m[i] * xi[1] * xi[2];
+    zx += m[i] * xi[2] * xi[0];
   }
   mat[0][0] = yy+zz;
   mat[1][1] = xx+zz;
@@ -172,7 +192,7 @@ static void na_shiftang(double (*x)[D], double (*v)[D], int n)
   ang[0] = -vdot(inv[0], am);
   ang[1] = -vdot(inv[1], am);
   ang[2] = -vdot(inv[2], am);
-  /* ang is the solution of M^(-1) * I */
+  /* ang is the solution of M^(-1) * L */
   for (i = 0; i < n; i++) {
     vdiff(xi, x[i], xc);
     vcross(dv, ang, xi);
@@ -183,7 +203,8 @@ static void na_shiftang(double (*x)[D], double (*v)[D], int n)
 
 
 /* open an LJ system */
-static na_t *na_open(const char *seq, double rc, int model)
+static na_t *na_open(const char *seq, int model,
+    double tp, double debyel)
 {
   na_t *na;
   int i, d, n, nr;
@@ -214,9 +235,11 @@ static na_t *na_open(const char *seq, double rc, int model)
   na->apr = model;
   na->na = n = nr * na->apr;
   na->dof = n * D - D * (D+1)/2;
-  na->rc = rc;
-  na->rc2 = rc * rc;
 
+  na->tp = tp;
+  na->debyel = debyel;
+
+  xnew(na->m, n);
   xnew(na->x, n);
   xnew(na->v, n);
   xnew(na->f, n);
@@ -229,13 +252,14 @@ static na_t *na_open(const char *seq, double rc, int model)
 
   /* initalize random velocities */
   for (i = 0; i < n; i++) {
+    double amp = sqrt( BOLTZK * tp / na->m[i] );
     for ( d = 0; d < D; d++ ) {
-      na->v[i][d] = randgaus();
+      na->v[i][d] = amp * randgaus();
     }
   }
 
-  na_rmcom(na->v, n);
-  na_shiftang(na->x, na->v, n);
+  na_rmcom(na->v, na->m, n);
+  na_shiftang(na->x, na->v, na->m, n);
 
   return na;
 }
@@ -244,6 +268,7 @@ static na_t *na_open(const char *seq, double rc, int model)
 
 static void na_close(na_t *na)
 {
+  free(na->m);
   free(na->x);
   free(na->v);
   free(na->f);
@@ -280,8 +305,8 @@ __inline static int na_writepos(na_t *na,
 
 
 
-#define na_energy(na, tp, debyel) \
-  na->epot = na_energyTIS_low(na, na->x, tp, debyel)
+#define na_energy(na) \
+  na->epot = na_energyTIS_low(na, na->x, na->tp, na->debyel)
 
 /* compute force, return energy */
 __inline static double na_energyTIS_low(na_t *na, double (*x)[D],
@@ -345,8 +370,8 @@ __inline static double na_energyTIS_low(na_t *na, double (*x)[D],
 
 
 
-#define na_force(na, tp, debyel) \
-  na->epot = na_forceTIS_low(na, na->x, na->f, tp, debyel)
+#define na_force(na) \
+  na->epot = na_forceTIS_low(na, na->x, na->f, na->tp, na->debyel)
 
 /* compute force, return energy */
 __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
@@ -413,30 +438,30 @@ __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
 
 
 /* velocity-verlet */
-__inline static void na_vv(na_t *na, double dt, double tp, double debyel)
+__inline static void na_vv(na_t *na, double dt)
 {
   int i, n = na->na;
   double dth = dt * 0.5;
 
   for (i = 0; i < n; i++) { /* VV part 1 */
-    vsinc(na->v[i], na->f[i], dth);
+    vsinc(na->v[i], na->f[i], dth/na->m[i]);
     vsinc(na->x[i], na->v[i], dt);
   }
-  na_force(na, tp, debyel);
+  na_force(na);
   for (i = 0; i < n; i++) { /* VV part 2 */
-    vsinc(na->v[i], na->f[i], dth);
+    vsinc(na->v[i], na->f[i], dth/na->m[i]);
   }
 }
 
 
 
 /* compute the kinetic energy */
-static double na_ekin(double (*v)[D], int n)
+static double na_ekin(double (*v)[D], const double *m, int n)
 {
   int i;
   double ek = 0;
   for ( i = 0; i < n; i++ ) {
-    ek += vsqr( v[i] );
+    ek += m[i] * vsqr( v[i] );
   }
   return ek/2;
 }
@@ -444,10 +469,10 @@ static double na_ekin(double (*v)[D], int n)
 
 
 #define na_vrescale(na, tp, dt) \
-  na_vrescale_low(na->v, na->na, na->dof, tp, dt)
+  na_vrescale_low(na->v, na->m, na->na, na->dof, tp, dt)
 
 /* exact velocity rescaling thermostat */
-__inline static double na_vrescale_low(double (*v)[D], int n,
+__inline static double na_vrescale_low(double (*v)[D], const double *m, int n,
     int dof, double tp, double dt)
 {
   int i;
@@ -455,7 +480,7 @@ __inline static double na_vrescale_low(double (*v)[D], int n,
 
   tp *= BOLTZK;
   c = (dt < 700) ? exp(-dt) : 0;
-  ek1 = na_ekin(v, n);
+  ek1 = na_ekin(v, m, n);
   r = randgaus();
   r2 = randchisqr(dof - 1);
   ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)

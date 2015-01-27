@@ -14,9 +14,25 @@ from vct import *
 
 class RNARes:
   def __init__(self):
-    self.rwS = [None]*6 # corrinates for the sugar
-    self.rwB = []  # corrdinates/weight for the base
+    self.rwS = [] # corrinates for the sugar
+    self.rwB = [] # corrdinates/weight for the base
     pass
+
+
+
+def a2w(a):
+  if a == "C":
+    w = 12
+  elif a == "N":
+    w = 14
+  elif a == "H":
+    w = 1
+  elif a == "O":
+    w = 16
+  else:
+    print "unknown atom ", a
+    raise Error
+  return w
 
 
 
@@ -46,61 +62,45 @@ def parsePDB(fnpdb):
     x = [ float(ln[30:38]), float(ln[38:46]), float(ln[46:54]) ]
     if atomname == "P":
       res[i].rP = x
-    elif atomname == "C1'":
-      res[i].rwS[0] = (x, 12)
-    elif atomname == "C2'":
-      res[i].rwS[1] = (x, 12)
-    elif atomname == "C3'":
-      res[i].rwS[2] = (x, 12)
-    elif atomname == "C4'":
-      res[i].rwS[3] = (x, 12)
-    elif atomname == "C5'":
-      res[i].rwS[4] = (x, 12)
-    elif atomname == "O4'":
-      res[i].rwS[5] = (x, 16)
+    elif atomname in ("C1'", "H1'",
+                      "C2'", "H2'", "O2'", "HO2", "HO2'",
+                      "C3'", "H3'",
+                      "C4'", "O4'", "H4'",
+                      "C5'", "1H5'", "2H5'") and "H" not in atomname:
+      # note that we exclude hydrogen atoms in computing the com
+      w = a2w( ln[13] )
+      res[i].rwS += [(x, w), ]
     elif not atomname.endswith("'") and not atomname.endswith("P"):
-      a = ln[13]
-      if a == "C":
-        w = 12
-      elif a == "N":
-        w = 14
-      elif a == "H":
-        w = 1
-      elif a == "O":
-        w = 16
-      else:
-        print "unknown atom ", a, ln
-        raise Error
-      res[i].rwB += [(x, w),]
+      w = a2w( ln[13] )
+      res[i].rwB += [(x, w), ]
     res[i].resname = ln[17:20]
 
   # compute the center of mass of the sugar and base
   for i in range(len(res)):
     rS = [0, 0, 0]
-    rw = 0.0
+    rwS = 0.0
     for x, w in res[i].rwS:
       rS[0] += x[0] * w
       rS[1] += x[1] * w
       rS[2] += x[2] * w
-      rw += w
-    rS[0] /= rw
-    rS[1] /= rw
-    rS[2] /= rw
+      rwS += w
+    rS[0] /= rwS
+    rS[1] /= rwS
+    rS[2] /= rwS
     res[i].rS = rS
 
     rB = [0, 0, 0]
-    rw = 0.0;
+    rwB = 0.0;
     for x, w in res[i].rwB:
       rB[0] += x[0] * w
       rB[1] += x[1] * w
       rB[2] += x[2] * w
-      rw += w
-    rB[0] /= rw
-    rB[1] /= rw
-    rB[2] /= rw
+      rwB += w
+    rB[0] /= rwB
+    rB[1] /= rwB
+    rB[2] /= rwB
     res[i].rB = rB
-    #print i, rS, res[i].rwS
-    #print i, rB, res[i].rwB
+    print "%4d %s %6.1f %6.1f %s %s" % (i, res[i].resname, rwS, rwB, rS, rB)
     #raw_input()
   return res
 
@@ -145,8 +145,8 @@ def helixparams(r1, r2, r3):
 def measure(res):
   nres = len(res)
 
-  '''
   # coordinates of the phosphate
+  print "Phosphate"
   for i in range(nres):
     x, y, z = res[i].rP
     r = sqrt(x*x + y*y)
@@ -155,15 +155,16 @@ def measure(res):
         x, y, z, sqrt(x*x+y*y), ang, ang*180/pi)
 
   # coordinates of the sugar
+  print "Sugar"
   for i in range(nres):
     x, y, z = res[i].rS
     r = sqrt(x*x + y*y)
     ang = atan2(y, x)
     print "%2d %8.3f %8.3f %8.3f %8.3f %8.3f(%8.3f)" % (i+1,
         x, y, z, sqrt(x*x+y*y), ang, ang*180/pi)
-  '''
 
   # coordinates of the base
+  print "Base"
   for i in range(nres):
     x, y, z = res[i].rB
     r = sqrt(x*x + y*y)
@@ -173,7 +174,7 @@ def measure(res):
         x, y, z-2.81*i, sqrt(x*x+y*y), ang, ang*180/pi)
 
   # bond lengths
-  print "bond len. SB       PS       SP       PP         P2P       P3P"
+  print "bond len. PS       SP       SB       PP         P2P       P3P"
   for i in range(nres):
     dSB = vdist(res[i].rS, res[i].rB)
     dPS = vdist(res[i].rP, res[i].rS)
