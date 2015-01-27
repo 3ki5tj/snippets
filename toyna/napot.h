@@ -1,5 +1,5 @@
-#ifndef POTENTIAL_H__
-#define POTENTIAL_H__
+#ifndef NAPOT_H__
+#define NAPOT_H__
 
 
 
@@ -83,6 +83,69 @@ __inline static double ewca(double sig2, double eps,
   } else {
     return 0;
   }
+}
+
+
+
+/* dielectric constant of water
+ * Eq. (12) of Denesyuk 2013 */
+__inline static double getdielecwater(double tp)
+{
+  tp -= 273.15;
+  return 87.740 - 0.4008*tp + 9.398e-4*tp*tp - 1.410e-6*tp*tp*tp;
+}
+
+
+
+/* return the Bjerrum length
+ * Eq. (11) of Denesyuk 2013 */
+__inline static double getBjerrumlen(double tp, double *eps)
+{
+  *eps = getdielecwater(tp);
+  return KE2 / (*eps * BOLTZK * tp);
+}
+
+
+
+/* return the charge reduction factor Q
+ * Eq. (10) of Denesyuk 2013 */
+__inline static double getchargeQ(double tp, double *eps)
+{
+  const double b = 4.4;
+  return b / getBjerrumlen(tp, eps);
+}
+
+
+
+/* electrostatic interaction under Debye-Huckel approximation */
+__inline static double echargeDH(double QQ, double debyel,
+    const double *xi, const double *xj, double *fi, double *fj)
+{
+  double dx[D], dr, xp, fs;
+
+  dr = sqrt( vsqr( vdiff(dx, xi, xj) ) );
+  xp = exp(-dr/debyel);
+  if ( fi && fj ) {
+    fs = xp * (1/debyel + 1/dr) / (dr * dr);
+    vsinc(fi, dx, fs);
+    vsinc(fj, dx, -fs);
+  }
+  return QQ * xp / dr;
+}
+
+
+
+/* get the Debye screening length */
+__inline static double getDebyel(const double *q, const double *conc,
+    int n, double tp)
+{
+  int i;
+  double s = 0;
+
+  for ( i = 0; i < n; i++ ) {
+    s += q[i] * q[i] * conc[i] * (AVOGADRO * 1e-27);
+  }
+  return sqrt( getdielecwater(tp) * BOLTZK * tp / (s * 4 * PI * KE2) );
 }
 
 

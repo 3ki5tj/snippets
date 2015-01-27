@@ -10,6 +10,8 @@ var na = null;
 var nr = 20;
 var tp = 300.0;
 var rc = 1000.0;
+var conc = 1.0; // salt concentration
+var debyel = 4.36; // Debye screening length
 
 var timer_interval = 100; // in milliseconds
 var natimer = null;
@@ -50,6 +52,9 @@ function getparams()
   nstepspfmc = nstepspsmc * timer_interval / 1000;
 
   userscale = get_float("nascale");
+
+  var conc = get_float("saltconc");
+  debyel = getDebyel([1.0], [1.0], 1, tp);
 }
 
 
@@ -167,12 +172,12 @@ function domd()
   var istep, sinfo = "";
 
   for ( istep = 0; istep < nstepspfmd; istep++ ) {
-    na.vv(mddt);
+    na.vv(mddt, tp, debyel);
     na.vrescale(tp, thdt);
     sum1 += 1.0;
     sumU += na.epot;
   }
-  sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
+  sinfo += '<span class="math"><i>U</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
   return sinfo;
 }
 
@@ -290,10 +295,10 @@ function drawLineFancy(ctx, xi, yi, xj, yj)
 function getzscale(r, zmin, zmax, ortho)
 {
   if ( ortho ) {
-    return 0.7;
+    return 0.9;
   } else {
     var zf = (r[2] - zmin) / (zmax - zmin);
-    return 0.7 + 0.3 * zf;
+    return 0.8 + 0.2 * zf;
   }
 }
 
@@ -465,7 +470,7 @@ function startsimul()
   stopsimul();
   getparams();
   na = new NA("ACGGUUCAGCU", rc);
-  na.force();
+  na.force(tp, debyel);
   installmouse();
   natimer = setInterval(
     function(){ pulse(); },

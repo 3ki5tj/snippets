@@ -6,15 +6,6 @@
 
 
 
-var BOLTZK = 0.0019872041; // Boltzmann constant in kcal/mol/K
-
-
-
-function D2R(x) { return x * Math.PI / 180; }
-
-function R2D(x) { return x * 180 / Math.PI; }
-
-
 var TIS_IP = 0;
 var TIS_IS = 1;
 var TIS_IB = 2;
@@ -238,7 +229,7 @@ function na_dist2(dx, a, b, l, invl)
 
 /* compute force, return energy
  * for the TIS model */
-NA.prototype.energyTIS_low = function(x)
+NA.prototype.energyTIS_low = function(x, tp, debyel)
 {
   var i, j, ic, n = this.n, nr = this.nr;
 
@@ -276,14 +267,25 @@ NA.prototype.energyTIS_low = function(x)
       ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j]);
     }
   }
+
+  // electrostatic interaction
+  var eps = getdielecwater(tp);
+  var Q = getchargeQ(tp);
+  var QQ = Q*Q*KE2/eps;
+  for ( i = 0; i < nr - 1; i++ ) {
+    for ( j = i + 1; j < nr; j++ ) {
+      ep += echargeDH(QQ, debyel,
+                      x[i*3 + TIS_IP], x[j*3 + TIS_IP]);
+    }
+  }
   return ep;
 };
 
 
 
-NA.prototype.energy = function()
+NA.prototype.energy = function(tp, debyel)
 {
-  this.epot = this.energyTIS_low(this.x);
+  this.epot = this.energyTIS_low(this.x, tp, debyel);
   return this.epot;
 };
 
@@ -337,25 +339,33 @@ NA.prototype.forceTIS_low = function(x, f)
       ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j], f[i], f[j]);
     }
   }
+
+  // electrostatic interaction
+  var eps = getdielecwater(tp);
+  var Q = getchargeQ(tp);
+  var QQ = Q*Q*KE2/eps;
+  for ( i = 0; i < nr - 1; i++ ) {
+    for ( j = i + 1; j < nr; j++ ) {
+      ep += echargeDH(QQ, debyel,
+                      x[i*3 + TIS_IP], x[j*3 + TIS_IP],
+                      f[i*3 + TIS_IP], f[j*3 + TIS_IP]);
+    }
+  }
   return ep;
 };
 
 
 
-NA.prototype.force = function()
+NA.prototype.force = function(tp, debyel)
 {
-  var ret = this.forceTIS_low(this.x, this.f);
-  this.epot = ret[0];
-  this.ep0  = ret[1];
-  this.eps  = ret[2];
-  this.vir  = ret[3];
+  this.epot = this.forceTIS_low(this.x, this.f, tp, debyel);
   return this.epot;
 };
 
 
 
 /* velocity-verlet */
-NA.prototype.vv = function(dt)
+NA.prototype.vv = function(dt, tp, debyel)
 {
   var i, n = this.n;
   var dth = dt * 0.5, l = this.l;
@@ -364,7 +374,7 @@ NA.prototype.vv = function(dt)
     vsinc(this.v[i], this.f[i], dth);
     vsinc(this.x[i], this.v[i], dt);
   }
-  this.force();
+  this.force(tp, debyel);
   for (i = 0; i < n; i++) { // VV part 2
     vsinc(this.v[i], this.f[i], dth);
   }

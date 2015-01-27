@@ -11,12 +11,10 @@
 
 #include "mtrand.h"
 #include "nautil.h"
-#include "potential.h"
+#include "napot.h"
 #include <ctype.h>
 
 
-
-#define BOLTZK 0.0019872041 /* Boltzmann constant in kcal/mol/K */
 
 #define TIS_IP 0
 #define TIS_IS 1
@@ -282,14 +280,16 @@ __inline static int na_writepos(na_t *na,
 
 
 
-#define na_energy(na) \
-  na->epot = na_energyTIS_low(na, na->x)
+#define na_energy(na, tp, debyel) \
+  na->epot = na_energyTIS_low(na, na->x, tp, debyel)
 
 /* compute force, return energy */
-__inline static double na_energyTIS_low(na_t *na, double (*x)[D])
+__inline static double na_energyTIS_low(na_t *na, double (*x)[D],
+    double tp, double debyel)
 {
   int i, j, ic, nr = na->nr, n = na->na;
   double ep = 0;
+  double eps, Q, QQ;
 
   // bond length
   for ( i = 0; i < nr; i++ ) {
@@ -329,19 +329,32 @@ __inline static double na_energyTIS_low(na_t *na, double (*x)[D])
       ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j], NULL, NULL);
     }
   }
+
+  // electrostatic interaction
+  Q = getchargeQ(tp, &eps);
+  QQ = Q*Q*KE2/eps;
+  for ( i = 0; i < nr - 1; i++ ) {
+    for ( j = i + 1; j < nr; j++ ) {
+      ep += echargeDH(QQ, debyel,
+                      x[i*3 + TIS_IP], x[j*3 + TIS_IP],
+                      NULL, NULL);
+    }
+  }
   return ep;
 }
 
 
 
-#define na_force(na) \
-  na->epot = na_forceTIS_low(na, na->x, na->f)
+#define na_force(na, tp, debyel) \
+  na->epot = na_forceTIS_low(na, na->x, na->f, tp, debyel)
 
 /* compute force, return energy */
-__inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D])
+__inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
+    double tp, double debyel)
 {
   int i, j, ic, nr = na->nr, n = na->na;
   double ep = 0;
+  double Q, QQ, eps;
 
   for (i = 0; i < n; i++) vzero(f[i]);
 
@@ -383,13 +396,24 @@ __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D])
       ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j], f[i], f[j]);
     }
   }
+
+  // electrostatic interaction
+  Q = getchargeQ(tp, &eps);
+  QQ = Q*Q*KE2/eps;
+  for ( i = 0; i < nr - 1; i++ ) {
+    for ( j = i + 1; j < nr; j++ ) {
+      ep += echargeDH(QQ, debyel,
+                      x[i*3 + TIS_IP], x[j*3 + TIS_IP],
+                      f[i*3 + TIS_IP], f[j*3 + TIS_IP]);
+    }
+  }
   return ep;
 }
 
 
 
 /* velocity-verlet */
-__inline static void na_vv(na_t *na, double dt)
+__inline static void na_vv(na_t *na, double dt, double tp, double debyel)
 {
   int i, n = na->na;
   double dth = dt * 0.5;
@@ -398,7 +422,7 @@ __inline static void na_vv(na_t *na, double dt)
     vsinc(na->v[i], na->f[i], dth);
     vsinc(na->x[i], na->v[i], dt);
   }
-  na_force(na);
+  na_force(na, tp, debyel);
   for (i = 0; i < n; i++) { /* VV part 2 */
     vsinc(na->v[i], na->f[i], dth);
   }

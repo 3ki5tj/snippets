@@ -81,4 +81,65 @@ function ewca(sig2, eps, xi, xj, fi, fj)
 
 
 
+/* dielectric constant of water
+ * Eq. (12) of Denesyuk 2013 */
+function getdielecwater(tp)
+{
+  tp -= 273.15;
+  return 87.740 - 0.4008*tp + 9.398e-4*tp*tp - 1.410e-6*tp*tp*tp;
+}
+
+
+
+/* return the Bjerrum length
+ * Eq. (11) of Denesyuk 2013 */
+function getBjerrumlen(tp)
+{
+  var eps = getdielecwater(tp);
+  return KE2 / (eps * BOLTZK * tp);
+}
+
+
+
+/* return the charge reduction factor Q
+ * Eq. (10) of Denesyuk 2013 */
+function getchargeQ(tp)
+{
+  var b = 4.4;
+  return b / getBjerrumlen(tp);
+}
+
+
+
+/* electrostatic interaction under Debye-Huckel approximation */
+function echargeDH(QQ ,debyel, xi, xj, fi, fj)
+{
+  var dx = [0,0,0], dr, xp, fs;
+
+  dr = Math.sqrt( vsqr( vdiff(dx, xi, xj) ) );
+  xp = Math.exp(-dr/debyel);
+  if ( fi && fj ) {
+    fs = xp * (1/debyel + 1/dr) / (dr * dr);
+    vsinc(fi, dx, fs);
+    vsinc(fj, dx, -fs);
+  }
+  return QQ * xp / dr;
+}
+
+
+
+/* get the Debye screening length */
+function getDebyel(q, conc, n, tp)
+{
+  var i;
+  var s = 0;
+
+  for ( i = 0; i < n; i++ ) {
+    s += q[i] * q[i] * conc[i] * (AVOGADRO * 1e-27);
+  }
+  return Math.sqrt( getdielecwater(tp) * BOLTZK * tp / (s * 4 * PI * KE2) );
+}
+
+
+
 
