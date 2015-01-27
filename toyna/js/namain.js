@@ -8,7 +8,7 @@
 
 var na = null;
 var nr = 20;
-var tp = 1.5;
+var tp = 300.0;
 var rc = 1000.0;
 
 var timer_interval = 100; // in milliseconds
@@ -36,7 +36,7 @@ var userscale = 1.0;
 function getparams()
 {
   nr = get_int("nr", 55);
-  tp = get_float("temperature", 1.5);
+  tp = get_float("temperature", 300.0);
   rc = get_float("rcutoff", 1000.0);
 
   simulmethod = grab("simulmethod").value;
@@ -93,7 +93,9 @@ function namouseup(e)
 
 function namousemove(e)
 {
-  if ( !mousedown ) return;
+  if ( !mousedown ) {
+    return;
+  }
   e = e || window.event;
   if ( mousex >= 0 && mousey >= 0 ) {
     var target = e.target ? e.target : e.srcElement;
@@ -164,12 +166,12 @@ function domd()
 {
   var istep, sinfo = "";
 
-  //for ( istep = 0; istep < nstepspfmd; istep++ ) {
-  //  na.vv(mddt);
-  //  na.vrescale(tp, thdt);
-  //  sum1 += 1.0;
-  //  sumU += na.epot;
-  //}
+  for ( istep = 0; istep < nstepspfmd; istep++ ) {
+    na.vv(mddt);
+    na.vrescale(tp, thdt);
+    sum1 += 1.0;
+    sumU += na.epot;
+  }
   sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
   return sinfo;
 }
@@ -288,7 +290,7 @@ function drawLineFancy(ctx, xi, yi, xj, yj)
 function getzscale(r, zmin, zmax, ortho)
 {
   if ( ortho ) {
-    return 1.0;
+    return 0.7;
   } else {
     var zf = (r[2] - zmin) / (zmax - zmin);
     return 0.7 + 0.3 * zf;
@@ -322,7 +324,6 @@ function nadraw(na, target, userscale)
 
   var ortho = grab("orthographic").checked;
   var scale = userscale * Math.min(width, height) / (na.l * 2.0);
-  console.log(scale, userscale, na.l);
 
   // draw each particle
   var zmax = xyz[na.n - 1][2], zmin = xyz[0][2];
@@ -331,7 +332,7 @@ function nadraw(na, target, userscale)
   {
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#808080';
-    for ( var ir = 0; ir < na.nr; ir++ ) {
+    for ( ir = 0; ir < na.nr; ir++ ) {
       i = invmap[ ir*apr ];
       j = invmap[ ir*apr + 1 ];
       if ( apr == 3 ) {
@@ -372,7 +373,7 @@ function nadraw(na, target, userscale)
   }
 
 
-  for (var i = 0; i < na.n; i++) {
+  for (i = 0; i < na.n; i++) {
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
     // make closer particles larger
@@ -402,8 +403,9 @@ function nadraw(na, target, userscale)
 
 function paint()
 {
-  if ( !na ) return;
-  nadraw(na, "nabox", userscale);
+  if ( na ) {
+    nadraw(na, "nabox", userscale);
+  }
 }
 
 
@@ -441,7 +443,9 @@ function stopsimul()
 
 function pausesimul()
 {
-  if ( !na ) return;
+  if ( !na ) {
+    return;
+  }
   if ( natimer !== null ) {
     clearInterval(natimer);
     natimer = null;

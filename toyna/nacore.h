@@ -11,12 +11,47 @@
 
 #include "mtrand.h"
 #include "nautil.h"
+#include "potential.h"
+#include <ctype.h>
+
+
+
+#define BOLTZK 0.0019872041 /* Boltzmann constant in kcal/mol/K */
+
+#define TIS_IP 0
+#define TIS_IS 1
+#define TIS_IB 2
+
+/* bond length parameters */
+const double R0_PS = 4.247;
+const double K0_PS = 64.0;
+const double R0_SP = 3.878;
+const double K0_SP = 23.0;
+const double R0_SB[4] = {4.684, 4.083, 4.830, 4.086};
+const double K0_SB = 10.0;
+
+/* bond angle parameters */
+const double A0_PSB[4] = {D2R(100.03), D2R(93.19),  D2R(104.57), D2R(92.99)};
+const double A0_BSP[4] = {D2R(105.10), D2R(107.58), D2R(103.97), D2R(107.63)};
+const double A0_PSP = D2R(88.01);
+const double KA_PSB = 5.0;
+const double KA_BSP = 5.0;
+const double KA_PSP = 20.0;
+
+/* WCA parameters */
+#define WCA_SIG 3.2
+const double WCA_SIG2 = WCA_SIG * WCA_SIG;
+const double WCA_EPS = 1.0;
 
 
 
 typedef struct {
   int nr; /* number of residues */
-  int n; /* number of atoms */
+  char *seq; /* sequence */
+  int *iseq; /* A: 0, C: 1, G: 2, U: 3 */
+
+  int apr; /* number of atoms per residue */
+  int na; /* number of atoms */
   int dof; /* degrees of freedom */
   double rc2, rc;
 
@@ -47,6 +82,41 @@ static void na_initchain2(na_t *na)
     na->x[is][0] = rs * c;
     na->x[is][1] = rs * s;
     na->x[is][2] = dh * i;
+  }
+}
+
+
+
+/* initialize an RNA chain */
+static void na_initchain3(na_t *na)
+{
+  int i, ic, nr = na->nr;
+  double ang = D2R(32.7), dh = 2.81;
+  const double rp = 8.710, thp = -D2R(70.502), dhp = 3.750;
+  const double rs = 9.064, ths = -D2R(43.651), dhs = 2.806;
+  const double rbarr[4] = {5.458, 5.643, 5.631, 5.633};
+  const double thbarr[4] = {-D2R(25.976), -D2R(33.975), -D2R(22.124), -D2R(34.102)};
+  const double dhbarr[4] = {0.742, 0.934, 0.704, 0.932};
+  double rb, thb, dhb, th;
+
+  for ( i = 0; i < nr; i++ ) {
+    th = ang * i;
+
+    na->x[i*3 + TIS_IP][0] = rp * cos(th + thp);
+    na->x[i*3 + TIS_IP][1] = rp * sin(th + thp);
+    na->x[i*3 + TIS_IP][2] = dh * i + dhp;
+
+    na->x[i*3 + TIS_IS][0] = rs * cos(th + ths);
+    na->x[i*3 + TIS_IS][1] = rs * sin(th + ths);
+    na->x[i*3 + TIS_IS][2] = dh * i + dhs;
+
+    ic = na->iseq[ i ];
+    rb = rbarr[ ic ];
+    thb = thbarr[ ic ];
+    dhb = dhbarr[ ic ];
+    na->x[i*3 + TIS_IB][0] = rb * cos(th + thb);
+    na->x[i*3 + TIS_IB][1] = rb * sin(th + thb);
+    na->x[i*3 + TIS_IB][2] = dh * i + dhb;
   }
 }
 
@@ -115,14 +185,36 @@ static void na_shiftang(double (*x)[D], double (*v)[D], int n)
 
 
 /* open an LJ system */
-static na_t *na_open(int nr, double rc, int model)
+static na_t *na_open(const char *seq, double rc, int model)
 {
   na_t *na;
-  int i, d, n;
+  int i, d, n, nr;
 
   xnew(na, 1);
-  na->nr = nr;
-  na->n = n = nr * 2;
+  na->nr = nr = strlen(seq);
+  xnew(na->seq, nr);
+  xnew(na->iseq, nr);
+  for ( i = 0; i < nr; i++ ) {
+    na->seq[i] = toupper( seq[i] );
+    if ( na->seq[i] == 'A' ) {
+      na->iseq[i] = 0;
+    } else if ( na->seq[i] == 'C' ) {
+      na->iseq[i] = 1;
+    } else if ( na->seq[i] == 'G' ) {
+      na->iseq[i] = 2;
+    } else if ( na->seq[i] == 'U' || na->seq[i] == 'T' ) {
+      na->iseq[i] = 3;
+    } else {
+      fprintf(stderr, "unknown residue type %c at %d\n", na->seq[i], i);
+      free(na->seq);
+      free(na->iseq);
+      free(na);
+      return NULL;
+    }
+  }
+
+  na->apr = model;
+  na->na = n = nr * na->apr;
   na->dof = n * D - D * (D+1)/2;
   na->rc = rc;
   na->rc2 = rc * rc;
@@ -138,9 +230,11 @@ static na_t *na_open(int nr, double rc, int model)
   }
 
   /* initalize random velocities */
-  for (i = 0; i < n; i++)
-    for ( d = 0; d < D; d++ )
+  for (i = 0; i < n; i++) {
+    for ( d = 0; d < D; d++ ) {
       na->v[i][d] = randgaus();
+    }
+  }
 
   na_rmcom(na->v, n);
   na_shiftang(na->x, na->v, n);
@@ -165,14 +259,14 @@ __inline static int na_writepos(na_t *na,
     double (*x)[D], double (*v)[D], const char *fn)
 {
   FILE *fp;
-  int i, d, n = na->n;
+  int i, d, n = na->na;
 
   if ( (fp = fopen(fn, "w")) == NULL ) {
     fprintf(stderr, "cannot open %s\n", fn);
     return -1;
   }
 
-  fprintf(fp, "# %d %d %d %d\n", D, na->nr, na->n, (v != NULL));
+  fprintf(fp, "# %d %d %d %d\n", D, na->nr, na->na, (v != NULL));
   for ( i = 0; i < n; i++ ) {
     for ( d = 0; d < D; d++ )
       fprintf(fp, "%.14e ", x[i][d]);
@@ -187,31 +281,52 @@ __inline static int na_writepos(na_t *na,
 }
 
 
-#define na_dist2(dx, a, b) na_vsqr( vdiff(dx, a, b) )
-
-
-
-#if 0
-
-
 
 #define na_energy(na) \
-  na->epot = na_energy_low(na, na->x)
+  na->epot = na_energyTIS_low(na, na->x)
 
 /* compute force, return energy */
-__inline static double na_energy_low(na_t *na, double (*x)[D])
+__inline static double na_energyTIS_low(na_t *na, double (*x)[D])
 {
-  double dx[D], dr2, dr6, ep, rc2 = na->rc2;
-  int i, j, npr = 0, n = na->na;
+  int i, j, ic, nr = na->nr, n = na->na;
+  double ep = 0;
 
-  for (ep = 0, i = 0; i < n - 1; i++) {
+  // bond length
+  for ( i = 0; i < nr; i++ ) {
+    ic = na->iseq[i];
+    ep += ebondlen(R0_PS, K0_PS,
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS],
+                   NULL, NULL);
+    ep += ebondlen(R0_SB[ic], K0_SB,
+                   x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   NULL, NULL);
+    if ( i < nr - 1 ) {
+      ep += ebondlen(R0_SP, K0_SP,
+                     x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     NULL, NULL);
+    }
+  }
+
+  // bond angle
+  for ( i = 0; i < nr; i++ ) {
+    ic = na->iseq[i];
+    ep += ebondang(A0_PSB[ic], KA_PSB,
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   NULL, NULL, NULL);
+    if ( i < nr - 1 ) {
+      ep += ebondang(A0_BSP[ic], KA_BSP,
+                     x[i*3 + TIS_IB], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     NULL, NULL, NULL);
+      ep += ebondang(A0_PSP, KA_PSP,
+                     x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     NULL, NULL, NULL);
+    }
+  }
+
+  // excluded volume
+  for ( i = 0; i < n - 1; i++ ) {
     for (j = i + 1; j < n; j++) {
-      dr2 = na_dist2(dx, x[i], x[j]);
-      if (dr2 > rc2) continue;
-      dr2 = 1 / dr2;
-      dr6 = dr2 * dr2 * dr2;
-      ep += 4 * dr6 * (dr6 - 1);
-      npr++;
+      ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j], NULL, NULL);
     }
   }
   return ep;
@@ -220,30 +335,53 @@ __inline static double na_energy_low(na_t *na, double (*x)[D])
 
 
 #define na_force(na) \
-  na->epot = na_force_low(na, na->x, na->f)
+  na->epot = na_forceTIS_low(na, na->x, na->f)
 
 /* compute force, return energy */
-__inline static double na_force_low(na_t *na, double (*x)[D], double (*f)[D])
+__inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D])
 {
-  double dx[D], fi[D], dr2, dr6, fs, ep, rc2 = na->rc2;
-  int i, j, npr = 0, n = na->n;
+  int i, j, ic, nr = na->nr, n = na->na;
+  double ep = 0;
 
   for (i = 0; i < n; i++) vzero(f[i]);
-  for (ep = 0, i = 0; i < n - 1; i++) {
-    vzero(fi);
-    for (j = i + 1; j < n; j++) {
-      dr2 = na_dist2(dx, x[i], x[j]);
-      if (dr2 > rc2) continue;
-      dr2 = 1 / dr2;
-      dr6 = dr2 * dr2 * dr2;
-      fs = dr6 * (48 * dr6 - 24); /* f.r */
-      fs *= dr2; /* f.r / r^2 */
-      vsinc(fi, dx, fs);
-      vsinc(f[j], dx, -fs);
-      ep += 4 * dr6 * (dr6 - 1);
-      npr++;
+
+  // bond length
+  for ( i = 0; i < nr; i++ ) {
+    ic = na->iseq[i];
+    ep += ebondlen(R0_PS, K0_PS,
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS],
+                   f[i*3 + TIS_IP], f[i*3 + TIS_IS]);
+    ep += ebondlen(R0_SB[ic], K0_SB,
+                   x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   f[i*3 + TIS_IS], f[i*3 + TIS_IB]);
+    if ( i < nr - 1 ) {
+      ep += ebondlen(R0_SP, K0_SP,
+                     x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
     }
-    vinc(f[i], fi);
+  }
+
+  // bond angle
+  for ( i = 0; i < nr; i++ ) {
+    ic = na->iseq[i];
+    ep += ebondang(A0_PSB[ic], KA_PSB,
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[i*3 + TIS_IB]);
+    if ( i < nr - 1 ) {
+      ep += ebondang(A0_BSP[ic], KA_BSP,
+                     x[i*3 + TIS_IB], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     f[i*3 + TIS_IB], f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+      ep += ebondang(A0_PSP, KA_PSP,
+                     x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+    }
+  }
+
+  // excluded volume
+  for (i = 0; i < n - 1; i++) {
+    for (j = i + 1; j < n; j++) {
+      ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j], f[i], f[j]);
+    }
   }
   return ep;
 }
@@ -253,16 +391,17 @@ __inline static double na_force_low(na_t *na, double (*x)[D], double (*f)[D])
 /* velocity-verlet */
 __inline static void na_vv(na_t *na, double dt)
 {
-  int i, n = na->n;
-  double dth = dt * .5;
+  int i, n = na->na;
+  double dth = dt * 0.5;
 
   for (i = 0; i < n; i++) { /* VV part 1 */
     vsinc(na->v[i], na->f[i], dth);
     vsinc(na->x[i], na->v[i], dt);
   }
   na_force(na);
-  for (i = 0; i < n; i++) /* VV part 2 */
+  for (i = 0; i < n; i++) { /* VV part 2 */
     vsinc(na->v[i], na->f[i], dth);
+  }
 }
 
 
@@ -272,14 +411,16 @@ static double na_ekin(double (*v)[D], int n)
 {
   int i;
   double ek = 0;
-  for ( i = 0; i < n; i++ ) ek += vsqr( v[i] );
+  for ( i = 0; i < n; i++ ) {
+    ek += vsqr( v[i] );
+  }
   return ek/2;
 }
 
 
 
 #define na_vrescale(na, tp, dt) \
-  na_vrescale_low(na->v, na->n, na->dof, tp, dt)
+  na_vrescale_low(na->v, na->na, na->dof, tp, dt)
 
 /* exact velocity rescaling thermostat */
 __inline static double na_vrescale_low(double (*v)[D], int n,
@@ -288,6 +429,7 @@ __inline static double na_vrescale_low(double (*v)[D], int n,
   int i;
   double ek1, ek2, s, c, r, r2;
 
+  tp *= BOLTZK;
   c = (dt < 700) ? exp(-dt) : 0;
   ek1 = na_ekin(v, n);
   r = randgaus();
@@ -299,6 +441,10 @@ __inline static double na_vrescale_low(double (*v)[D], int n,
   for (i = 0; i < n; i++) vsmul(v[i], s);
   return ek2;
 }
+
+
+
+#if 0
 
 
 

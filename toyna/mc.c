@@ -3,10 +3,10 @@
 
 
 
-int nr = 20;
+const char seq[] = "ACGGUUCAGCU";
 int nequil = 100000;
 int nsteps = 1000000;
-double tp = 2.0;
+double tp = 300.0;
 double rc = 1e9;
 double amp = 0.2; /* Monte Carlo move size */
 const char *fnpos = "na.pos";
@@ -21,11 +21,11 @@ int main(void)
   na_t *na;
   double epsm = 0;
 
-  na = na_open(nr, rc);
+  na = na_open(seq, rc, 3);
   //na_energy(na);
   //for ( t = 1; t <= nequil + nsteps; t++ ) {
   //  mctot += 1;
-  //  mcacc += na_metro(na, amp, 1/tp);
+  //  mcacc += na_metro(na, amp, 1/(BOLTZ*tp));
   //  if ( t <= nequil ) continue;
   //  epsm += na->epot;
   //}

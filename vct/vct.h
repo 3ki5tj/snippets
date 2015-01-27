@@ -170,7 +170,7 @@ __inline static double vdih(const double *xi, const double *xj,
   vdiff(xkl, xk, xl);
   nxkj2 = vsqr(xkj);
   nxkj = sqrt(nxkj2);
-  tol = nxkj2 * 1e-16;
+  tol = nxkj2 * DBL_EPSILON;
 
   vcross(m, xij, xkj);
   m2 = vsqr(m);

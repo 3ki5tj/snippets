@@ -60,10 +60,30 @@ function vsinc(x, dx, s)
 
 
 
+function vadd(c, a, b)
+{
+  for ( var d = 0; d < D; d++ ) {
+    c[d] = a[d] + b[d];
+  }
+  return c;
+}
+
+
+
 function vdiff(c, a, b)
 {
   for ( var d = 0; d < D; d++ ) {
     c[d] = a[d] - b[d];
+  }
+  return c;
+}
+
+
+
+function vnadd(c, a, b)
+{
+  for ( var d = 0; d < D; d++ ) {
+    c[d] = - a[d] - b[d];
   }
   return c;
 }
@@ -76,6 +96,16 @@ function vsmul(x, s)
     x[d] *= s;
   }
   return x;
+}
+
+
+
+function vsmul2(y, x, s)
+{
+  for ( var d = 0; d < D; d++ ) {
+    y[d] = x[d] * s;
+  }
+  return y;
 }
 
 
@@ -140,6 +170,55 @@ function rm3_inv(a)
   b[2][1] = (a[2][0]*a[0][1] - a[2][1]*a[0][0])/detm;
   b[2][2] = (a[0][0]*a[1][1] - a[0][1]*a[1][0])/detm;
   return b;
+}
+
+
+
+function vdih(xi, xj, xk, xl, gi, gj, gk, gl)
+{
+  var tol, phi, cosphi = 1;
+  var nxkj, nxkj2, m2, n2;
+  var xij = [0,0,0], xkj = [0,0,0], xkl = [0,0,0];
+  var uvec = [0,0,0], vvec = [0,0,0], svec = [0,0,0];
+  var m = [0,0,0], n = [0,0,0]; // the planar vector of xij x xkj, and xkj x xkj
+
+  vdiff(xij, xi, xj);
+  vdiff(xkj, xk, xj);
+  vdiff(xkl, xk, xl);
+  nxkj2 = vsqr(xkj);
+  nxkj = Math.sqrt(nxkj2);
+  tol = nxkj2 * 1e-16;
+
+  vcross(m, xij, xkj);
+  m2 = vsqr(m);
+  vcross(n, xkj, xkl);
+  n2 = vsqr(n);
+  if (m2 > tol && n2 > tol) {
+    cosphi = Math.max( Math.min(
+          vdot(m, n) / Math.sqrt(m2 * n2),
+          1), -1);
+  }
+  phi = Math.acos(cosphi);
+  if (vdot(n, xij) < 0.0) phi = -phi;
+
+  /* optionally calculate the gradient */
+  if ( gi && gj && gk && gl ) {
+    if (m2 > tol && n2 > tol) {
+      vsmul2(gi, m, nxkj/m2);
+      vsmul2(gl, n, -nxkj/n2);
+      vsmul2(uvec, gi, vdot(xij, xkj)/nxkj2);
+      vsmul2(vvec, gl, vdot(xkl, xkj)/nxkj2);
+      vdiff(svec, uvec, vvec);
+      vdiff(gj, svec, gi);
+      vnadd(gk, svec, gl);
+    } else { /* clear the gradients */
+      vzero(gi);
+      vzero(gj);
+      vzero(gk);
+      vzero(gl);
+    }
+  }
+  return phi;
 }
 
 

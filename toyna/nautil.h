@@ -22,5 +22,10 @@
 
 
 
+#define D2R(x)  ((x)*PI/180.0)
+#define R2D(x)  ((x)*180.0/PI)
+
+
+
 #endif
 

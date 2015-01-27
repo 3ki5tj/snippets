@@ -168,7 +168,7 @@ def measure(res):
     x, y, z = res[i].rB
     r = sqrt(x*x + y*y)
     ang = fmod(atan2(y, x) - i*32.7*pi/180 - pi*200, 2*pi)
-    print "%3s %2d %8.3f %8.3f %8.3f %8.3f %8.3f(%8.3f)" % (
+    print "%3s BASE %2d %8.3f %8.3f %8.3f %8.3f %8.3f(%8.3f)" % (
         res[i].resname, i+1,
         x, y, z-2.81*i, sqrt(x*x+y*y), ang, ang*180/pi)
 

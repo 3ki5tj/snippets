@@ -6,6 +6,42 @@
 
 
 
+var BOLTZK = 0.0019872041; // Boltzmann constant in kcal/mol/K
+
+
+
+function D2R(x) { return x * Math.PI / 180; }
+
+function R2D(x) { return x * 180 / Math.PI; }
+
+
+var TIS_IP = 0;
+var TIS_IS = 1;
+var TIS_IB = 2;
+
+// bond length parameters
+var R0_PS = 4.247;
+var K0_PS = 64.0;
+var R0_SP = 3.878;
+var K0_SP = 23.0;
+var R0_SB = [4.684, 4.083, 4.830, 4.086];
+var K0_SB = 10.0;
+
+// bond angle parameters
+var A0_PSB = [100.03*Math.PI/180,  93.19*Math.PI/180, 104.57*Math.PI/180,  92.99*Math.PI/180];
+var A0_BSP = [105.10*Math.PI/180, 107.58*Math.PI/180, 103.97*Math.PI/180, 107.63*Math.PI/180];
+var A0_PSP = 88.01*Math.PI/180;
+var KA_PSB = 5.0;
+var KA_BSP = 5.0;
+var KA_PSP = 20.0;
+
+// WCA parameters
+var WCA_SIG = 3.2;
+var WCA_SIG2 = WCA_SIG * WCA_SIG;
+var WCA_EPS = 1.0;
+
+
+
 function na_initchain2(na)
 {
   var i, ib, is, nr = na.nr;
@@ -30,49 +66,34 @@ function na_initchain2(na)
 
 function na_initchain3(na)
 {
-  var i, nr = na.nr;
+  var i, ic, nr = na.nr;
 
   var ang = 32.7*Math.PI/180, dh = 2.81;
   var rp = 8.710, thp = -70.502*Math.PI/180, dhp = 3.750;
   var rs = 9.064, ths = -43.651*Math.PI/180, dhs = 2.806;
-  var rb = 5.6, thb = -43.651*Math.PI/180, dhb = 0.8;
+  var rbarr  = [5.458, 5.643, 5.631, 5.633];
+  var thbarr = [-D2R(25.976), -D2R(33.975), -D2R(22.124), -D2R(34.102)];
+  var dhbarr = [0.742, 0.934, 0.704, 0.932];
+  var rb, thb, dhb, th;
 
   for ( i = 0; i < nr; i++ ) {
     var th = ang * i;
 
-    var ip = i*3;
-    var cp = Math.cos(th + thp);
-    var sp = Math.sin(th + thp);
-    na.x[ip][2] = rp * cp;
-    na.x[ip][0] = rp * sp;
-    na.x[ip][1] = dh * i + dhp;
+    na.x[i*3 + TIS_IP][2] = rp * Math.cos(th + thp);
+    na.x[i*3 + TIS_IP][0] = rp * Math.sin(th + thp);
+    na.x[i*3 + TIS_IP][1] = dh * i + dhp;
 
-    var is = i*3 + 1;
-    var cs = Math.cos(th + ths);
-    var ss = Math.sin(th + ths);
-    na.x[is][2] = rs * cs;
-    na.x[is][0] = rs * ss;
-    na.x[is][1] = dh * i + dhs;
+    na.x[i*3 + TIS_IS][2] = rs * Math.cos(th + ths);
+    na.x[i*3 + TIS_IS][0] = rs * Math.sin(th + ths);
+    na.x[i*3 + TIS_IS][1] = dh * i + dhs;
 
-    var ib = i*3 + 2;
-    if ( na.seq[i] == 'A' ) {
-      rb = 5.458;
-      thb = -25.976*Math.PI/180;
-    } else if ( na.seq[i] == 'C' ) {
-      rb = 5.643;
-      thb = -33.975*Math.PI/180;
-    } else if ( na.seq[i] == 'G' ) {
-      rb = 5.631;
-      thb = -22.124*Math.PI/180;
-    } else if ( na.seq[i] == 'U' ) {
-      rb = 5.633;
-      thb = -34.102*Math.PI/180;
-    }
-    var cb = Math.cos(th + thb);
-    var sb = Math.sin(th + thb);
-    na.x[ib][2] = rb * cb;
-    na.x[ib][0] = rb * sb;
-    na.x[ib][1] = dh * i + dhb;
+    ic = na.iseq[ i ];
+    rb = rbarr[ ic ];
+    thb = thbarr[ ic ];
+    dhb = dhbarr[ ic ];
+    na.x[i*3 + TIS_IB][2] = rb * Math.cos(th + thb);
+    na.x[i*3 + TIS_IB][0] = rb * Math.sin(th + thb);
+    na.x[i*3 + TIS_IB][1] = dh * i + dhb;
   }
 }
 
@@ -150,16 +171,30 @@ function na_shiftang(x, v, n)
 function NA(nr, rc)
 {
   var i, d, n;
+  var ch2int = {
+    "A": 0,
+    "C": 1,
+    "G": 2,
+    "U": 3,
+    "T": 3
+  };
 
   if ( isNaN(nr) ) {
-    this.seq = nr;
+    this.seq = nr.toUpperCase();
     this.nr = nr = this.seq.length;
+    this.iseq = newarr(nr);
+
+    for ( i = 0; i < nr; i++ ) {
+      this.iseq[i] = ch2int[ this.seq[i] ];
+    }
     console.log( this.seq, this.nr );
   } else {
     this.nr = nr;
     this.seq = "";
+    this.iseq = newarr(nr);
     for ( i = 0; i < nr; i++ ) {
       this.seq += "A";
+      this.iseq[i] = 0;
     }
   }
 
@@ -173,7 +208,7 @@ function NA(nr, rc)
   this.f = newarr2d(n, D);
 
   if ( this.apr == 2 ) {
-    na_initchain(this);
+    na_initchain2(this);
   } else {
     na_initchain3(this);
   }
@@ -201,21 +236,44 @@ function na_dist2(dx, a, b, l, invl)
 
 
 
-/* compute force, return energy */
-NA.prototype.energy_low = function(x)
+/* compute force, return energy
+ * for the TIS model */
+NA.prototype.energyTIS_low = function(x)
 {
-  var dx = newarr(this.dim), dr2, ir6, ep, rc2 = this.rc2;
-  var i, j, npr = 0, n = this.n;
+  var i, j, ic, n = this.n, nr = this.nr;
 
-  for (ep = 0, i = 0; i < n - 1; i++) {
+  var ep = 0;
+
+  // bond length
+  for ( i = 0; i < nr; i++ ) {
+    ic = this.iseq[i];
+    ep += ebondlen(R0_PS, K0_PS,
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS]);
+    ep += ebondlen(R0_SB[ic], K0_SB,
+                   x[i*3 + TIS_IS], x[i*3 + TIS_IB]);
+    if ( i < nr - 1 ) {
+      ep += ebondlen(R0_SP, K0_SP,
+                     x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP]);
+    }
+  }
+
+  // bond angle
+  for ( i = 0; i < nr; i++ ) {
+    ic = this.iseq[i];
+    ep += ebondang(A0_PSB[ic], KA_PSB,
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB]);
+    if ( i < nr - 1 ) {
+      ep += ebondang(A0_BSP[ic], KA_BSP,
+                     x[i*3 + TIS_IB], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP]);
+      ep += ebondang(A0_PSP, KA_PSP,
+                     x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP]);
+    }
+  }
+
+  // exclusion volume
+  for ( i = 0; i < n - 1; i++ ) {
     for (j = i + 1; j < n; j++) {
-      dr2 = vsqr( vdiff(dx, x[i], x[j]) );
-      if (dr2 < rc2) {
-        dr2 = 1 / dr2;
-        ir6 = dr2 * dr2 * dr2;
-        ep += 4 * ir6 * (ir6 - 1);
-        npr++;
-      }
+      ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j]);
     }
   }
   return ep;
@@ -225,38 +283,59 @@ NA.prototype.energy_low = function(x)
 
 NA.prototype.energy = function()
 {
-  this.epot = this.energy_low(this.x);
+  this.epot = this.energyTIS_low(this.x);
   return this.epot;
 };
 
 
 
 /* compute force, return energy */
-NA.prototype.force_low = function(x, f)
+NA.prototype.forceTIS_low = function(x, f)
 {
-  var dx = newarr(this.dim), fi = newarr(this.dim);
-  var dr2, ir6, fs, ep, rc2 = this.rc2;
-  var i, j, npr = 0, n = this.n;
+  var i, j, ic, n = this.n, nr = this.nr;
 
+  var ep = 0;
   for (i = 0; i < n; i++) {
     vzero(f[i]);
   }
-  for (ep = 0, i = 0; i < n - 1; i++) {
-    vzero(fi);
-    for (j = i + 1; j < n; j++) {
-      dr2 = vsqr( vdiff(dx, x[i], x[j]) );
-      if (dr2 < rc2) {
-        dr2 = 1 / dr2;
-        ir6 = dr2 * dr2 * dr2;
-        fs = ir6 * (48 * ir6 - 24); // f.r
-        fs *= dr2; // f.r / r^2
-        vsinc(fi, dx, fs);
-        vsinc(f[j], dx, -fs);
-        ep += 4 * ir6 * (ir6 - 1);
-        npr++;
-      }
+
+  // bond length
+  for ( i = 0; i < nr; i++ ) {
+    ic = this.iseq[i];
+    ep += ebondlen(R0_PS, K0_PS,
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS],
+                   f[i*3 + TIS_IP], f[i*3 + TIS_IS]);
+    ep += ebondlen(R0_SB[ic], K0_SB,
+                   x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   f[i*3 + TIS_IS], f[i*3 + TIS_IB]);
+    if ( i < nr - 1 ) {
+      ep += ebondlen(R0_SP, K0_SP,
+                     x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
     }
-    vinc(f[i], fi);
+  }
+
+  // bond angle
+  for ( i = 0; i < nr; i++ ) {
+    ic = this.iseq[i];
+    ep += ebondang(A0_PSB[ic], KA_PSB,
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[i*3 + TIS_IB]);
+    if ( i < nr - 1 ) {
+      ep += ebondang(A0_BSP[ic], KA_BSP,
+                     x[i*3 + TIS_IB], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     f[i*3 + TIS_IB], f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+      ep += ebondang(A0_PSP, KA_PSP,
+                     x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                     f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+    }
+  }
+
+  // excluded volume
+  for ( i = 0; i < n - 1; i++ ) {
+    for (j = i + 1; j < n; j++) {
+      ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j], f[i], f[j]);
+    }
   }
   return ep;
 };
@@ -265,7 +344,7 @@ NA.prototype.force_low = function(x, f)
 
 NA.prototype.force = function()
 {
-  var ret = this.force_low(this.x, this.f);
+  var ret = this.forceTIS_low(this.x, this.f);
   this.epot = ret[0];
   this.ep0  = ret[1];
   this.eps  = ret[2];
@@ -314,6 +393,7 @@ function na_vrescale_low(v, n, dof, tp, dt)
   var ek1 = na_ekin(v, n);
   var r = randgaus();
   var r2 = randchisqr(dof - 1);
+  tp *= BOLTZK;
   var ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
       + 2 * r * Math.sqrt(c * (1 - c) * ek1 * tp / 2);
   ek2 = Math.max(ek2, 0.0);
