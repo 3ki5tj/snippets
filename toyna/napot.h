@@ -87,6 +87,61 @@ __inline static double ewca(double sig2, double eps,
 
 
 
+/* stack interaction */
+__inline static double estack(double r0, double phi10, double phi20,
+    double kr, double kphi, double ust0,
+    const double *xp1, const double *xs1, const double *xb1,
+    const double *xp2, const double *xs2, const double *xb2,
+    const double *xp3,
+    double *fp1, double *fs1, double *fb1,
+    double *fp2, double *fs2, double *fb2,
+    double *fp3)
+{
+  double dxbb[D], rbb, drbb = 0;
+  double phi1 = 0, dphi1 = 0, gi1[D], gj1[D], gk1[D], gl1[D];
+  double phi2 = 0, dphi2 = 0, gi2[D] = {0}, gj2[D] = {0}, gk2[D] = {0}, gl2[D] = {0};
+  double den;
+
+  rbb = sqrt( vsqr( vdiff(dxbb, xb1, xb2) ) );
+  drbb = rbb - r0;
+
+  phi1 = vdih(xp1, xs1, xp2, xs2, gi1, gj1, gk1, gl1);
+  dphi1 = phi1 - phi10;
+
+  if ( xp3 ) {
+    phi2 = vdih(xs1, xp2, xs2, xp3, gi2, gj2, gk2, gl2);
+    dphi2 = phi2 - phi20;
+  }
+
+  den = 1 + kr * drbb * drbb + kphi * dphi1 * dphi1 + kphi * dphi2 * dphi2;
+
+  if ( fp1 && fs1 && fb1 && fp2 && fs2 && fb2 ) {
+    double fs, den2 = den * den;
+    
+    fs = 2 * kr * drbb * ust0 / den2 / rbb;
+    vsinc(fb1, dxbb,  fs);
+    vsinc(fb2, dxbb, -fs);
+
+    fs = 2 * kphi * dphi1 * ust0 / den2;
+    vsinc(fp1, gi1, fs);
+    vsinc(fs1, gj1, fs);
+    vsinc(fp2, gk1, fs);
+    vsinc(fs2, gl1, fs);
+
+    if ( xp3 ) {
+      fs = 2 * kphi * dphi2 * ust0 / den2;
+      vsinc(fs1, gi2, fs);
+      vsinc(fp2, gj2, fs);
+      vsinc(fs2, gk2, fs);
+      vsinc(fp3, gl2, fs);
+    }
+
+  }
+  return ust0 / den;
+}
+
+
+
 /* dielectric constant of water
  * Eq. (12) of Denesyuk 2013 */
 __inline static double getdielecwater(double tp)

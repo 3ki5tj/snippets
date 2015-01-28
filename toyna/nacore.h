@@ -22,9 +22,9 @@
 
 /* bond length parameters */
 const double R0_PS = 4.660;
-const double K0_PS = 64.0;
+const double K0_PS = 23.0;
 const double R0_SP = 3.766;
-const double K0_SP = 23.0;
+const double K0_SP = 64.0;
 const double R0_SB[4] = {4.700, 4.157, 4.811, 4.163};
 const double K0_SB = 10.0;
 
@@ -40,6 +40,45 @@ const double KA_PSP = 20.0;
 #define WCA_SIG 3.2
 const double WCA_SIG2 = WCA_SIG * WCA_SIG;
 const double WCA_EPS = 1.0;
+
+const double ST_R0[4][4] = {
+/*         A       C       G       U     */
+/* A */  {4.164,  3.832,  4.450,  3.822},
+/* C */  {4.667,  4.241,  4.992,  4.230},
+/* G */  {3.971,  3.661,  4.236,  3.651},
+/* U */  {4.675,  4.250,  5.000,  4.237}
+/* Note U-A, A-U, C-U are unavailable, and deduced from
+ *      C-A, A-C, C-C, respectively */
+};
+const double ST_PHI10 = D2R(-148.16);
+const double ST_PHI20 = D2R( 175.97);
+const double ST_KR = 1.4;
+const double ST_KPHI = 4.0;
+
+/* from Table 1. Denesyuk, 2013 */
+const double ST_TM[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 26.0,   26.0,   68.0,   26.0},
+/* C */  { 26.0,   13.0,   42.0,   13.0},
+/* G */  { 68.0,   70.0,   93.0,   65.0},
+/* U */  { 26.0,   13.0,   65.0,  -21.0}
+};
+/* from Table 2. Denesyuk, 2013 */
+const double ST_H[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 4.35,   4.31,   5.12,   4.31},
+/* C */  { 4.29,   4.01,   4.60,   3.99},
+/* G */  { 5.08,   5.07,   5.56,   4.98},
+/* U */  { 4.29,   3.99,   5.03,   3.37}
+};
+/* from Table 2. Denesyuk, 2013 */
+const double ST_S[4][4] = {
+/*         A       C       G       U     */
+/* A */  {-0.32,  -0.32,   5.30,  -0.32},
+/* C */  {-0.32,  -1.57,   0.77,  -1.57},
+/* G */  { 5.30,   4.37,   7.35,   2.92},
+/* U */  {-0.32,  -1.57,   2.92,  -3.56}
+};
 
 
 
@@ -312,7 +351,7 @@ __inline static int na_writepos(na_t *na,
 __inline static double na_energyTIS_low(na_t *na, double (*x)[D],
     double tp, double debyel)
 {
-  int i, j, ic, nr = na->nr, n = na->na;
+  int i, j, ic, jc, nr = na->nr, n = na->na;
   double ep = 0;
   double eps, Q, QQ;
 
@@ -355,6 +394,21 @@ __inline static double na_energyTIS_low(na_t *na, double (*x)[D],
     }
   }
 
+  // stack energy
+  for ( i = 0; i < nr - 1; i++ ) {
+    double ust0 = 0, *xp3 = NULL;
+    ic = na->iseq[i];
+    jc = na->iseq[i + 1];
+    ust0 = -ST_H[ic][jc] + ST_S[ic][jc] * (tp - (T0 + ST_TM[ic][jc]));
+    if ( i < nr - 2 ) {
+      xp3 = x[(i + 2)*3 + TIS_IP];
+    }
+    ep += estack(ST_R0[ic][jc], ST_PHI10, ST_PHI20, ST_KR, ST_KPHI, ust0,
+                 x[i*3       + TIS_IP], x[i*3       + TIS_IS], x[i*3       + TIS_IB],
+                 x[(i + 1)*3 + TIS_IP], x[(i + 1)*3 + TIS_IS], x[(i + 1)*3 + TIS_IB], xp3,
+                 NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+  }
+
   // electrostatic interaction
   Q = getchargeQ(tp, &eps);
   QQ = Q*Q*KE2/eps;
@@ -377,7 +431,7 @@ __inline static double na_energyTIS_low(na_t *na, double (*x)[D],
 __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
     double tp, double debyel)
 {
-  int i, j, ic, nr = na->nr, n = na->na;
+  int i, j, ic, jc, nr = na->nr, n = na->na;
   double ep = 0;
   double Q, QQ, eps;
 
@@ -420,6 +474,23 @@ __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
     for (j = i + 1; j < n; j++) {
       ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j], f[i], f[j]);
     }
+  }
+
+  // stack energy
+  for ( i = 0; i < nr - 1; i++ ) {
+    double ust0 = 0, *xp3 = NULL, *fp3 = NULL;
+    ic = na->iseq[i];
+    jc = na->iseq[i + 1];
+    ust0 = -ST_H[ic][jc] + ST_S[ic][jc] * (tp - (T0 + ST_TM[ic][jc]));
+    if ( i < nr - 2 ) {
+      xp3 = x[(i + 2)*3 + TIS_IP];
+      fp3 = f[(i + 2)*3 + TIS_IP];
+    }
+    ep += estack(ST_R0[ic][jc], ST_PHI10, ST_PHI20, ST_KR, ST_KPHI, ust0,
+                 x[i*3       + TIS_IP], x[i*3       + TIS_IS], x[i*3       + TIS_IB],
+                 x[(i + 1)*3 + TIS_IP], x[(i + 1)*3 + TIS_IS], x[(i + 1)*3 + TIS_IB], xp3,
+                 f[i*3       + TIS_IP], f[i*3       + TIS_IS], f[i*3       + TIS_IB],
+                 f[(i + 1)*3 + TIS_IP], f[(i + 1)*3 + TIS_IS], f[(i + 1)*3 + TIS_IB], fp3);
   }
 
   // electrostatic interaction

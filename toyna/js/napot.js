@@ -81,6 +81,56 @@ function ewca(sig2, eps, xi, xj, fi, fj)
 
 
 
+/* stack interaction */
+function estack(r0, phi10, phi20, kr, kphi, ust0,
+    xp1, xs1, xb1, xp2, xs2, xb2, xp3,
+    fp1, fs1, fb1, fp2, fs2, fb2, fp3)
+{
+  var dxbb = [0,0,0], rbb, drbb = 0;
+  var phi1 = 0, dphi1 = 0, gi1 = [0,0,0], gj1 = [0,0,0], gk1 = [0,0,0], gl1 = [0,0,0];
+  var phi2 = 0, dphi2 = 0, gi2 = [0,0,0], gj2 = [0,0,0], gk2 = [0,0,0], gl2 = [0,0,0];
+  var den;
+
+  rbb = Math.sqrt( vsqr( vdiff(dxbb, xb1, xb2) ) );
+  drbb = rbb - r0;
+
+  phi1 = vdih(xp1, xs1, xp2, xs2, gi1, gj1, gk1, gl1);
+  dphi1 = phi1 - phi10;
+
+  if ( xp3 ) {
+    phi2 = vdih(xs1, xp2, xs2, xp3, gi2, gj2, gk2, gl2);
+    dphi2 = phi2 - phi20;
+  }
+
+  den = 1 + kr * drbb * drbb + kphi * dphi1 * dphi1 + kphi * dphi2 * dphi2;
+
+  if ( fp1 && fs1 && fb1 && fp2 && fs2 && fb2 ) {
+    var fs, den2 = den * den;
+    
+    fs = 2 * kr * drbb * ust0 / den2 / rbb;
+    vsinc(fb1, dxbb,  fs);
+    vsinc(fb2, dxbb, -fs);
+
+    fs = 2 * kphi * dphi1 * ust0 / den2;
+    vsinc(fp1, gi1, fs);
+    vsinc(fs1, gj1, fs);
+    vsinc(fp2, gk1, fs);
+    vsinc(fs2, gl1, fs);
+
+    if ( xp3 ) {
+      fs = 2 * kphi * dphi2 * ust0 / den2;
+      vsinc(fs1, gi2, fs);
+      vsinc(fp2, gj2, fs);
+      vsinc(fs2, gk2, fs);
+      vsinc(fp3, gl2, fs);
+    }
+
+  }
+  return ust0 / den;
+}
+
+
+
 /* dielectric constant of water
  * Eq. (12) of Denesyuk 2013 */
 function getdielecwater(tp)

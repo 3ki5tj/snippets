@@ -189,10 +189,8 @@ function vdih(xi, xj, xk, xl, gi, gj, gk, gl)
   nxkj = Math.sqrt(nxkj2);
   tol = nxkj2 * 1e-16;
 
-  vcross(m, xij, xkj);
-  m2 = vsqr(m);
-  vcross(n, xkj, xkl);
-  n2 = vsqr(n);
+  m2 = vsqr( vcross3d(m, xij, xkj) );
+  n2 = vsqr( vcross3d(n, xkj, xkl) );
   if (m2 > tol && n2 > tol) {
     cosphi = Math.max( Math.min(
           vdot(m, n) / Math.sqrt(m2 * n2),

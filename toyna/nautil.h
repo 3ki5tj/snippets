@@ -23,6 +23,9 @@
 #define AVOGADRO 6.02214129e23
 #endif
 
+#ifndef T0
+#define T0 273.15
+#endif
 
 #ifndef xnew
 #define xnew(x, n) { \
