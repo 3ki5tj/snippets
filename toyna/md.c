@@ -12,6 +12,7 @@ int nequil = 10000;
 int nsteps = 100000;
 double tp = 300.0;
 double debyel;
+double uhb0 = 2.43;
 double dt = 0.002;
 double thdt = 0.02;
 double qv[1] = {1.0};
@@ -27,7 +28,7 @@ int main(void)
   double epsm = 0;
 
   debyel = getDebyel(qv, conc, 1, tp);
-  na = na_open(seq, 3, tp, debyel);
+  na = na_open(seq, 3, tp, debyel, uhb0);
   double Q, eps;
   Q = getchargeQ(tp, &eps);
   printf("Debyel %g, eps %g, chargeq %g\n", debyel, eps, Q);

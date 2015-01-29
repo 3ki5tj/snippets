@@ -70,6 +70,60 @@ var ST_S = [
 /* U */  [-0.32,  -1.57,   2.92,  -3.56]
 ];
 
+/* hydrogen-bond parameters */
+var HB_R0 = [
+/*         A       C       G       U     */
+/* A */  [ 0.000,  0.000,  0.000,  5.801],
+/* C */  [ 0.000,  0.000,  5.548,  0.000],
+/* G */  [ 0.000,  5.548,  0.000,  0.000],
+/* U */  [ 5.801,  0.000,  0.000,  0.000]
+];
+var HB_TH10 = [
+/*         A       C       G       U     */
+/* A */  [ 0.000,  0.000,  0.000,  2.678],
+/* C */  [ 0.000,  0.000,  2.416,  0.000],
+/* G */  [ 0.000,  2.808,  0.000,  0.000],
+/* U */  [ 2.461,  0.000,  0.000,  0.000]
+];
+var HB_TH20 = [
+/*         A       C       G       U     */
+/* A */  [ 0.000,  0.000,  0.000,  2.461],
+/* C */  [ 0.000,  0.000,  2.808,  0.000],
+/* G */  [ 0.000,  2.416,  0.000,  0.000],
+/* U */  [ 2.678,  0.000,  0.000,  0.000]
+];
+var HB_PSI0 = [
+/*         A       C       G       U     */
+/* A */  [ 0.000,  0.000,  0.000,  0.878],
+/* C */  [ 0.000,  0.000,  0.969,  0.000],
+/* G */  [ 0.000,  0.969,  0.000,  0.000],
+/* U */  [ 0.878,  0.000,  0.000,  0.000]
+];
+var HB_PSI10 = [
+/*         A       C       G       U     */
+/* A */  [ 0.000,  0.000,  0.000,  2.670],
+/* C */  [ 0.000,  0.000,  2.803,  0.000],
+/* G */  [ 0.000,  2.546,  0.000,  0.000],
+/* U */  [ 2.760,  0.000,  0.000,  0.000]
+];
+var HB_PSI20 = [
+/*         A       C       G       U     */
+/* A */  [ 0.000,  0.000,  0.000,  2.670],
+/* C */  [ 0.000,  0.000,  2.803,  0.000],
+/* G */  [ 0.000,  2.546,  0.000,  0.000],
+/* U */  [ 2.760,  0.000,  0.000,  0.000]
+];
+var HB_MUL = [
+/*         A       C       G       U     */
+/* A */  [ 0.000,  0.000,  0.000,  2.000],
+/* C */  [ 0.000,  0.000,  3.000,  0.000],
+/* G */  [ 0.000,  3.000,  0.000,  2.000],
+/* U */  [ 2.000,  0.000,  2.000,  0.000]
+];
+var HB_KR = 5;
+var HB_KTH = 1.5;
+var HB_KPSI = 0.15;
+
 
 
 function na_initchain2(na)
@@ -209,8 +263,7 @@ function na_shiftang(x, v, m, n)
 
 
 
-
-function NA(nr, tp, debyel)
+function NA(nr, tp, debyel, uhb0)
 {
   var i, d, n;
   var ch2int = {
@@ -245,6 +298,8 @@ function NA(nr, tp, debyel)
   this.dof = n * D - D * (D + 1) / 2;
   this.tp = tp;
   this.debyel = debyel;
+  this.uhb0 = uhb0;
+
   this.m = newarr(n);
   this.x = newarr2d(n, D);
   this.v = newarr2d(n, D);
@@ -332,6 +387,22 @@ NA.prototype.energyTIS_low = function(x, tp, debyel)
                  x[(i + 1)*3 + TIS_IP], x[(i + 1)*3 + TIS_IS], x[(i + 1)*3 + TIS_IB], xp3);
   }
 
+  // hydrogen-bond energy
+  for ( i = 0; i < nr - 1; i++ ) {
+    ic = this.iseq[i];
+    for ( j = i + 2; j < nr; j++ ) {
+      jc = this.iseq[j];
+      if ( ic + jc != 3 ) {
+        continue;
+      }
+      ep += ehbond(HB_R0[ic][jc], HB_TH10[ic][jc], HB_TH20[ic][jc],
+                   HB_PSI0[ic][jc], HB_PSI10[ic][jc], HB_PSI20[ic][jc],
+                   HB_KR, HB_KTH, HB_KPSI, this.uhb0 * HB_MUL[ic][jc],
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   x[j*3 + TIS_IB], x[j*3 + TIS_IS], x[j*3 + TIS_IP]);
+    }
+  }
+
   // electrostatic interaction
   var eps = getdielecwater(tp);
   var Q = getchargeQ(tp);
@@ -358,7 +429,7 @@ NA.prototype.energy = function()
 /* compute force, return energy */
 NA.prototype.forceTIS_low = function(x, f)
 {
-  var i, j, ic, n = this.n, nr = this.nr;
+  var i, j, ic, jc, n = this.n, nr = this.nr;
 
   var ep = 0;
   for (i = 0; i < n; i++) {
@@ -407,7 +478,7 @@ NA.prototype.forceTIS_low = function(x, f)
   // stack energy
   for ( i = 0; i < nr - 1; i++ ) {
     ic = this.iseq[i];
-    var jc = this.iseq[i + 1];
+    jc = this.iseq[i + 1];
     var ust0 = -ST_H[ic][jc] + ST_S[ic][jc] * (tp - (T0 + ST_TM[ic][jc]));
     var xp3 = ( i < nr - 2 ) ? x[(i + 2)*3 + TIS_IP] : null;
     var fp3 = ( i < nr - 2 ) ? f[(i + 2)*3 + TIS_IP] : null;
@@ -416,6 +487,24 @@ NA.prototype.forceTIS_low = function(x, f)
                  x[(i + 1)*3 + TIS_IP], x[(i + 1)*3 + TIS_IS], x[(i + 1)*3 + TIS_IB], xp3,
                  f[i*3       + TIS_IP], f[i*3       + TIS_IS], f[i*3       + TIS_IB],
                  f[(i + 1)*3 + TIS_IP], f[(i + 1)*3 + TIS_IS], f[(i + 1)*3 + TIS_IB], fp3);
+  }
+
+  // hydrogen-bond energy
+  for ( i = 0; i < nr - 1; i++ ) {
+    ic = this.iseq[i];
+    for ( j = i + 2; j < nr; j++ ) {
+      jc = this.iseq[j];
+      if ( ic + jc != 3 ) {
+        continue;
+      }
+      ep += ehbond(HB_R0[ic][jc], HB_TH10[ic][jc], HB_TH20[ic][jc],
+                   HB_PSI0[ic][jc], HB_PSI10[ic][jc], HB_PSI20[ic][jc],
+                   HB_KR, HB_KTH, HB_KPSI, this.uhb0 * HB_MUL[ic][jc],
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   x[j*3 + TIS_IB], x[j*3 + TIS_IS], x[j*3 + TIS_IP],
+                   f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[i*3 + TIS_IB],
+                   f[j*3 + TIS_IB], f[j*3 + TIS_IS], f[j*3 + TIS_IP]);
+    }
   }
 
   // electrostatic interaction
@@ -461,12 +550,12 @@ NA.prototype.vv = function(dt)
 
 
 /* compute the kinetic energy */
-function na_ekin(v, n)
+function na_ekin(v, m, n)
 {
   var i;
   var ek = 0;
   for ( i = 0; i < n; i++ ) {
-    ek += vsqr( v[i] );
+    ek += m[i] * vsqr( v[i] );
   }
   return ek/2;
 }
@@ -474,11 +563,11 @@ function na_ekin(v, n)
 
 
 /* exact velocity rescaling thermostat */
-function na_vrescale_low(v, n, dof, tp, dt)
+function na_vrescale_low(v, m, n, dof, tp, dt)
 {
   var i;
   var c = (dt < 700) ? Math.exp(-dt) : 0;
-  var ek1 = na_ekin(v, n);
+  var ek1 = na_ekin(v, m, n);
   var r = randgaus();
   var r2 = randchisqr(dof - 1);
   tp *= BOLTZK;
@@ -496,7 +585,7 @@ function na_vrescale_low(v, n, dof, tp, dt)
 
 NA.prototype.vrescale = function(tp, dt)
 {
-  return na_vrescale_low(this.v, this.n, this.dof, tp, dt);
+  return na_vrescale_low(this.v, this.m, this.n, this.dof, tp, dt);
 };
 
 

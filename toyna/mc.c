@@ -8,6 +8,7 @@ int nequil = 100000;
 int nsteps = 1000000;
 double tp = 300.0;
 double debyel;
+double uhb0 = 2.43;
 double amp = 0.2; /* Monte Carlo move size */
 double qv[1] = {1.0}; /* ion charge of the solvent */
 double conc[1] = {1.0}; /* solvent concentration */
@@ -24,7 +25,7 @@ int main(void)
   double epsm = 0;
 
   debyel = getDebyel(qv, conc, 1, tp);
-  na = na_open(seq, 3, tp, debyel);
+  na = na_open(seq, 3, tp, debyel, uhb0);
   //na_energy(na);
   //for ( t = 1; t <= nequil + nsteps; t++ ) {
   //  mctot += 1;

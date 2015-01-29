@@ -174,6 +174,37 @@ function rm3_inv(a)
 
 
 
+/* bond angle interaction */
+function vang(xi, xj, xk, gi, gj, gk)
+{
+  var xij= [0,0,0], xkj = [0,0,0], ri, rk, dot, ang;
+
+  ri = Math.sqrt( vsqr( vdiff(xij, xi, xj) ) );
+  vsmul(xij, 1.0/ri);
+
+  rk = Math.sqrt( vsqr( vdiff(xkj, xk, xj) ) );
+  vsmul(xkj, 1.0/rk);
+
+  dot = Math.max( Math.min( vdot(xij, xkj), 1.0 ), -1.0);
+  ang = Math.acos( dot );
+
+  if ( gi && gj && gk ) {
+    var sn, gij, gkj;
+    var d;
+    sn = -1.0 / Math.sqrt(1 - dot * dot); // -1.0/sin(phi)
+    for ( d = 0; d < D; d++ ) {
+      gij = sn * (xkj[d] - xij[d]*dot) / ri;
+      gkj = sn * (xij[d] - xkj[d]*dot) / rk;
+      gi[d] = gij;
+      gk[d] = gkj;
+      gj[d] = -(gij + gkj);
+    }
+  }
+  return ang;
+}
+
+
+
 function vdih(xi, xj, xk, xl, gi, gj, gk, gl)
 {
   var tol, phi, cosphi = 1;

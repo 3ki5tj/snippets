@@ -10,6 +10,7 @@
 const char seq[] = "ACGGUUCAGCU";
 double tp = 300.0;
 double debyel;
+double uhb0 = 2.43;
 double dt = 0.002;
 double qv[1] = {1.0};
 double conc[1] = {1.0};
@@ -24,7 +25,7 @@ int main(void)
   double e0, e1, f2, del = 0.001;
 
   debyel = getDebyel(qv, conc, 1, tp);
-  na = na_open(seq, 3, tp, debyel);
+  na = na_open(seq, 3, tp, debyel, uhb0);
   Q = getchargeQ(tp, &eps);
   printf("Debyel %g, eps %g, chargeq %g\n", debyel, eps, Q);
   for ( t = 1; t <= 1000; t++ ) {

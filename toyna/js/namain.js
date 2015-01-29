@@ -7,11 +7,12 @@
 
 
 var na = null;
+var seq = ""
 var nr = 20;
 var tp = 300.0;
-var rc = 1000.0;
 var conc = 1.0; // salt concentration
 var debyel = 4.36; // Debye screening length
+var uhb0 = 2.43; // magnitude of the hydrogen bond
 
 var timer_interval = 100; // in milliseconds
 var natimer = null;
@@ -37,9 +38,8 @@ var userscale = 1.0;
 
 function getparams()
 {
-  nr = get_int("nr", 55);
+  seq = grab("sequence").value.trim();
   tp = get_float("temperature", 300.0);
-  rc = get_float("rcutoff", 1000.0);
 
   simulmethod = grab("simulmethod").value;
   mddt = get_float("mddt", 0.002);
@@ -55,6 +55,7 @@ function getparams()
 
   var conc = get_float("saltconc");
   debyel = getDebyel([1.0], [conc], 1, tp);
+  uhb0 = get_float("uhb0");
 }
 
 
@@ -320,7 +321,8 @@ function nadraw(na, target, userscale)
 
   ret = transform(na.x); // apply the rotation matrix
   var xt = ret[0];
-  na.l = ret[2];
+  //na.l = ret[2];
+  na.l = 8.0 * Math.pow( na.nr, 1.0/3 );
   ret = sortbyz(xt); // sort particles by the z order
   var xyz = ret[0];
   var idmap = ret[1], invmap = ret[2];
@@ -388,16 +390,26 @@ function nadraw(na, target, userscale)
     var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
     var color, rad;
     var i0 = idmap[ i ];
-    var tp = i0 % apr;
-    if ( tp === 0 ) {
-      color = rgb2str(20, 32, 80 + 160 * zf);
-      rad = 1.5;
-    } else if ( tp === apr - 1 ) {
-      color = rgb2str(80 + 160 * zf, 32, 20);
-      rad = 1.0;
+    var atype = i0 % apr;
+    var ir = i0 / apr;
+    var ra = na.seq.substr(ir, 1);
+    if ( atype === 0 ) {
+      color = rgb2str(40 + 20 * zf, 40 + 20 * zf, 40 + 20 * zf);
+      rad = 1.6;
+    } else if ( atype === apr - 1 ) {
+      if ( ra == 'A' ) {
+        color = rgb2str(120 + 60 * zf, 32, 20);
+      } else if ( ra == 'C' ) {
+        color = rgb2str(20, 80 + 60 * zf, 20);
+      } else if ( ra == 'G' ) {
+        color = rgb2str(20, 32, 80 + 60 * zf);
+      } else if ( ra == 'U' ) {
+        color = rgb2str(80 + 60 * zf, 80 + 60 * zf, 20);
+      }
+      rad = 1.6;
     } else {
-      color = rgb2str(20, 80 + 60 * zf, 20);
-      rad = 1.2;
+      color = rgb2str(160 + 50 * zf, 160 + 50 * zf, 160 + 50 * zf);
+      rad = 1.6;
     }
     var rz = Math.floor( rad * scl );
     paintBall(ctx, x, y, rz, color, spotcolor);
@@ -469,7 +481,7 @@ function startsimul()
 {
   stopsimul();
   getparams();
-  na = new NA("ACGGUUCAGCU", tp, debyel);
+  na = new NA(seq, tp, debyel, uhb0);
   na.force();
   installmouse();
   natimer = setInterval(

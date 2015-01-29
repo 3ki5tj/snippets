@@ -26,32 +26,33 @@
   <div class="panel-title">System</div>
 
   Number of residues,
-  <span class="math"><i>N<sub>r</sub></i></span>:
-  <input type="text" size="6" value="20" id="nr"
-    onchange="changeparams()">.
+  <textarea rows="2" id="sequence">GAAGCCAUUGCACCGGCUUC</textarea>
+  <br>
 
   Temperature,
   <span class="math"><i>T</i></span>:
   <input type="text" size="6" value="300" id="temperature"
     onchange="changeparams()"> K.
   &nbsp;
-
-  Cutoff,
-  <span class="math"><i>r<sub>c</sub></i></span>:
-  <input type="text" size="6" value="2.5" id="rcutoff"
-    onchange="changeparams()">.
-  &nbsp;
   <br>
 
   Salt concentration,
   <span class="math"><i>c</i></span>:
   <input type="text" size="6" value="1.0" id="saltconc"
-    onchange="changeparams()">M.
+    onchange="changeparams()"> M.
+  &nbsp;
+  <br>
+
+  Magnitude of the hydrogen bond:
+  <input type="text" size="6" value="2.43" id="uhb0"
+    onchange="changeparams()">.
+  &nbsp;
+  <br>
 
   Simulation method
   <select id="simulmethod" onchange="changeparams()">
     <option value="MD">molecular dynamics (MD)</option>
-    <option value="MC">Monte Carlo (MC)</option>
+    <option value="MC" disabled>Monte Carlo (MC)</option>
   </select>
   </div>
 
@@ -61,7 +62,7 @@
   <div class="panel-title">Molecular dynamics (MD)</div>
 
   Number of MD steps per second:
-  <input type="text" size="10" value="2000"
+  <input type="text" size="10" value="10000"
     id="nstepspersecmd" onchange="changeparams()">.
   <br>
 
@@ -71,7 +72,7 @@
   <br>
 
   Thermostat time step:
-  <input type="text" size="6" value="0.02" id="thermostatdt"
+  <input type="text" size="6" value="0.1" id="thermostatdt"
     onchange="changeparams()">.
   <br>
 
@@ -118,7 +119,8 @@
       min="0.05" max="3.0" step="0.01" style="width: 480px"
       onchange="changescale()">
     <br>
-    <input type="checkbox" id="orthographic" onchange="paint()">
+    <input type="checkbox" checked id="orthographic"
+      onchange="paint()">
     Orthographic.
     &nbsp;
     <br>

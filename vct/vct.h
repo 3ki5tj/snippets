@@ -156,6 +156,40 @@ __inline static void rm3_inv(double b[3][3], double a[3][3])
 
 
 
+/* bond angle interaction */
+__inline static double vang(const double *xi, const double *xj, const double *xk,
+    double *gi, double *gj, double *gk)
+{
+  double xij[D], xkj[D], ri, rk, dot, ang;
+
+  ri = sqrt( vsqr( vdiff(xij, xi, xj) ) );
+  vsmul(xij, 1.0/ri);
+
+  rk = sqrt( vsqr( vdiff(xkj, xk, xj) ) );
+  vsmul(xkj, 1.0/rk);
+
+  dot = vdot(xij, xkj);
+  if ( dot > 1.0 ) dot = 1.0;
+  else if ( dot < -1.0 ) dot = -1.0;
+  ang = acos( dot );
+
+  if ( gi && gj && gk ) {
+    double sn, gij, gkj;
+    int d;
+    sn = -1.0 / sqrt(1 - dot * dot); /* -1.0/sin(phi) */
+    for ( d = 0; d < D; d++ ) {
+      gij = sn * (xkj[d] - xij[d]*dot) / ri;
+      gkj = sn * (xij[d] - xkj[d]*dot) / rk;
+      gi[d] = gij;
+      gk[d] = gkj;
+      gj[d] = -(gij + gkj);
+    }
+  }
+  return ang;
+}
+
+
+
 __inline static double vdih(const double *xi, const double *xj,
     const double *xk, const double *xl,
     double *gi, double *gj, double *gk, double *gl)

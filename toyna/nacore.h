@@ -41,6 +41,7 @@ const double KA_PSP = 20.0;
 const double WCA_SIG2 = WCA_SIG * WCA_SIG;
 const double WCA_EPS = 1.0;
 
+/* stacking parameters */
 const double ST_R0[4][4] = {
 /*         A       C       G       U     */
 /* A */  {4.164,  3.832,  4.450,  3.822},
@@ -80,6 +81,60 @@ const double ST_S[4][4] = {
 /* U */  {-0.32,  -1.57,   2.92,  -3.56}
 };
 
+/* hydrogen-bond parameters */
+const double HB_R0[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 0.000,  0.000,  0.000,  5.801},
+/* C */  { 0.000,  0.000,  5.548,  0.000},
+/* G */  { 0.000,  5.548,  0.000,  0.000},
+/* U */  { 5.801,  0.000,  0.000,  0.000}
+};
+const double HB_TH10[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 0.000,  0.000,  0.000,  2.678},
+/* C */  { 0.000,  0.000,  2.416,  0.000},
+/* G */  { 0.000,  2.808,  0.000,  0.000},
+/* U */  { 2.461,  0.000,  0.000,  0.000}
+};
+const double HB_TH20[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 0.000,  0.000,  0.000,  2.461},
+/* C */  { 0.000,  0.000,  2.808,  0.000},
+/* G */  { 0.000,  2.416,  0.000,  0.000},
+/* U */  { 2.678,  0.000,  0.000,  0.000}
+};
+const double HB_PSI0[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 0.000,  0.000,  0.000,  0.878},
+/* C */  { 0.000,  0.000,  0.969,  0.000},
+/* G */  { 0.000,  0.969,  0.000,  0.000},
+/* U */  { 0.878,  0.000,  0.000,  0.000}
+};
+const double HB_PSI10[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 0.000,  0.000,  0.000,  2.670},
+/* C */  { 0.000,  0.000,  2.803,  0.000},
+/* G */  { 0.000,  2.546,  0.000,  0.000},
+/* U */  { 2.760,  0.000,  0.000,  0.000}
+};
+const double HB_PSI20[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 0.000,  0.000,  0.000,  2.670},
+/* C */  { 0.000,  0.000,  2.803,  0.000},
+/* G */  { 0.000,  2.546,  0.000,  0.000},
+/* U */  { 2.760,  0.000,  0.000,  0.000}
+};
+const double HB_MUL[4][4] = {
+/*         A       C       G       U     */
+/* A */  { 0.000,  0.000,  0.000,  2.000},
+/* C */  { 0.000,  0.000,  3.000,  0.000},
+/* G */  { 0.000,  3.000,  0.000,  2.000},
+/* U */  { 2.000,  0.000,  2.000,  0.000}
+};
+const double HB_KR = 5;
+const double HB_KTH = 1.5;
+const double HB_KPSI = 0.15;
+
 
 
 typedef struct {
@@ -93,6 +148,7 @@ typedef struct {
 
   double tp; /* temperature */
   double debyel; /* Debye screen length */
+  double uhb0;
 
   double *m; /* mass */
   double (*x)[D]; /* position */
@@ -243,7 +299,7 @@ static void na_shiftang(double (*x)[D], double (*v)[D],
 
 /* open an LJ system */
 static na_t *na_open(const char *seq, int model,
-    double tp, double debyel)
+    double tp, double debyel, double uhb0)
 {
   na_t *na;
   int i, d, n, nr;
@@ -277,6 +333,7 @@ static na_t *na_open(const char *seq, int model,
 
   na->tp = tp;
   na->debyel = debyel;
+  na->uhb0 = uhb0;
 
   xnew(na->m, n);
   xnew(na->x, n);
@@ -409,6 +466,23 @@ __inline static double na_energyTIS_low(na_t *na, double (*x)[D],
                  NULL, NULL, NULL, NULL, NULL, NULL, NULL);
   }
 
+  // hydrogen-bond energy
+  for ( i = 0; i < nr - 1; i++ ) {
+    ic = na->iseq[i];
+    for ( j = i + 2; j < nr; j++ ) {
+      jc = na->iseq[j];
+      if ( ic + jc != 3 ) {
+        continue;
+      }
+      ep += ehbond(HB_R0[ic][jc], HB_TH10[ic][jc], HB_TH20[ic][jc],
+                   HB_PSI0[ic][jc], HB_PSI10[ic][jc], HB_PSI20[ic][jc],
+                   HB_KR, HB_KTH, HB_KPSI, na->uhb0 * HB_MUL[ic][jc],
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   x[j*3 + TIS_IB], x[j*3 + TIS_IS], x[j*3 + TIS_IP],
+                   NULL, NULL, NULL, NULL, NULL, NULL);
+    }
+  }
+
   // electrostatic interaction
   Q = getchargeQ(tp, &eps);
   QQ = Q*Q*KE2/eps;
@@ -491,6 +565,24 @@ __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
                  x[(i + 1)*3 + TIS_IP], x[(i + 1)*3 + TIS_IS], x[(i + 1)*3 + TIS_IB], xp3,
                  f[i*3       + TIS_IP], f[i*3       + TIS_IS], f[i*3       + TIS_IB],
                  f[(i + 1)*3 + TIS_IP], f[(i + 1)*3 + TIS_IS], f[(i + 1)*3 + TIS_IB], fp3);
+  }
+
+  // hydrogen-bond energy
+  for ( i = 0; i < nr - 1; i++ ) {
+    ic = na->iseq[i];
+    for ( j = i + 2; j < nr; j++ ) {
+      jc = na->iseq[j];
+      if ( ic + jc != 3 ) {
+        continue;
+      }
+      ep += ehbond(HB_R0[ic][jc], HB_TH10[ic][jc], HB_TH20[ic][jc],
+                   HB_PSI0[ic][jc], HB_PSI10[ic][jc], HB_PSI20[ic][jc],
+                   HB_KR, HB_KTH, HB_KPSI, na->uhb0 * HB_MUL[ic][jc],
+                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                   x[j*3 + TIS_IB], x[j*3 + TIS_IS], x[j*3 + TIS_IP],
+                   f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[i*3 + TIS_IB],
+                   f[j*3 + TIS_IB], f[j*3 + TIS_IS], f[j*3 + TIS_IP]);
+    }
   }
 
   // electrostatic interaction

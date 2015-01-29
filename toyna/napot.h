@@ -117,7 +117,7 @@ __inline static double estack(double r0, double phi10, double phi20,
 
   if ( fp1 && fs1 && fb1 && fp2 && fs2 && fb2 ) {
     double fs, den2 = den * den;
-    
+
     fs = 2 * kr * drbb * ust0 / den2 / rbb;
     vsinc(fb1, dxbb,  fs);
     vsinc(fb2, dxbb, -fs);
@@ -138,6 +138,84 @@ __inline static double estack(double r0, double phi10, double phi20,
 
   }
   return ust0 / den;
+}
+
+
+
+/* hydrogen-bond interaction */
+__inline static double ehbond(double r0, double th10, double th20,
+    double psi0, double psi10, double psi20,
+    double kr, double kth, double kpsi, double uhb0,
+    const double *x1, const double *x2, const double *x3,
+    const double *x4, const double *x5, const double *x6,
+    double *f1, double *f2, double *f3,
+    double *f4, double *f5, double *f6)
+{
+  double dx[D], r, dr = 0;
+  double th1  = 0, dth1  = 0, ga1[D], gb1[D], gc1[D];
+  double th2  = 0, dth2  = 0, ga2[D], gb2[D], gc2[D];
+  double psi  = 0, dpsi  = 0, gi [D], gj [D], gk [D], gl [D];
+  double psi1 = 0, dpsi1 = 0, gi1[D], gj1[D], gk1[D], gl1[D];
+  double psi2 = 0, dpsi2 = 0, gi2[D], gj2[D], gk2[D], gl2[D];
+  double den;
+
+  r = sqrt( vsqr( vdiff(dx, x3, x4) ) );
+  dr = r - r0;
+
+  th1 = vang(x2, x3, x4, ga1, gb1, gc1);
+  dth1 = th1 - th10;
+
+  th2 = vang(x3, x4, x5, ga2, gb2, gc2);
+  dth2 = th2 - th20;
+
+  psi = vdih(x2, x3, x4, x5, gi, gj, gk, gl);
+  dpsi = psi - psi0;
+
+  psi1 = vdih(x1, x2, x3, x4, gi1, gj1, gk1, gl1);
+  dpsi1 = psi1 - psi10;
+
+  psi2 = vdih(x3, x4, x5, x6, gi2, gj2, gk2, gl2);
+  dpsi2 = psi2 - psi20;
+
+  den = 1 + kr * dr * dr + kth * (dth1 * dth1 + dth2 * dth2)
+    + kpsi * (dpsi * dpsi + dpsi1 * dpsi1 + dpsi2 * dpsi2);
+
+  if ( f1 && f2 && f3 && f4 && f5 && f6 ) {
+    double fs, den2 = den * den;
+
+    fs = 2 * kr * dr * uhb0 / den2 / r;
+    vsinc(f3, dx,  fs);
+    vsinc(f4, dx, -fs);
+
+    fs = 2 * kth * dth1 * uhb0 / den2;
+    vsinc(f2, ga1, fs);
+    vsinc(f3, gb1, fs);
+    vsinc(f4, gc1, fs);
+
+    fs = 2 * kth * dth2 * uhb0 / den2;
+    vsinc(f3, ga2, fs);
+    vsinc(f4, gb2, fs);
+    vsinc(f5, gc2, fs);
+
+    fs = 2 * kpsi * dpsi * uhb0 / den2;
+    vsinc(f2, gi, fs);
+    vsinc(f3, gj, fs);
+    vsinc(f4, gk, fs);
+    vsinc(f5, gl, fs);
+
+    fs = 2 * kpsi * dpsi1 * uhb0 / den2;
+    vsinc(f1, gi1, fs);
+    vsinc(f2, gj1, fs);
+    vsinc(f3, gk1, fs);
+    vsinc(f4, gl1, fs);
+
+    fs = 2 * kpsi * dpsi2 * uhb0 / den2;
+    vsinc(f3, gi2, fs);
+    vsinc(f4, gj2, fs);
+    vsinc(f5, gk2, fs);
+    vsinc(f6, gl2, fs);
+  }
+  return uhb0 / den;
 }
 
 
