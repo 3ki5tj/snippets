@@ -163,7 +163,7 @@ def parsePDB(fnpdb):
     elif resnm == "A":
       res[i].rtip = res[i].rC2
       res[i].rtip2 = res[i].rN1
-    elif resnm == "U":
+    elif resnm == "U" or resnm == "T":
       res[i].rtip = res[i].rO2
       res[i].rtip2 = res[i].rN3
     res[i].vS = vdiff(res[i].rtip, res[i].rC1p)
@@ -180,11 +180,13 @@ def writetisPDB(res, fn):
   for i in range(nres):
     if not res[i].rP or not res[i].rS or not res[i].rB:
       continue
-    s += pdbfmt % (atomid, "P  ", res[i].resname, i + 1, res[i].rP[0], res[i].rP[1], res[i].rP[2])
+    resnm = res[i].resname
+    resid = res[i].resid
+    s += pdbfmt % (atomid, "P  ", resnm, resid, res[i].rP[0], res[i].rP[1], res[i].rP[2])
     atomid += 1
-    s += pdbfmt % (atomid, "C  ", res[i].resname, i + 1, res[i].rS[0], res[i].rS[1], res[i].rS[2])
+    s += pdbfmt % (atomid, "S  ", resnm, resid, res[i].rS[0], res[i].rS[1], res[i].rS[2])
     atomid += 1
-    s += pdbfmt % (atomid, "N  ", res[i].resname, i + 1, res[i].rB[0], res[i].rB[1], res[i].rB[2])
+    s += pdbfmt % (atomid, "B  ", resnm, resid, res[i].rB[0], res[i].rB[1], res[i].rB[2])
     atomid += 1
   print "writing %s" % fn
   open(fn, "w").write(s)
@@ -352,8 +354,11 @@ def measure_hbonds(res, fn):
         th1 = vang(res[i].rS, res[i].rB, res[j].rB)
         th2 = vang(res[i].rB, res[j].rB, res[j].rS)
         phi = vdih(res[i].rS, res[i].rB, res[j].rB, res[j].rS)
-        phi1 = vdih(res[i].rP, res[i].rS, res[i].rB, res[j].rB)
-        phi2 = vdih(res[i].rB, res[j].rB, res[j].rS, res[j].rP)
+        phi1 = phi2 = 0
+        if res[i].rP:
+          phi1 = vdih(res[i].rP, res[i].rS, res[i].rB, res[j].rB)
+        if res[j].rP:
+          phi2 = vdih(res[i].rB, res[j].rB, res[j].rS, res[j].rP)
         print "%4d-%-4d %s-%-s %8.3f %8.5f(%8.3f) %8.5f(%8.3f) %8.5f(%8.3f) %8.5f(%8.3f) %8.5f(%8.3f)" % (
             res[i].resid, res[j].resid,
             res[i].resname.strip(), res[j].resname.strip(),

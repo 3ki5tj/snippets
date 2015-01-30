@@ -7,9 +7,8 @@
 
 
 
-const char seq[] = "ACGGUUCAGCU";
-int nequil = 10000;
-int nsteps = 100000;
+int model = NA_TIS;
+char *seq = "ACGGUUCAGCU";
 double tp = 300.0;
 double debyel;
 double uhb0 = 2.43;
@@ -18,32 +17,57 @@ double thdt = 0.02;
 double qv[1] = {1.0};
 double conc[1] = {1.0};
 const char *fnpos = "na.pos";
+const char *fninp = "refs/1RNK.tis.pdb";
+
+int nequil = 10000;
+int nsteps = 1000000;
+int nstrep = 10000;
 
 
 
-int main(void)
+int main(int argc, char **argv)
 {
-  int t, tstat = 1;
+  int t, irmin = 1, tstat = 1;
   na_t *na;
-  double epsm = 0;
+  double epsm = 0, Q, eps;
 
-  debyel = getDebyel(qv, conc, 1, tp);
-  na = na_open(seq, 3, tp, debyel, uhb0);
-  double Q, eps;
   Q = getchargeQ(tp, &eps);
-  printf("Debyel %g, eps %g, chargeq %g\n", debyel, eps, Q);
+  debyel = getDebyel(qv, conc, 1, tp);
+  if ( argc > 1 ) {
+    fninp = argv[1];
+  }
+  if ( fninp != NULL ) {
+    seq = na_getseqpdb(fninp, &irmin);
+  }
+  na = na_open(seq, model, tp, debyel, uhb0);
+  if ( fninp ) {
+    if ( na_loadpdb(na, fninp, irmin) != 0 ) {
+      fprintf(stderr, "cannot load %s\n", fninp);
+      return -1;
+    }
+    na_writepos(na, na->x, NULL, "init.pos");
+    fprintf(stderr, "loaded %s\n", fninp); // getchar();
+  }
+  printf("%s, seq(%d): %s, Debye-l %g, eps %g, chargeq %g\n",
+      fninp, na->nr, na->seq, debyel, eps, Q);
+
+  /* main molecular dynamics loop */
   for ( t = 1; t <= nequil + nsteps; t++ ) {
     na_vv(na, dt);
     if ( tstat ) {
       na->ekin = na_vrescale(na, tp, thdt);
-    } else { /* test energy conservation */
+    } else {
       na->ekin = na_ekin(na->v, na->m, na->na);
     }
-    if ( t % 1000 == 0 ) printf("%d, ep %g, ek %g, e %g\n", t, na->epot, na->ekin, na->epot + na->ekin);
+    if ( t % nstrep == 0 ) {
+      fprintf(stderr, "%d, ep %g, ek %g, e %g\n",
+          t, na->epot, na->ekin, na->epot + na->ekin);
+      na_writepos(na, na->x, na->v, fnpos);
+    }
     if ( t <= nequil ) continue;
     epsm += na->epot;
   }
-  na_writepos(na, na->x, na->v, fnpos);
+
   na_close(na);
   printf("nr %d, tp %g, ep %g\n", na->nr, tp, epsm/nsteps);
   return 0;

@@ -16,6 +16,10 @@
 
 
 
+#define NA_UIS 1
+#define NA_BIS 2
+#define NA_TIS 3
+
 #define TIS_IP 0
 #define TIS_IS 1
 #define TIS_IB 2
@@ -160,7 +164,7 @@ typedef struct {
 
 
 
-/* initialize an RNA chain */
+/* initialize an RNA chain for the two-interaction-site model */
 static void na_initchain2(na_t *na)
 {
   int i, ib, is, nr = na->nr;
@@ -172,11 +176,11 @@ static void na_initchain2(na_t *na)
     s = sin(th);
     ib = i*2;
     is = i*2 + 1;
-    na->m[ib] = 100; // TODO
+    na->m[ib] = 1.0; // TODO
     na->x[ib][0] = rb * c;
     na->x[ib][1] = rb * s;
     na->x[ib][2] = dh * i;
-    na->m[is] = 100; // TODO
+    na->m[is] = 1.0; // TODO
     na->x[is][0] = rs * c;
     na->x[is][1] = rs * s;
     na->x[is][2] = dh * i;
@@ -185,7 +189,7 @@ static void na_initchain2(na_t *na)
 
 
 
-/* initialize an RNA chain */
+/* initialize an RNA chain for the three-interaction-site model */
 static void na_initchain3(na_t *na)
 {
   int i, ic, nr = na->nr;
@@ -305,6 +309,7 @@ static na_t *na_open(const char *seq, int model,
   int i, d, n, nr;
 
   xnew(na, 1);
+
   na->nr = nr = strlen(seq);
   xnew(na->seq, nr);
   xnew(na->iseq, nr);
@@ -369,6 +374,115 @@ static void na_close(na_t *na)
   free(na->v);
   free(na->f);
   free(na);
+}
+
+
+
+/* extract the sequence from the PDB file */
+__inline static char *na_getseqpdb(const char *fn, int *resmin)
+{
+  char *seq, buf[128];
+  int nr, ir, irmin, irmax;
+  FILE *fp;
+
+  if ( (fp = fopen(fn, "r")) == NULL ) {
+    fprintf(stderr, "cannot read %s\n", fn);
+    return NULL;
+  }
+
+  /* try to determine the number of residues */
+  irmin =  10000000;
+  irmax = -10000000;
+  while ( fgets(buf, sizeof buf, fp) ) {
+    /* we will skip residues without the P atom */
+    buf[26] = '\0';
+    if ( strncmp(buf, "ATOM  ", 6) != 0
+      || strncmp(buf + 12, " P  ", 4) != 0 ) {
+      continue;
+    }
+    buf[26] = '\0';
+    ir = atoi(buf+22);
+    if ( ir > irmax ) {
+      irmax = ir;
+    }
+    if ( ir < irmin ) {
+      irmin = ir;
+    }
+  }
+  if ( resmin != NULL ) {
+    *resmin = irmin;
+  }
+  nr = irmax - irmin + 1;
+
+  /* allocate space for the sequence */
+  if ( (seq = malloc(nr + 1)) == NULL ) {
+    fclose(fp);
+    return NULL;
+  }
+
+  /* load the sequence */
+  rewind(fp);
+  while ( fgets(buf, sizeof buf, fp) ) {
+    if ( strncmp(buf, "ATOM  ", 6) != 0
+      || strncmp(buf + 12, " P  ", 4) != 0 ) {
+      continue;
+    }
+    buf[26] = '\0';
+    ir = atoi(buf+22) - irmin;
+    seq[ir] = buf[19];
+  }
+  seq[nr] = '\0';
+  fclose(fp);
+  return seq;
+}
+
+
+
+/* load coordinates from a pdb */
+__inline static int na_loadpdb(na_t *na, const char *fn, int irmin)
+{
+  char buf[128];
+  int ir, id;
+  FILE *fp;
+
+  if ( (fp = fopen(fn, "r")) == NULL ) {
+    fprintf(stderr, "cannot read %s\n", fn);
+    return -1;
+  }
+
+  while ( fgets(buf, sizeof buf, fp) ) {
+    /* we will skip residues without the P atom */
+    if ( strncmp(buf, "ATOM  ", 6) != 0 ) {
+      continue;
+    }
+
+    /* copy the residue id */
+    buf[26] = '\0';
+    ir = atoi(buf+22) - irmin;
+    if ( ir < 0 || ir >= na->nr ) {
+      continue;
+    }
+
+    if ( buf[13] == 'P' ) {
+      id = ir*3 + TIS_IP;
+    } else if ( buf[13] == 'S' ) {
+      id = ir*3 + TIS_IS;
+    } else if ( buf[13] == 'B' ) {
+      id = ir*3 + TIS_IB;
+    } else {
+      continue;
+    }
+
+    /* copy the coordinates */
+    buf[54] = '\0';
+    na->x[id][2] = atof( buf+46 );
+    buf[46] = '\0';
+    na->x[id][1] = atof( buf+38 );
+    buf[38] = '\0';
+    na->x[id][0] = atof( buf+30 );
+    //printf("ir %d, id %d, %g %g %g\n", ir, id, na->x[id][0], na->x[id][1], na->x[id][2]);
+  }
+  return 0;
 }
 
 
@@ -506,47 +620,53 @@ __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
     double tp, double debyel)
 {
   int i, j, ic, jc, nr = na->nr, n = na->na;
-  double ep = 0;
-  double Q, QQ, eps;
+  double v[3], ep = 0, Q, QQ, eps;
 
   for (i = 0; i < n; i++) vzero(f[i]);
 
   // bond length
   for ( i = 0; i < nr; i++ ) {
     ic = na->iseq[i];
-    ep += ebondlen(R0_PS, K0_PS,
+    v[0] = ebondlen(R0_PS, K0_PS,
                    x[i*3 + TIS_IP], x[i*3 + TIS_IS],
                    f[i*3 + TIS_IP], f[i*3 + TIS_IS]);
-    ep += ebondlen(R0_SB[ic], K0_SB,
+    v[1] = ebondlen(R0_SB[ic], K0_SB,
                    x[i*3 + TIS_IS], x[i*3 + TIS_IB],
                    f[i*3 + TIS_IS], f[i*3 + TIS_IB]);
     if ( i < nr - 1 ) {
-      ep += ebondlen(R0_SP, K0_SP,
-                     x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
-                     f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+      v[2] = ebondlen(R0_SP, K0_SP,
+                      x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                      f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+    } else {
+      v[2] = 0;
     }
+    ep += v[0] + v[1] + v[2];
   }
 
   // bond angle
   for ( i = 0; i < nr; i++ ) {
     ic = na->iseq[i];
-    ep += ebondang(A0_PSB[ic], KA_PSB,
-                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
-                   f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[i*3 + TIS_IB]);
+    v[0] = ebondang(A0_PSB[ic], KA_PSB,
+                    x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                    f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[i*3 + TIS_IB]);
     if ( i < nr - 1 ) {
-      ep += ebondang(A0_BSP[ic], KA_BSP,
-                     x[i*3 + TIS_IB], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
-                     f[i*3 + TIS_IB], f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
-      ep += ebondang(A0_PSP, KA_PSP,
-                     x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
-                     f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+      v[1] = ebondang(A0_BSP[ic], KA_BSP,
+                      x[i*3 + TIS_IB], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                      f[i*3 + TIS_IB], f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+      v[2] = ebondang(A0_PSP, KA_PSP,
+                      x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[(i + 1)*3 + TIS_IP],
+                      f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[(i + 1)*3 + TIS_IP]);
+    } else {
+      v[1] = v[2] = 0;
     }
+    ep += v[0] + v[1] + v[2];
   }
 
   // excluded volume
   for (i = 0; i < n - 1; i++) {
     for (j = i + 1; j < n; j++) {
-      ep += ewca(WCA_SIG2, WCA_EPS, x[i], x[j], f[i], f[j]);
+      v[0] = ewca(WCA_SIG2, WCA_EPS, x[i], x[j], f[i], f[j]);
+      ep += v[0];
     }
   }
 
@@ -560,11 +680,12 @@ __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
       xp3 = x[(i + 2)*3 + TIS_IP];
       fp3 = f[(i + 2)*3 + TIS_IP];
     }
-    ep += estack(ST_R0[ic][jc], ST_PHI10, ST_PHI20, ST_KR, ST_KPHI, ust0,
-                 x[i*3       + TIS_IP], x[i*3       + TIS_IS], x[i*3       + TIS_IB],
-                 x[(i + 1)*3 + TIS_IP], x[(i + 1)*3 + TIS_IS], x[(i + 1)*3 + TIS_IB], xp3,
-                 f[i*3       + TIS_IP], f[i*3       + TIS_IS], f[i*3       + TIS_IB],
-                 f[(i + 1)*3 + TIS_IP], f[(i + 1)*3 + TIS_IS], f[(i + 1)*3 + TIS_IB], fp3);
+    v[0] = estack(ST_R0[ic][jc], ST_PHI10, ST_PHI20, ST_KR, ST_KPHI, ust0,
+                  x[i*3       + TIS_IP], x[i*3       + TIS_IS], x[i*3       + TIS_IB],
+                  x[(i + 1)*3 + TIS_IP], x[(i + 1)*3 + TIS_IS], x[(i + 1)*3 + TIS_IB], xp3,
+                  f[i*3       + TIS_IP], f[i*3       + TIS_IS], f[i*3       + TIS_IB],
+                  f[(i + 1)*3 + TIS_IP], f[(i + 1)*3 + TIS_IS], f[(i + 1)*3 + TIS_IB], fp3);
+    ep += v[0];
   }
 
   // hydrogen-bond energy
@@ -575,13 +696,15 @@ __inline static double na_forceTIS_low(na_t *na, double (*x)[D], double (*f)[D],
       if ( ic + jc != 3 ) {
         continue;
       }
-      ep += ehbond(HB_R0[ic][jc], HB_TH10[ic][jc], HB_TH20[ic][jc],
-                   HB_PSI0[ic][jc], HB_PSI10[ic][jc], HB_PSI20[ic][jc],
-                   HB_KR, HB_KTH, HB_KPSI, na->uhb0 * HB_MUL[ic][jc],
-                   x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
-                   x[j*3 + TIS_IB], x[j*3 + TIS_IS], x[j*3 + TIS_IP],
-                   f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[i*3 + TIS_IB],
-                   f[j*3 + TIS_IB], f[j*3 + TIS_IS], f[j*3 + TIS_IP]);
+      v[0] = ehbond(HB_R0[ic][jc], HB_TH10[ic][jc], HB_TH20[ic][jc],
+                    HB_PSI0[ic][jc], HB_PSI10[ic][jc], HB_PSI20[ic][jc],
+                    HB_KR, HB_KTH, HB_KPSI, na->uhb0 * HB_MUL[ic][jc],
+                    x[i*3 + TIS_IP], x[i*3 + TIS_IS], x[i*3 + TIS_IB],
+                    x[j*3 + TIS_IB], x[j*3 + TIS_IS], x[j*3 + TIS_IP],
+                    f[i*3 + TIS_IP], f[i*3 + TIS_IS], f[i*3 + TIS_IB],
+                    f[j*3 + TIS_IB], f[j*3 + TIS_IS], f[j*3 + TIS_IP]);
+      //fprintf(stderr, "%4d(%c)-%4d(%c): %g\n", i, na->seq[i], j, na->seq[j], v[0]);
+      ep += v[0];
     }
   }
 

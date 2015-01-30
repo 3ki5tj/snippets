@@ -20,7 +20,7 @@ double mctot = 1e-30, mcacc = 0;
 
 int main(void)
 {
-  int t;
+  //int t;
   na_t *na;
   double epsm = 0;
 
