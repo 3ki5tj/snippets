@@ -73,6 +73,7 @@ function paintBall(ctx, x, y, r, color, spotcolor,
 
 
 
+/* convert RGB values to string */
 function rgb2str(r, g, b)
 {
   r = Math.floor(r).toString(16);
@@ -93,3 +94,115 @@ function rgb2str(r, g, b)
   return "#" + r + g + b;
 }
 
+
+
+/* get the red, green and blue components of a color string */
+function parseRGB(color)
+{
+  if ( color.substr(0, 3) === "rgb" ) {
+    var i0 = color.indexOf("(") + 1;
+    var i1 = color.lastIndexOf(")");
+    var s = color.substring(i0, i1).split(",");
+    return {
+      r: parseInt(s[0], 10),
+      g: parseInt(s[1], 10),
+      b: parseInt(s[2], 10)
+    };
+  } else {
+    return {
+      r: parseInt(color.substr(1, 2), 16),
+      g: parseInt(color.substr(3, 2), 16),
+      b: parseInt(color.substr(5, 2), 16)
+    };
+  }
+}
+
+
+
+/* add transparency to color */
+function transpColor(color, transp)
+{
+  var c = parseRGB(color);
+  return "rgba(" + c.r + ", " + c.g + ", " + c.b + ", " + transp + ")";
+}
+
+
+
+function randHueColor(cmin, cmax)
+{
+  var x = Math.random() * 6;
+  var i = Math.floor( x ), r = 0, g = 0, b = 0;
+
+  if ( cmin === undefined || cmin === null ) {
+    cmin = 0;
+  }
+  if ( cmax === undefined || cmax === null ) {
+    cmax = 255;
+  }
+  var cvar = cmax - cmin + 1;
+  x -= i;
+  if ( i < 1 ) { // red to yellow
+    r = cmax;
+    g = cmin + Math.floor( cvar * x );
+  } else if ( i < 2 ) { // yellow to green
+    r = cmin + Math.floor( cvar * (1 - x) );
+    g = cmax;
+  } else if ( i < 3 ) { // green to cyan
+    g = cmax;
+    b = cmin + Math.floor( cvar * x );
+  } else if ( i < 4 ) { // cyan to blue
+    g = cmin + Math.floor( cvar * (1 - x) );
+    b = cmax;
+  } else if ( i < 5 ) { // blue to magenta
+    b = cmax;
+    r = cmin + Math.floor( cvar * x );
+  } else {
+    b = cmin + Math.floor( cvar * (1 - x) );
+    r = cmax;
+  }
+  return rgb2str(r, g, b);
+}
+
+
+
+/* darken a color */
+function darkenColor(colorStr, fac) {
+  if ( !fac ) fac = 0.5;
+  var color = parseRGB(colorStr);
+  color.r = Math.floor(color.r * fac);
+  color.g = Math.floor(color.g * fac);
+  color.b = Math.floor(color.b * fac);
+  return rgb2str(color.r, color.g, color.b);
+}
+
+
+
+/* bar chart for Dygraph */
+function barChartPlotter(e) {
+  var ctx = e.drawingContext;
+  var points = e.points;
+  var y_bottom = e.dygraph.toDomYCoord(0);
+
+  ctx.fillStyle = transpColor( e.color, 0.5 );
+
+  // Find the minimum separation between x-values.
+  // This determines the bar width.
+  var min_sep = Infinity;
+  for (var i = 1; i < points.length; i++) {
+    var sep = points[i].canvasx - points[i - 1].canvasx;
+    if (sep < min_sep) min_sep = sep;
+  }
+  var bar_width = Math.floor(2.0 / 3 * min_sep);
+
+  // Do the actual plotting.
+  for (var i = 0; i < points.length; i++) {
+    var p = points[i];
+    var center_x = p.canvasx;
+
+    ctx.fillRect(center_x - bar_width / 2, p.canvasy,
+        bar_width, y_bottom - p.canvasy);
+
+    ctx.strokeRect(center_x - bar_width / 2, p.canvasy,
+        bar_width, y_bottom - p.canvasy);
+  }
+}

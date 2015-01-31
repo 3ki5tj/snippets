@@ -1,0 +1,1 @@
+# Wang-Landau method #

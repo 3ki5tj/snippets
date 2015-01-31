@@ -23,18 +23,35 @@ typedef double vct[D];
 
 
 
-__inline static void vzero(double *x)
+__inline static double *vzero(double *x)
 {
   int d;
-  for ( d = 0; d < D; d++ ) x[d] = 0;
+
+  for ( d = 0; d < D; d++ )
+    x[d] = 0;
+  return x;
 }
 
 
 
-__inline static void vcopy(double *x, const double *y)
+__inline static double *vneg(double *x)
 {
   int d;
-  for ( d = 0; d < D; d++ ) x[d] = y[d];
+
+  for ( d = 0; d < D; d++ )
+    x[d] = -x[d];
+  return x;
+}
+
+
+
+__inline static double *vcopy(double *x, const double *y)
+{
+  int d;
+
+  for ( d = 0; d < D; d++ )
+    x[d] = y[d];
+  return x;
 }
 
 
@@ -45,7 +62,9 @@ __inline static void vcopy(double *x, const double *y)
 __inline static double *vsinc(double *x, const double *dx, double s)
 {
   int d;
-  for ( d = 0; d < D; d++ ) x[d] += dx[d] * s;
+
+  for ( d = 0; d < D; d++ )
+    x[d] += dx[d] * s;
   return x;
 }
 
@@ -54,7 +73,9 @@ __inline static double *vsinc(double *x, const double *dx, double s)
 __inline static double *vadd(double *c, const double *a, const double *b)
 {
   int d;
-  for ( d = 0; d < D; d++ ) c[d] = a[d] + b[d];
+
+  for ( d = 0; d < D; d++ )
+    c[d] = a[d] + b[d];
   return c;
 }
 
@@ -63,7 +84,9 @@ __inline static double *vadd(double *c, const double *a, const double *b)
 __inline static double *vdiff(double *c, const double *a, const double *b)
 {
   int d;
-  for ( d = 0; d < D; d++ ) c[d] = a[d] - b[d];
+
+  for ( d = 0; d < D; d++ )
+    c[d] = a[d] - b[d];
   return c;
 }
 
@@ -72,7 +95,9 @@ __inline static double *vdiff(double *c, const double *a, const double *b)
 __inline static double *vnadd(double *c, const double *a, const double *b)
 {
   int d;
-  for ( d = 0; d < D; d++ ) c[d] = -a[d] - b[d];
+
+  for ( d = 0; d < D; d++ )
+    c[d] = -a[d] - b[d];
   return c;
 }
 
@@ -81,7 +106,9 @@ __inline static double *vnadd(double *c, const double *a, const double *b)
 __inline static double *vsmul(double *x, double s)
 {
   int d;
-  for ( d = 0; d < D; d++ ) x[d] *= s;
+
+  for ( d = 0; d < D; d++ )
+    x[d] *= s;
   return x;
 }
 
@@ -90,7 +117,9 @@ __inline static double *vsmul(double *x, double s)
 __inline static double *vsmul2(double *y, const double *x, double s)
 {
   int d;
-  for ( d = 0; d < D; d++ ) y[d] = x[d] * s;
+
+  for ( d = 0; d < D; d++ )
+    y[d] = x[d] * s;
   return y;
 }
 
@@ -102,8 +131,21 @@ __inline static double vdot(const double *x, const double *y)
 {
   int d;
   double s = 0;
-  for ( d = 0; d < D; d++ ) s += x[d] * y[d];
+
+  for ( d = 0; d < D; d++ )
+    s += x[d] * y[d];
   return s;
+}
+
+
+
+__inline static double *vwrap(double *x, double l)
+{
+  int d;
+
+  for ( d = 0; d < D; d++ )
+    x[d] = fmod(x[d] + 1000.*l, l);
+  return x;
 }
 
 
@@ -156,16 +198,25 @@ __inline static void rm3_inv(double b[3][3], double a[3][3])
 
 
 
+/* return the distance */
+__inline static double vdistx(double *dx, const double *a, const double *b)
+{
+  vdiff(dx, a, b);
+  return sqrt( vsqr(dx) );
+}
+
+
+
 /* bond angle interaction */
 __inline static double vang(const double *xi, const double *xj, const double *xk,
     double *gi, double *gj, double *gk)
 {
   double xij[D], xkj[D], ri, rk, dot, ang;
 
-  ri = sqrt( vsqr( vdiff(xij, xi, xj) ) );
+  ri = vdistx(xij, xi, xj);
   vsmul(xij, 1.0/ri);
 
-  rk = sqrt( vsqr( vdiff(xkj, xk, xj) ) );
+  rk = vdistx(xkj, xk, xj);
   vsmul(xkj, 1.0/rk);
 
   dot = vdot(xij, xkj);

@@ -1,5 +1,10 @@
 # Simulation of toy nucleic acids #
 
+## Notes ##
+
+The model is currently not working.
+Maybe nonnative contacts ruined it.
+
 ## Files ##
 
 File            | Description
