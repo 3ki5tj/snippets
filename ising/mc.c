@@ -16,7 +16,7 @@ int main(void)
   IS2_SETPROBA(is, beta);
   for ( t = 0; t < nsteps; t++ ) {
     IS2_PICK(is, id, h);
-    if ( h < 0 || mtrand() < is->uproba[h] ) {
+    if ( h < 0 || mtrand() <= is->uproba[h] ) {
       IS2_FLIP(is, id, h);
     }
     sE += is->E;
