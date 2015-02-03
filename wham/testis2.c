@@ -1,14 +1,14 @@
 /* test program for WHAM */
 #define WHAM_MDIIS
 #include "wham.h"
-#define IS2_LB 5
+#define IS2_LB 6
 #include "../ising/is2.h"
 
 
-int nequil = 10000;
-int nsteps = 1000000;
+int nequil = 100000;
+int nsteps = 10000000;
 
-int ntp = 5;
+int ntp = 80;
 double xmin = -2*IS2_N - 4, xmax = 4, dx = 4;
 int itmax = 100000;
 double tol = 1e-7;
@@ -41,7 +41,7 @@ int main(int argc, char **argv)
   xnew(epot, ntp);
   for ( itp = 0; itp < ntp; itp++ ) {
     is[itp] = is2_open(IS2_L);
-    beta[itp] = 1./(2.0 + .1 * itp);
+    beta[itp] = 1./(1.5 + 0.02 * itp);
     IS2_SETPROBA(is[itp], beta[itp]);
     lnz[itp] = epot[itp] = 0;
   }

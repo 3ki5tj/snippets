@@ -1,4 +1,4 @@
-subdirs = pca kmeans lj wham
+subdirs = pca kmeans lj wham toyna cago
 
 clean:
 	for dir in $(subdirs) ; do $(MAKE) -C $$dir clean ; done

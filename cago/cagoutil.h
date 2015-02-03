@@ -1,43 +1,28 @@
-#ifndef UTIL_H__
-#define UTIL_H__
+#ifndef CAGOUTIL_H__
+#define CAGOUTIL_H__
 
 
 
 #include "vct.h"
+#include "mtrand.h"
 
 
-
-#ifndef PI
-#define PI 3.141592653589793
-#endif
-
-#ifndef BOLTZK
-#define BOLTZK 0.00198720414667 /* Boltzmann constant in kcal/mol/K */
-#endif
-
-#ifndef KE2
-#define KE2 322.0637137 /* e^2/(4 pi epsilon0) in angstrom kcal / mol */
-#endif
-
-#ifndef AVOGADRO
-#define AVOGADRO 6.02214129e23
-#endif
-
-#ifndef T0
-#define T0 273.15
-#endif
 
 #ifndef xnew
 #define xnew(x, n) { \
-  if ((x = calloc((n), sizeof(*(x)))) == NULL) { \
+  if ( (x = calloc((n), sizeof(*(x)))) == NULL ) { \
     fprintf(stderr, "no memory for " #x " x %d\n", (int) (n)); \
     exit(1); } }
 #endif
 
 
 
-#define D2R(x)  ((x)*PI/180.0)
-#define R2D(x)  ((x)*180.0/PI)
+#ifndef xrenew
+#define xrenew(x, n) { \
+  if ( (x = realloc(x, sizeof(*(x)) * (n))) == NULL ) { \
+    fprintf(stderr, "no memory for " #x " x %d\n", (int) (n)); \
+    exit(1); } }
+#endif
 
 
 
@@ -114,5 +99,26 @@ static void shiftang(double (*x)[D], double (*v)[D],
 
 
 
-#endif
+const char *aanames[] = {
+  "GLY", "ALA", "VAL", "LEU", "ILE",
+  "PRO", "SER", "THR", "THR", "CYS",
+  "MET", "ASN", "GLN", "ASP", "GLU",
+  "LYS", "ARG", "HIS", "PHE", "TRP"};
+
+/* residue name to integer of amino acid */
+__inline static int res2iaa(const char *res)
+{
+  int i;
+
+  for ( i = 0; i < 20; i++ ) {
+    if ( strcmp(res, aanames[i]) == 0 ) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+
+
+#endif /* CAGOUTIL_H__ */
 

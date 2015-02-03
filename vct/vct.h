@@ -17,6 +17,10 @@
 #define PI 3.141592653589793
 #endif
 
+#ifndef D
+#define D 3
+#endif
+
 
 
 typedef double vct[D];
@@ -55,43 +59,51 @@ __inline static double *vcopy(double *x, const double *y)
 }
 
 
+__inline static void vswap(double *x, double *y)
+{
+  double z;
+  int d;
+
+  for ( d = 0; d < D; d++ ) {
+    z = x[d];
+    x[d] = y[d];
+    y[d] = z;
+  }
+}
+
+
 
 #define vinc(x, dx) vsinc(x, dx, 1)
 #define vdec(x, dx) vsinc(x, dx, -1)
 
-__inline static double *vsinc(double *x, const double *dx, double s)
+/* x += y * s */
+__inline static double *vsinc(double *x, const double *y, double s)
 {
   int d;
 
   for ( d = 0; d < D; d++ )
-    x[d] += dx[d] * s;
+    x[d] += y[d] * s;
   return x;
 }
 
 
 
-__inline static double *vadd(double *c, const double *a, const double *b)
+#define vadd(c, a, b) vsadd(c, a, b, 1.0)
+#define vdiff(c, a, b) vsadd(c, a, b, -1.0)
+
+/* c = a + b * s */
+__inline static double *vsadd(double *c, const double *a, const double *b, double s)
 {
   int d;
 
   for ( d = 0; d < D; d++ )
-    c[d] = a[d] + b[d];
+    c[d] = a[d] + b[d] * s;
   return c;
 }
 
 
 
-__inline static double *vdiff(double *c, const double *a, const double *b)
-{
-  int d;
-
-  for ( d = 0; d < D; d++ )
-    c[d] = a[d] - b[d];
-  return c;
-}
-
-
-
+/* c = -a - b */
 __inline static double *vnadd(double *c, const double *a, const double *b)
 {
   int d;
@@ -103,6 +115,7 @@ __inline static double *vnadd(double *c, const double *a, const double *b)
 
 
 
+/* x *= s */
 __inline static double *vsmul(double *x, double s)
 {
   int d;
@@ -114,6 +127,7 @@ __inline static double *vsmul(double *x, double s)
 
 
 
+/* y = x * s */
 __inline static double *vsmul2(double *y, const double *x, double s)
 {
   int d;
@@ -150,6 +164,77 @@ __inline static double *vwrap(double *x, double l)
 
 
 
+/* return the norm the vector */
+__inline static double vnorm(double *a)
+{
+  return sqrt( vsqr(a) );
+}
+
+
+
+/* return the distance */
+__inline static double vdistx(double *dx, const double *a, const double *b)
+{
+  return vnorm( vdiff(dx, a, b) );
+}
+
+
+
+/* return the distance */
+__inline static double vdist(const double *a, const double *b)
+{
+  double dx[D];
+  return vnorm( vdiff(dx, a, b) );
+}
+
+
+
+/* normalize the vector */
+__inline static double *vnormalize(double *v)
+{
+  double s = sqrt( vsqr(v) );
+  return vsmul(v, 1.0 / s);
+}
+
+
+
+/* bond angle interaction */
+__inline static double vang(const double *xi, const double *xj, const double *xk,
+    double *gi, double *gj, double *gk)
+{
+  double xij[D], xkj[D], ri, rk, dot, ang;
+
+  ri = vdistx(xij, xi, xj);
+  vsmul(xij, 1.0/ri);
+
+  rk = vdistx(xkj, xk, xj);
+  vsmul(xkj, 1.0/rk);
+
+  dot = vdot(xij, xkj);
+  if ( dot > 1.0 ) {
+    dot = 1.0;
+  } else if ( dot < -1.0 ) {
+    dot = -1.0;
+  }
+  ang = acos( dot );
+
+  if ( gi && gj && gk ) {
+    double sn, gij, gkj;
+    int d;
+    sn = -1.0 / sqrt(1 - dot * dot); /* -1.0/sin(phi) */
+    for ( d = 0; d < D; d++ ) {
+      gij = sn * (xkj[d] - xij[d]*dot) / ri;
+      gkj = sn * (xij[d] - xkj[d]*dot) / rk;
+      gi[d] = gij;
+      gk[d] = gkj;
+      gj[d] = -(gij + gkj);
+    }
+  }
+  return ang;
+}
+
+
+
 #if D == 2
 
 
@@ -174,73 +259,6 @@ __inline static double *vcross(double *z, const double *x, const double *y)
 
 
 
-/* inverse matrix b = a^(-1) */
-__inline static void rm3_inv(double b[3][3], double a[3][3])
-{
-  double d00 = a[1][1]*a[2][2] - a[1][2]*a[2][1];
-  double d01 = a[1][2]*a[2][0] - a[1][0]*a[2][2];
-  double d02 = a[1][0]*a[2][1] - a[1][1]*a[2][0];
-  double detm = a[0][0]*d00 + a[0][1]*d01 + a[0][2]*d02;
-  const double dmin = 1e-20;
-
-  if (detm < dmin && detm > -dmin)
-    detm = (detm < 0) ? -dmin: dmin;
-  b[0][0] = d00/detm;
-  b[0][1] = (a[2][1]*a[0][2] - a[0][1]*a[2][2])/detm;
-  b[0][2] = (a[0][1]*a[1][2] - a[0][2]*a[1][1])/detm;
-  b[1][0] = d01/detm;
-  b[1][1] = (a[2][2]*a[0][0] - a[2][0]*a[0][2])/detm;
-  b[1][2] = (a[0][2]*a[1][0] - a[1][2]*a[0][0])/detm;
-  b[2][0] = d02/detm;
-  b[2][1] = (a[2][0]*a[0][1] - a[2][1]*a[0][0])/detm;
-  b[2][2] = (a[0][0]*a[1][1] - a[0][1]*a[1][0])/detm;
-}
-
-
-
-/* return the distance */
-__inline static double vdistx(double *dx, const double *a, const double *b)
-{
-  vdiff(dx, a, b);
-  return sqrt( vsqr(dx) );
-}
-
-
-
-/* bond angle interaction */
-__inline static double vang(const double *xi, const double *xj, const double *xk,
-    double *gi, double *gj, double *gk)
-{
-  double xij[D], xkj[D], ri, rk, dot, ang;
-
-  ri = vdistx(xij, xi, xj);
-  vsmul(xij, 1.0/ri);
-
-  rk = vdistx(xkj, xk, xj);
-  vsmul(xkj, 1.0/rk);
-
-  dot = vdot(xij, xkj);
-  if ( dot > 1.0 ) dot = 1.0;
-  else if ( dot < -1.0 ) dot = -1.0;
-  ang = acos( dot );
-
-  if ( gi && gj && gk ) {
-    double sn, gij, gkj;
-    int d;
-    sn = -1.0 / sqrt(1 - dot * dot); /* -1.0/sin(phi) */
-    for ( d = 0; d < D; d++ ) {
-      gij = sn * (xkj[d] - xij[d]*dot) / ri;
-      gkj = sn * (xij[d] - xkj[d]*dot) / rk;
-      gi[d] = gij;
-      gk[d] = gkj;
-      gj[d] = -(gij + gkj);
-    }
-  }
-  return ang;
-}
-
-
-
 __inline static double vdih(const double *xi, const double *xj,
     const double *xk, const double *xl,
     double *gi, double *gj, double *gk, double *gl)
@@ -261,18 +279,21 @@ __inline static double vdih(const double *xi, const double *xj,
   m2 = vsqr(m);
   vcross(n, xkj, xkl);
   n2 = vsqr(n);
-  if (m2 > tol && n2 > tol) {
+  if ( m2 > tol && n2 > tol ) {
     cosphi = vdot(m, n);
     cosphi /= sqrt(m2 * n2);
-    if (cosphi >= 1) cosphi = 1;
-    else if (cosphi < -1) cosphi = -1;
+    if ( cosphi >= 1 ) {
+      cosphi = 1;
+    } else if ( cosphi < -1 ) {
+      cosphi = -1;
+    }
   }
   phi = acos(cosphi);
-  if (vdot(n, xij) < 0.0) phi = -phi;
+  if ( vdot(n, xij) < 0.0 ) phi = -phi;
 
   /* optionally calculate the gradient */
-  if (gi != NULL) {
-    if (m2 > tol && n2 > tol) {
+  if ( gi != NULL ) {
+    if ( m2 > tol && n2 > tol ) {
       vsmul2(gi, m, nxkj/m2);
       vsmul2(gl, n, -nxkj/n2);
       vsmul2(uvec, gi, vdot(xij, xkj)/nxkj2);
@@ -288,6 +309,30 @@ __inline static double vdih(const double *xi, const double *xj,
     }
   }
   return phi;
+}
+
+
+
+/* inverse matrix b = a^(-1) */
+__inline static void minv(double b[3][3], double a[3][3])
+{
+  double d00 = a[1][1]*a[2][2] - a[1][2]*a[2][1];
+  double d01 = a[1][2]*a[2][0] - a[1][0]*a[2][2];
+  double d02 = a[1][0]*a[2][1] - a[1][1]*a[2][0];
+  double detm = a[0][0]*d00 + a[0][1]*d01 + a[0][2]*d02;
+  const double dmin = 1e-20;
+
+  if (detm < dmin && detm > -dmin)
+    detm = (detm < 0) ? -dmin: dmin;
+  b[0][0] = d00/detm;
+  b[0][1] = (a[2][1]*a[0][2] - a[0][1]*a[2][2])/detm;
+  b[0][2] = (a[0][1]*a[1][2] - a[0][2]*a[1][1])/detm;
+  b[1][0] = d01/detm;
+  b[1][1] = (a[2][2]*a[0][0] - a[2][0]*a[0][2])/detm;
+  b[1][2] = (a[0][2]*a[1][0] - a[1][2]*a[0][0])/detm;
+  b[2][0] = d02/detm;
+  b[2][1] = (a[2][0]*a[0][1] - a[2][1]*a[0][0])/detm;
+  b[2][2] = (a[0][0]*a[1][1] - a[0][1]*a[1][0])/detm;
 }
 
 
