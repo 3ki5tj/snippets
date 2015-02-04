@@ -313,30 +313,6 @@ __inline static double vdih(const double *xi, const double *xj,
 
 
 
-/* inverse matrix b = a^(-1) */
-__inline static void minv(double b[3][3], double a[3][3])
-{
-  double d00 = a[1][1]*a[2][2] - a[1][2]*a[2][1];
-  double d01 = a[1][2]*a[2][0] - a[1][0]*a[2][2];
-  double d02 = a[1][0]*a[2][1] - a[1][1]*a[2][0];
-  double detm = a[0][0]*d00 + a[0][1]*d01 + a[0][2]*d02;
-  const double dmin = 1e-20;
-
-  if (detm < dmin && detm > -dmin)
-    detm = (detm < 0) ? -dmin: dmin;
-  b[0][0] = d00/detm;
-  b[0][1] = (a[2][1]*a[0][2] - a[0][1]*a[2][2])/detm;
-  b[0][2] = (a[0][1]*a[1][2] - a[0][2]*a[1][1])/detm;
-  b[1][0] = d01/detm;
-  b[1][1] = (a[2][2]*a[0][0] - a[2][0]*a[0][2])/detm;
-  b[1][2] = (a[0][2]*a[1][0] - a[1][2]*a[0][0])/detm;
-  b[2][0] = d02/detm;
-  b[2][1] = (a[2][0]*a[0][1] - a[2][1]*a[0][0])/detm;
-  b[2][2] = (a[0][0]*a[1][1] - a[0][1]*a[1][0])/detm;
-}
-
-
-
 #endif /* D == 3 */
 
 

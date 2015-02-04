@@ -12,10 +12,10 @@ double rc = 5.0;
 
 double mddt = 0.002;
 double thdt = 0.1;
-double tp = 1.0;
-long nequil = 1000;
-long nsteps = 10000;
-long nstrep = 100;
+double tp = 2.0;
+long nequil = 10000;
+long nsteps = 10000000;
+long nstrep = 10000;
 
 
 
@@ -30,18 +30,20 @@ int main(void)
     return -1;
   }
 
-  cago_initmd(go, 1, 0.01, tp);
+  cago_initmd(go, 0, 0.01, tp);
 
   for ( t = 1; t <= nequil + nsteps; t++ ) {
     cago_vv(go, 1.0, mddt);
-    //go->ekin = cago_vrescale(go, go->v, tp, thdt);
-    go->ekin = cago_ekin(go, go->v);
-    printf("%ld: %g\n", t, go->epot + go->ekin);
+    go->ekin = cago_vrescale(go, go->v, tp, thdt);
+    //go->ekin = cago_ekin(go, go->v);
     if ( t <= nequil ) {
       continue;
     }
     if ( t % nstrep == 0 ) {
-      printf("%ld: %g\n", t, go->epot + go->ekin);
+      double rmsd = cago_rmsd(go, go->x, NULL);
+      int nc = cago_ncontacts( go, go->x, 1.2, NULL, NULL);
+      printf("%ld: ep %g, rmsd %g, nc %d/%d\n",
+          t, go->epot, rmsd, nc, go->ncont);
     }
   }
 

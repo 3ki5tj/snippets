@@ -204,7 +204,7 @@ function domc()
 function transform(x)
 {
   var i, d, n = x.length, l = 0;
-  var xyz = newarr(n), xc = [0, 0, 0], xi = [0, 0, 0];
+  var xyz = newarr2d(n, 3), xc = [0, 0, 0], xi = [0, 0, 0];
 
   // compute the center of mass
   for ( i = 0; i < n; i++ ) {
@@ -215,7 +215,7 @@ function transform(x)
   // rotate the coordinates of each particle
   for ( i = 0; i < n; i++ ) {
     vdiff(xi, x[i], xc);
-    xyz[i] = mmulv(viewmat, xi);
+    vmxv(xyz[i], viewmat, xi);
     //console.log(x[i], xi, xc, xyz[i]);
     //vinc(xyz[i], xc);
     for ( d = 0; d < D; d++ ) {

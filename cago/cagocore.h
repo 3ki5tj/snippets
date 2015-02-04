@@ -45,11 +45,11 @@ typedef struct {
 
 
 
-#define cago_vrescalex(go, tp, dt, ek, tk) \
-  md_vrescalex3d(go->v, go->n, go->dof, tp, dt, ek, tk)
-
 /* convenient macro for computing RMSD from the reference structure */
-#define cago_rmsd(go, x, xf) rv3_rmsd(x, xf, go->xref, NULL, go->n, 0, NULL, NULL)
+#define cago_rmsd(go, x, xf) \
+  vrmsd(x, xf, go->xref, go->m, go->n, 0, NULL, NULL)
+
+
 
 /* compute the reference bond lengths, angles, dihedrals and pair distances */
 __inline static int cago_refgeo(cago_t *go)
