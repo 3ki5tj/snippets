@@ -180,6 +180,16 @@ __inline static double vdistx(double *dx, const double *a, const double *b)
 
 
 
+/* return the square of the distance */
+__inline static double vdist2(const double *a, const double *b)
+{
+  double dx[D];
+  vdiff(dx, a, b);
+  return vsqr( dx );
+}
+
+
+
 /* return the distance */
 __inline static double vdist(const double *a, const double *b)
 {

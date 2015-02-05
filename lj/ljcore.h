@@ -3,14 +3,13 @@
 
 
 
-/* this file collect routines common to all dimensions
- * define the dimension D before including this file
+/* define the dimension D before including this file
  * Note: coordinates are not reduced */
 
 
 
 #include "mtrand.h"
-#include "ljutil.h"
+#include "util.h" /* vct.h and mat.h are included within */
 
 
 
@@ -35,10 +34,12 @@ typedef struct {
 
 
 
-/* the following functions are dimension D dependent */
-static void lj_initfcc(lj_t *lj);
-static double lj_gettail(lj_t *lj, double rho, int n, double *ptail);
-static void lj_shiftang(double (*x)[D], double (*v)[D], int n);
+/* functions that are dimension D dependent */
+#if D == 2
+#include "lj2d.h"
+#else
+#include "lj3d.h"
+#endif
 
 
 
@@ -49,29 +50,14 @@ static void lj_setrho(lj_t *lj, double rho)
 
   lj->rho = rho;
   lj->vol = lj->n/rho;
-  lj->l = pow(lj->vol, 1./D);
-  if ((lj->rc = lj->rcdef) > lj->l/2) lj->rc = lj->l/2;
+  lj->l = pow(lj->vol, 1.0 / D);
+  lj->rc = dblmin( lj->rcdef, lj->l * 0.5 );
   lj->rc2 = lj->rc * lj->rc;
-  irc = 1/lj->rc;
+  irc = 1 / lj->rc;
   irc *= irc * irc;
   irc *= irc;
-  lj->epot_shift = 4*irc*(irc - 1);
+  lj->epot_shift = 4 * irc * (irc - 1);
   lj->epot_tail = lj_gettail(lj, rho, lj->n, &lj->p_tail);
-}
-
-
-
-/* remove the center of mass motion */
-static void lj_rmcom(double (*x)[D], int n)
-{
-  int i;
-  double rc[D] = {0};
-
-  for ( i = 0; i < n; i++ )
-    vinc(rc, x[i]);
-  vsmul(rc, 1./n);
-  for ( i = 0; i < n; i++ )
-    vdec(x[i], rc);
 }
 
 
@@ -95,52 +81,26 @@ static lj_t *lj_open(int n, double rho, double rcdef)
 
   lj_initfcc(lj);
 
-  /* initalize random velocities */
-  for (i = 0; i < n; i++)
+  /* initialize random velocities */
+  for ( i = 0; i < n; i++ )
     for ( d = 0; d < D; d++ )
       lj->v[i][d] = randgaus();
 
-  lj_rmcom(lj->v, lj->n);
-  lj_shiftang(lj->x, lj->v, lj->n);
+  rmcom(lj->v, NULL, n);
+  shiftang(lj->x, lj->v, NULL, n);
 
   return lj;
 }
 
 
 
+/* close the lj object */
 static void lj_close(lj_t *lj)
 {
   free(lj->x);
   free(lj->v);
   free(lj->f);
   free(lj);
-}
-
-
-
-/* write positions (and possibly velocities) */
-__inline static int lj_writepos(lj_t *lj,
-    double (*x)[D], double (*v)[D], const char *fn)
-{
-  FILE *fp;
-  int i, d, n = lj->n;
-
-  if ( (fp = fopen(fn, "w")) == NULL ) {
-    fprintf(stderr, "cannot open %s\n", fn);
-    return -1;
-  }
-
-  fprintf(fp, "# %d %d %d %.14e\n", D, n, (v != NULL), lj->l);
-  for ( i = 0; i < n; i++ ) {
-    for ( d = 0; d < D; d++ )
-      fprintf(fp, "%.14e ", x[i][d]);
-    if ( v != NULL )
-      for ( d = 0; d < D; d++ )
-        fprintf(fp, "%.14e ", v[i][d]);
-    fprintf(fp, "\n");
-  }
-  fclose(fp);
-  return 0;
 }
 
 
@@ -175,18 +135,18 @@ static double lj_pbcdist2(double *dx, const double *a, const double *b,
 __inline static double lj_energy_low(lj_t *lj, double (*x)[D],
     double *virial, double *ep0, double *eps)
 {
-  double dx[D], dr2, dr6, ep, vir, rc2 = lj->rc2;
+  double dx[D], dr2, ir6, ep, vir, rc2 = lj->rc2;
   double l = lj->l, invl = 1/l;
   int i, j, npr = 0, n = lj->n;
 
   for (ep = vir = 0, i = 0; i < n - 1; i++) {
     for (j = i + 1; j < n; j++) {
       dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
-      if (dr2 > rc2) continue;
+      if ( dr2 >= rc2 ) continue;
       dr2 = 1 / dr2;
-      dr6 = dr2 * dr2 * dr2;
-      vir += dr6 * (48 * dr6 - 24); /* f.r */
-      ep += 4 * dr6 * (dr6 - 1);
+      ir6 = dr2 * dr2 * dr2;
+      vir += ir6 * (48 * ir6 - 24); /* f.r */
+      ep += 4 * ir6 * (ir6 - 1);
       npr++;
     }
   }
@@ -205,7 +165,7 @@ __inline static double lj_energy_low(lj_t *lj, double (*x)[D],
 __inline static double lj_force_low(lj_t *lj, double (*x)[D], double (*f)[D],
     double *virial, double *ep0, double *eps)
 {
-  double dx[D], fi[D], dr2, dr6, fs, ep, vir, rc2 = lj->rc2;
+  double dx[D], fi[D], dr2, ir6, fs, ep, vir, rc2 = lj->rc2;
   double l = lj->l, invl = 1/l;
   int i, j, npr = 0, n = lj->n;
 
@@ -216,13 +176,13 @@ __inline static double lj_force_low(lj_t *lj, double (*x)[D], double (*f)[D],
       dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
       if (dr2 > rc2) continue;
       dr2 = 1 / dr2;
-      dr6 = dr2 * dr2 * dr2;
-      fs = dr6 * (48 * dr6 - 24); /* f.r */
+      ir6 = dr2 * dr2 * dr2;
+      fs = ir6 * (48 * ir6 - 24); /* f.r */
       vir += fs; /* f.r */
       fs *= dr2; /* f.r / r^2 */
       vsinc(fi, dx, fs);
       vsinc(f[j], dx, -fs);
-      ep += 4 * dr6 * (dr6 - 1);
+      ep += 4 * ir6 * (ir6 - 1);
       npr++;
     }
     vinc(f[i], fi);
@@ -359,7 +319,7 @@ __inline static double lj_depot(lj_t *lj, int i, double *xi, double *vir)
   int j, n = lj->n;
   double l = lj->l, invl = 1/l, rc2 = lj->rc2, u, du, dvir;
 
-  u = 0;
+  u = 0.0;
   *vir = 0.0;
   for ( j = 0; j < n; j++ ) { /* pair */
     if ( j == i ) continue;
@@ -378,10 +338,10 @@ __inline static double lj_depot(lj_t *lj, int i, double *xi, double *vir)
 
 
 /* commit a particle displacement */
-__inline static void lj_commit(lj_t *lj, int i,
-    const double *xi, double du, double dvir)
+__inline static void lj_commit(lj_t *lj, int i, const double *xi,
+    double du, double dvir)
 {
-  vcopy(lj->x[i], xi);
+  vwrap( vcopy(lj->x[i], xi), lj->l );
   lj->ep0 += du;
   lj->epot += du;
   lj->vir += dvir;
@@ -407,6 +367,48 @@ __inline static int lj_metro(lj_t *lj, double amp, double bet)
     lj_commit(lj, i, xi, du, dvir);
     return 1;
   }
+  return 0;
+}
+
+
+
+/* wrap coordinates such that particles stay in the box */
+__inline static int lj_wrapbox(lj_t *lj,
+    double (*xin)[D], double (*xout)[D])
+{
+  int i, n = lj->n;
+  double l = lj->l;
+
+  for ( i = 0; i < n; i++ ) {
+    vwrap( vcopy(xout[i], xin[i]), l );
+  }
+  return 0;
+}
+
+
+
+/* write positions (and possibly velocities) */
+__inline static int lj_writepos(lj_t *lj,
+    double (*x)[D], double (*v)[D], const char *fn)
+{
+  FILE *fp;
+  int i, d, n = lj->n;
+
+  if ( (fp = fopen(fn, "w")) == NULL ) {
+    fprintf(stderr, "cannot open %s\n", fn);
+    return -1;
+  }
+
+  fprintf(fp, "# %d %d %d %.14e\n", D, n, (v != NULL), lj->l);
+  for ( i = 0; i < n; i++ ) {
+    for ( d = 0; d < D; d++ )
+      fprintf(fp, "%.14e ", x[i][d]);
+    if ( v != NULL )
+      for ( d = 0; d < D; d++ )
+        fprintf(fp, "%.14e ", v[i][d]);
+    fprintf(fp, "\n");
+  }
+  fclose(fp);
   return 0;
 }
 

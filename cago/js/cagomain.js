@@ -38,6 +38,7 @@ var mcacc = 0.0;
 var sum1 = 1e-30;
 var sumU = 0.0;
 var sumR = 0.0;
+var sumC = 0.0;
 
 var userscale = 1.0;
 
@@ -216,9 +217,11 @@ function domd()
     sum1 += 1.0;
     sumU += go.epot;
     sumR += go.rmsd(go.x, null);
+    sumC += go.ncontacts(go.x);
   }
   sinfo += '<span class="math"><i>U</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
-  sinfo += '<span class="math">RMSD</span>: ' + roundto(sumR/sum1, 3) + "&#8491;."
+  sinfo += '<span class="math">RMSD</span>: ' + roundto(sumR/sum1, 3) + "&#8491;, "
+  sinfo += '<span class="math">Contacts</span>: ' + roundto(sumC/sum1, 2) + "/" + roundto(go.ncont, 2) + "."
   return sinfo;
 }
 
@@ -456,6 +459,7 @@ function stopsimul()
   sum1 = 1e-30;
   sumU = 0.0;
   sumR = 0.0;
+  sumC = 0.0;
   munit(viewmat);
 }
 

@@ -1,13 +1,5 @@
 /* basic Monte Carlo simulation */
-#ifndef D
-#define D 3
-#endif
-
-#if D == 3
-#include "lj3d.h"
-#else
-#include "lj2d.h"
-#endif
+#include "ljcore.h"
 
 
 

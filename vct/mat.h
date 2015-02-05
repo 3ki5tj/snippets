@@ -324,7 +324,7 @@ __inline static int msolvezero(double a[D][D], double (*x)[D])
 
 /* given an eigenvalue, return the corresponding eigenvectors
  * Note: there might be multiple eigenvectors for the eigenvalue */
-__inline static int meigvecs(double (*vecs)[3], double mat[3][3], double val)
+__inline static int meigvecs(double (*vecs)[D], double mat[D][D], double val)
 {
   double m[D][D];
   int d;
@@ -500,7 +500,7 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
 {
   int i;
   double wi, wtot = 0, sq, dev = 0, dev0, detm;
-  double xc[D], yc[D], xs[D], ys[D], sig[D], t_[D];
+  double xc[D], yc[D], xs[D], ys[D], xfi[D], sig[D], t_[D];
   double u[D][D], v[D][D], s[D][D] = {{0}}, xy[D][D], r_[D][D];
 
   if (r == NULL) r = r_;
@@ -565,15 +565,13 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
   vdiff(t, yc, xs); /* t = yc - R xc */
 
   /* 5. compute the rotated structure */
-  if ( xf || dev < dev0*0.01 ) { /* if there's a large cancellation recompute the deviation */
-    double xfi[D], dx[D];
-
+  if ( xf || dev < dev0 * 0.01 ) { /* if there's a large cancellation recompute the deviation */
     for ( dev = 0, i = 0; i < n; i++ ) {
       mmxv(xs, r, x[i]); /* xs = R x */
       vadd(xfi, xs, t); /* xfi = R x + t */
-      sq = vsqr( vdiff(dx, y[i], xfi) );
+      sq = vdist2(y[i], xfi);
       if ( xf ) vcopy(xf[i], xfi);
-      dev +=  (w ? w[i]*sq : sq); /* recompute the deviation */
+      dev +=  (w ? w[i] * sq : sq); /* recompute the deviation */
     }
   }
   return sqrt(dev/wtot);

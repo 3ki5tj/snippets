@@ -65,7 +65,7 @@ static void shiftang(double (*x)[D], double (*v)[D],
     vsinc(xc, x[i], m[i]);
     mtot += m[i];
   }
-  vsmul(xc, 1.f / mtot);
+  vsmul(xc, 1.0 / mtot);
 
   for (i = 0; i < n; i++) {
     vdiff(xi, x[i], xc);

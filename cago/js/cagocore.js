@@ -10,7 +10,7 @@
 function cago_refgeo(go)
 {
   var i, j, n = go.n;
-  var dx = [0,0,0];
+  var dx = [0, 0, 0];
 
   // calculate reference bond lengths, angles, dihedrals
   go.bref = newarr(n - 1); // bonds
@@ -94,7 +94,7 @@ function cago_loadbasic(go, strpdb)
 function cago_mkcont(go, strpdb, rc, ctype, nsexcl)
 {
   var ires, ir, jr, n = go.n;
-  var x, xi, dx = [0,0,0], rc2 = rc * rc;
+  var x, xi, dx = [0, 0, 0], rc2 = rc * rc;
 
   if ( n === 0 ) {
     console.log("no residue");
@@ -226,7 +226,7 @@ function CaGo(strpdb, kb, ka, kd1, kd3, nbe, nbc, rcc, ctype, nsexcl)
 /* bond energy 1/2 k (r - r0)^2 */
 function potbond(a, b, r0, k, fa, fb)
 {
-  var dx = [0,0,0], r, dr;
+  var dx = [0, 0, 0], r, dr;
 
   r = vnorm( vdiff(dx, a, b) );
   dr = r - r0;
@@ -243,7 +243,7 @@ function potbond(a, b, r0, k, fa, fb)
 /* harmonic angle 1/2 k (ang - ang0)^2 */
 function potang(a, b, c, ang0, k, fa, fb, fc)
 {
-  var dang, amp, ga = [0,0,0], gb = [0,0,0], gc = [0,0,0];
+  var dang, amp, ga = [0, 0, 0], gb = [0, 0, 0], gc = [0, 0, 0];
 
   if ( fa ) { // compute gradient
     dang = vang(a, b, c, ga, gb, gc) - ang0;
@@ -262,8 +262,8 @@ function potang(a, b, c, ang0, k, fa, fb, fc)
 /* 1-3 dihedral: k1 * (1 - cos(dang)) + k3 * (1 - cos(3*dang)) */
 function potdih13(a, b, c, d, ang0, k1, k3, fa, fb, fc, fd)
 {
-  var dang, amp, ga = [0,0,0], gb = [0,0,0], gc = [0,0,0], gd = [0,0,0];
-
+  var dang, amp, ga = [0, 0, 0], gb = [0, 0, 0], gc = [0, 0, 0], gd = [0, 0, 0];
+ 
   if ( fa ) {
     dang = vdih(a, b, c, d, ga, gb, gc, gd) - ang0;
     amp  = -k1 * Math.sin(dang) - 3 * k3 * Math.sin(3*dang);
@@ -283,7 +283,7 @@ function potdih13(a, b, c, d, ang0, k1, k3, fa, fb, fc, fd)
  * the minimum is at r = rc, and u = -1 */
 function pot1210(a, b, rc2, eps, fa, fb)
 {
-  var dx = [0,0,0], dr2, invr2, invr4, invr6, invr10, amp;
+  var dx = [0, 0, 0], dr2, invr2, invr4, invr6, invr10, amp;
 
   dr2 = vsqr( vdiff(dx, a, b) );
   invr2 = rc2 / dr2;
@@ -303,7 +303,7 @@ function pot1210(a, b, rc2, eps, fa, fb)
 /* repulsive potential: (rc/r)^12 */
 function potr12(a, b, rc2, eps, fa, fb)
 {
-  var dx = [0,0,0], dr2, invr2, invr6, u, amp;
+  var dx = [0, 0, 0], dr2, invr2, invr6, u, amp;
 
   dr2 = vsqr( vdiff(dx, a, b) );
   invr2 = rc2 / dr2;
@@ -400,7 +400,7 @@ CaGo.prototype.getekin = function(v)
 CaGo.prototype.initmd = function(open, rndamp, T0)
 {
   var i, n = this.n;
-  var s, dx = [0,0,0];
+  var s, dx = [0, 0, 0];
 
   this.f  = newarr2d(n, 3);
   this.v  = newarr2d(n, 3);
@@ -505,10 +505,11 @@ CaGo.prototype.rmsd = function(x, xf)
  * `*Q' is the ratio of formed contacts / the total number of contacts  */
 CaGo.prototype.ncontacts = function(x, gam, mat)
 {
-  var i, j, id, nct = 0, n = this.n;
-  var dx = [0,0,0], gam2;
+  var i, j, nct = 0, n = this.n;
+  var dx = [0, 0, 0], gam2;
 
-  if ( gam < 0 ) {
+  // determine gam, multiple of the reference distance
+  if ( isNaN(gam) ) {
     gam = 1.2;
   }
   gam2 = gam * gam;
@@ -526,8 +527,10 @@ CaGo.prototype.ncontacts = function(x, gam, mat)
       if ( !this.iscont[i][j] ) { // skip a noncontact pair
         continue;
       }
-      if ( vsqr( vdiff(dx, x[i], x[j]) ) < this.r2ref[id] * gam2 ) {
-        if ( mat ) mat[i][j] = mat[j][i] = 1;
+      if ( vsqr( vdiff(dx, x[i], x[j]) ) < this.r2ref[i][j] * gam2 ) {
+        if ( mat ) {
+          mat[i][j] = mat[j][i] = 1;
+        }
         nct++;
       }
     }
