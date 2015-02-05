@@ -165,9 +165,13 @@ function randHueColor(cmin, cmax)
 
 
 
-/* darken a color */
-function darkenColor(colorStr, fac) {
-  if ( !fac ) fac = 0.5;
+/* darken a color
+ * fac === 1.0 means to preserve the original order */
+function darkenColor(colorStr, fac)
+{
+  if ( !fac ) {
+    fac = 0.5;
+  }
   var color = parseRGB(colorStr);
   color.r = Math.floor(color.r * fac);
   color.g = Math.floor(color.g * fac);
@@ -177,8 +181,25 @@ function darkenColor(colorStr, fac) {
 
 
 
+/* lighten a color
+ * fac === 1.0 means to preserve the original order */
+function lightenColor(colorStr, fac)
+{
+  if ( !fac ) {
+    fac = 0.5;
+  }
+  var color = parseRGB(colorStr);
+  color.r = Math.floor(color.r * fac + (1 - fac) * 255);
+  color.g = Math.floor(color.g * fac + (1 - fac) * 255);
+  color.b = Math.floor(color.b * fac + (1 - fac) * 255);
+  return rgb2str(color.r, color.g, color.b);
+}
+
+
+
 /* bar chart for Dygraph */
-function barChartPlotter(e) {
+function barChartPlotter(e)
+{
   var ctx = e.drawingContext;
   var points = e.points;
   var y_bottom = e.dygraph.toDomYCoord(0);

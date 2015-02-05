@@ -205,11 +205,11 @@ function minv(b, a)
   // Gaussian elimination
   for ( i = 0; i < D; i++ ) {
     // choose the pivot as the largest element of column i
-    x = Math.fabs( a[i][i] );
+    x = Math.abs( a[i][i] );
     for ( ip = i, k = ip + 1; k < D; k++ ) {
-      if ( Math.fabs( a[k][i] ) > x ) {
+      if ( Math.abs( a[k][i] ) > x ) {
         ip = k;
-        x = Math.fabs( a[k][i] );
+        x = Math.abs( a[k][i] );
       }
     }
 
@@ -227,7 +227,7 @@ function minv(b, a)
 
     // normalize this row
     x = a[i][i];
-    if ( Math.fabs(x) < 1e-300 ) {
+    if ( Math.abs(x) < 1e-300 ) {
       console.log("Error: singular matrix");
       return -1;
     }
@@ -278,7 +278,7 @@ function mpivotf_(m, r0, cmap, sgn)
   max = -1;
   for ( j = r0; j < D; j++ ) {
     for ( i = r0; i < D; i++ ) {
-      if ( (tmp = Math.fabs(m[i][j])) > max ) {
+      if ( (tmp = Math.abs(m[i][j])) > max ) {
         r = i;
         c = j;
         max = tmp;
@@ -326,7 +326,7 @@ function mdet(m)
   for ( i = 0; i < D; i++ ) {
     // find the pivot, the largest element in the matrix
     sgn = mpivotf_(a, i, null, sgn);
-    if ( Math.fabs(a[i][i]) <= 0 ) {
+    if ( Math.abs(a[i][i]) <= 0 ) {
       break;
     }
 
@@ -366,7 +366,7 @@ function msolvezero(a, x)
   for ( i = 0; i < D; i++ ) {
     // find the pivot, the largest element in the matrix
     sgn = mpivotf_(a, i, cmap, sgn);
-    y = Math.fabs(a[i][i]);
+    y = Math.abs(a[i][i]);
     if ( y <= tol ) { // we have D - i solutions
       break;
     }
@@ -392,12 +392,14 @@ function msolvezero(a, x)
 
   // solve the D - i solutions
   for ( j = 0; j < D - i; j++ ) {
-    vzero( x[j] );
+    var v = newarr(D);
+    vzero( v );
     for ( k = 0; k < i; k++ ) {
-      x[j][ cmap[k] ] = -a[k][i + j];
+      v[ cmap[k] ] = -a[k][i + j];
     }
-    x[j][ cmap[i + j] ] = 1.0;
-    vnormalize( x[j] );
+    v[ cmap[i + j] ] = 1.0;
+    vnormalize( v );
+    x.push( v );
   }
 
   return D - i;
@@ -462,7 +464,7 @@ function meigval(v, a)
   // solve x^3 - 3 p x  - 2 q = 0
   pr = Math.sqrt(p);
   pr3 = p * pr;
-  if ( pr3 <= Math.fabs(q) ) {
+  if ( pr3 <= Math.abs(q) ) {
     if (q < 0.) { // choose phi = pi/3
       v[1] = v[0] = m + pr;
       v[2] = m - 2.0 * pr;
@@ -488,17 +490,17 @@ function meigval(v, a)
  * set 'nt' != 0 to disable it: so vecs[0] is the first eigenvector  */
 function meigsys(v, vecs, mat, nt)
 {
-  var vs = newarr2d(5, 3); // for safety, vs needs 5 rows
-  var n = 0, nn, i = 0;
+  var vs = [];
+  var n = 0, i = 0;
 
   meigval(v, mat);
 
-  for (nn = i = 0; i < 3; i++) {
-    n = meigvecs(vs + nn, mat, v[nn]);
+  for ( i = 0; i < 3; i++ ) {
+    n = meigvecs(vs, mat, v[vs.length]);
     if ( n == 0 ) {
       return;
     }
-    if ( (nn += n) >= 3 ) {
+    if ( vs.length >= 3 ) {
       break;
     }
   }
@@ -517,8 +519,8 @@ function meigsys(v, vecs, mat, nt)
 function msvd(a, u, s, v)
 {
   var i, rank;
-  var ata = [[0,0,0],[0,0,0],[0,0,0]];
-  var us = [[0,0,0],[0,0,0],[0,0,0]];
+  var ata = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  var us = [[0, 0, 0],[0, 0, 0], [0, 0, 0]];
 
   // A^T A = V S^2 V^T, so (A^T A) V = V S^2
 
@@ -542,22 +544,22 @@ function msvd(a, u, s, v)
       if (s[i] > 0) vsmul(u[i], 1/s[i]);
     }
     rank = 1;
-    rank += (Math.fabs( vdot(u[0], u[1]) ) < tol && s[1] > tol);
-    rank += (Math.fabs( vdot(u[0], u[2]) ) < tol
-          && Math.fabs( vdot(u[1], u[2]) ) < tol && s[2] > tol);
+    rank += (Math.abs( vdot(u[0], u[1]) ) < tol && s[1] > tol);
+    rank += (Math.abs( vdot(u[0], u[2]) ) < tol
+          && Math.abs( vdot(u[1], u[2]) ) < tol && s[2] > tol);
     if ( rank <= 2 ) {
       if ( rank == 1 ) {
         var z = [0, 0, 0], w, tmp;
 
-        w = Math.fabs( u[0][i = 0] );
-        if ((tmp = Math.fabs(u[0][1])) < w) w = tmp, i = 1;
-        if ((tmp = Math.fabs(u[0][2])) < w) i = 2;
+        w = Math.abs( u[0][i = 0] );
+        if ((tmp = Math.abs(u[0][1])) < w) w = tmp, i = 1;
+        if ((tmp = Math.abs(u[0][2])) < w) i = 2;
         z[i] = 1.0; // select the smallest element in u[0] as z
-        vnormalize( vcross(u[1], z, u[0]) );
+        vnormalize( vcross3d(u[1], z, u[0]) );
         s[1] = vdot(u[1], us[1]); // S = U^T (V^T A^T)^T is more accurate than sqrt(A^T A)
         if (s[1] < 0) { s[1] = -s[1]; vneg(u[1]); } // make sure s[1] > 0
       }
-      vnormalize( vcross(u[2], u[0], u[1]) );
+      vnormalize( vcross3d(u[2], u[0], u[1]) );
       s[2] = vdot(u[2], us[2]);
       if (s[2] < 0) {
         s[2] = -s[2];
@@ -574,31 +576,32 @@ function msvd(a, u, s, v)
 
 /* Fit x to y by rotation and translation of the `x'
  * If `refl', reflection can also be used.
- * The best-fit structure is saved to `xf', if not NULL */
+ * The best-fit structure is saved to `xf', if not null */
 function vrmsd(x, xf, y, w, n, refl, r, t)
 {
   var i;
   var wi, wtot = 0, sq, dev = 0, dev0, detm;
-  var xc = [0,0,0], yc = [0,0,0], xs = [0,0,0], ys = [0,0,0], sig = [0,0,0], t_ = [0,0,0];
-  var u = [[0,0,0], [0,0,0], [0,0,0]];
-  var v = [[0,0,0], [0,0,0], [0,0,0]];
-  var s = [[0,0,0], [0,0,0], [0,0,0]];
-  var xy = [[0,0,0], [0,0,0], [0,0,0]];
-  var r_ = [[0,0,0], [0,0,0], [0,0,0]];
-  var xfi = [0,0,0], dx = [0,0,0];
+  var xc = [0, 0, 0], yc = [0, 0, 0], xs = [0, 0, 0], ys = [0, 0, 0];
+  var sig = [0, 0, 0], t_ = [0, 0, 0];
+  var u = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  var v = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  var s = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  var xy = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  var r_ = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  var xfi = [0, 0, 0], dx = [0, 0, 0];
 
 
-  if ( r == null ) {
+  if ( !r ) {
     r = r_;
   }
-  if ( t == null ) {
+  if ( !t ) {
     t = t_;
   }
 
   // 1. compute the centers
-  vzero(xc);
-  vzero(yc);
-  if ( w == NULL ) {
+  vzero( xc );
+  vzero( yc );
+  if ( !w ) {
     for ( i = 0; i < n; i++ ) {
       vinc(xc, x[i]);
       vinc(yc, y[i]);

@@ -80,8 +80,8 @@ textarea {
   padding: 2px 10px;
   color: #202055;
   background-color: #ffffdd;
-  font-family: "Lucida Console", Courier, "Courier New", Monospace;
-  font-weight: bold;
+  font-family: "Consola", Monospace;
+  font-size: x-small;
 }
 
 .plot {
@@ -133,4 +133,9 @@ input[type=range] {
   border-radius: 10px;
 }
 
+
+#seq {
+  font-family: monospace;
+  font-weight: bold;
+}
 

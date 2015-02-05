@@ -45,53 +45,6 @@ typedef struct {
 
 
 
-/* convenient macro for computing RMSD from the reference structure */
-#define cago_rmsd(go, x, xf) \
-  vrmsd(x, xf, go->xref, go->m, go->n, 0, NULL, NULL)
-
-
-
-/* compute the reference bond lengths, angles, dihedrals and pair distances */
-__inline static int cago_refgeo(cago_t *go)
-{
-  int i, j, n = go->n;
-  double dx[D];
-
-  /* calculate reference bond lengths, angles, dihedrals */
-  xnew(go->bref, n - 1); /* bonds */
-  for (i = 0; i < n - 1; i++) {
-    go->bref[i] = vdistx(dx, go->xref[i], go->xref[i + 1]);
-  }
-
-  xnew(go->aref, n - 2); /* angles */
-  for (i = 1; i < n - 1; i++) {
-    go->aref[i - 1]  = vang(go->xref[i - 1], go->xref[i], go->xref[i + 1],
-      NULL, NULL, NULL);
-  }
-
-  xnew(go->dref, n - 3); /* dihedrals */
-  for (i = 0; i < n - 3; i++) {
-    go->dref[i] = vdih(go->xref[i], go->xref[i + 1],
-        go->xref[i + 2], go->xref[i + 3], NULL, NULL, NULL, NULL);
-  }
-
-  /* reference pair distances */
-  xnew(go->r2ref, n*n);
-  for (i = 0; i < n - 1; i++) {
-    for (j = i + 1; j < n; j++) {
-      go->r2ref[j*n + i] = go->r2ref[i*n + j]
-          = vsqr( vdiff(dx, go->xref[i], go->xref[j]) );
-    }
-  }
-  return 0;
-}
-
-
-
-enum { PDB_CONTACT_CA, PDB_CONTACT_HEAVY, PDB_CONTACT_ALL }; /* ways of searching contacts */
-
-
-
 /* read C-alpha coordinates, and amino acid types from a PDB file */
 __inline static int cago_loadbasic(cago_t *go, const char *fn)
 {
@@ -113,8 +66,7 @@ __inline static int cago_loadbasic(cago_t *go, const char *fn)
   while ( fgets(s, sizeof s, fp) ) {
     /* we only load a single model */
     if ( strncmp(s, "TER", 3) == 0
-      || strncmp(s, "END", 3) == 0
-      || strncmp(s, "ENDMDL", 6) == 0 ) {
+      || strncmp(s, "END", 3) == 0 ) {
       break;
     }
 
@@ -161,6 +113,10 @@ __inline static int cago_loadbasic(cago_t *go, const char *fn)
 
 
 
+enum { PDB_CONTACT_CA, PDB_CONTACT_HEAVY, PDB_CONTACT_ALL }; /* ways of searching contacts */
+
+
+
 /* make the contact map */
 __inline static int cago_mkcont(cago_t *go, const char *fn,
     double rc, int ctype, int nsexcl)
@@ -173,7 +129,6 @@ __inline static int cago_mkcont(cago_t *go, const char *fn,
   char s[128];
   FILE *fp;
 
-  xnew(go->iscont, n * n);
   xnew(ra, n);
   xnew(x, n);
 
@@ -185,8 +140,7 @@ __inline static int cago_mkcont(cago_t *go, const char *fn,
   while ( fgets(s, sizeof s, fp) ) {
     /* we only load a single model */
     if ( strncmp(s, "TER", 3) == 0
-      || strncmp(s, "END", 3) == 0
-      || strncmp(s, "ENDMDL", 6) == 0 ) {
+      || strncmp(s, "END", 3) == 0 ) {
       break;
     }
 
@@ -206,7 +160,7 @@ __inline static int cago_mkcont(cago_t *go, const char *fn,
     }
 
     if ( ctype == PDB_CONTACT_HEAVY
-      && s[13] == 'H' ) {
+      && (s[13] == 'H' || s[12] == 'H') ) {
       continue;
     }
 
@@ -214,7 +168,7 @@ __inline static int cago_mkcont(cago_t *go, const char *fn,
     ires = atoi(s + 22);
 
     /* find the actual residue index */
-    for ( ir = 0; ir < go->n; ir++ ) {
+    for ( ir = 0; ir < n; ir++ ) {
       if ( go->ires[ir] == ires ) {
         break;
       }
@@ -240,6 +194,7 @@ __inline static int cago_mkcont(cago_t *go, const char *fn,
 
   fclose(fp);
 
+  xnew(go->iscont, n * n);
   for ( ir = 0; ir < n; ir++ ) {
     for ( jr = ir + nsexcl; jr < n; jr++ ) {
       int ia, ja, isc = 0;
@@ -264,12 +219,50 @@ __inline static int cago_mkcont(cago_t *go, const char *fn,
 
 
 
+/* compute the reference bond lengths, angles, dihedrals and pair distances */
+__inline static int cago_refgeo(cago_t *go)
+{
+  int i, j, n = go->n;
+  double dx[D];
+
+  /* calculate reference bond lengths, angles, dihedrals */
+  xnew(go->bref, n - 1); /* bonds */
+  for ( i = 0; i < n - 1; i++ ) {
+    go->bref[i] = vdistx(dx, go->xref[i], go->xref[i + 1]);
+  }
+
+  xnew(go->aref, n - 2); /* angles */
+  for ( i = 1; i < n - 1; i++ ) {
+    go->aref[i - 1]  = vang(go->xref[i - 1], go->xref[i], go->xref[i + 1],
+      NULL, NULL, NULL);
+  }
+
+  xnew(go->dref, n - 3); /* dihedrals */
+  for ( i = 0; i < n - 3; i++ ) {
+    go->dref[i] = vdih(go->xref[i], go->xref[i + 1],
+        go->xref[i + 2], go->xref[i + 3], NULL, NULL, NULL, NULL);
+  }
+
+  /* reference pair distances */
+  xnew(go->r2ref, n*n);
+  for ( i = 0; i < n - 1; i++ ) {
+    for ( j = i + 1; j < n; j++ ) {
+      go->r2ref[j*n + i] = go->r2ref[i*n + j]
+          = vsqr( vdiff(dx, go->xref[i], go->xref[j]) );
+    }
+  }
+  return 0;
+}
+
+
+
 /* return cago_t from pdb file fnpdb
  * `rcc' is the cutoff radius for defining contacts
  * `ctype' is one of PDB_CONTACT_CA, _HEAVY, _ALL
  * `nsexcl' is the number of successive residues to be excluded as contacts
  * e.g., nsexcl = 4 means `a' and `d' in -a-b-c-d- are excluded */
-__inline static cago_t *cago_open0(const char *fnpdb,
+__inline static cago_t *cago_open(const char *fnpdb,
+    double kb, double ka, double kd1, double kd3, double nbe, double nbc,
     double rcc, int ctype, int nsexcl)
 {
   cago_t *go;
@@ -287,47 +280,27 @@ __inline static cago_t *cago_open0(const char *fnpdb,
 
   cago_mkcont(go, fnpdb, rcc, ctype, nsexcl);
 
+  /* count the number of contacts */
+  for ( go->ncont = 0, i = 0; i < go->n - 1; i++ )
+    for ( j = i + 1; j < go->n; j++ )
+      go->ncont += go->iscont[ i*go->n + j ];
+
+  /* compute the reference bond length, angles, etc. */
+  cago_refgeo(go);
+
+  /* initialize the masses */
   xnew(go->m, go->n);
   for ( i = 0; i < go->n; i++ ) {
     go->m[i] = 1.0;
   }
 
-  /* compute the reference bond length, angles, etc. */
-  cago_refgeo(go);
-
-  /* count the number of contacts */
-  for (go->ncont = 0, i = 0; i < go->n - 1; i++)
-    for (j = i + 1; j < go->n; j++)
-      go->ncont += go->iscont[ i*go->n + j ];
-  return go;
-}
-
-
-
-/* set force parameters */
-__inline static void cago_setfparam(cago_t *go,
-    double kb, double ka, double kd1, double kd3,
-    double nbe, double nbc)
-{
   go->kb = kb;
   go->ka = ka;
   go->kd1 = kd1;
   go->kd3 = kd3;
   go->nbe = nbe;
   go->nbc = nbc;
-}
 
-
-
-/* return a pointer to cago_t from PDB file `fnpdb'
- * cago_open1() + bond parameters */
-__inline static cago_t *cago_open(const char *fnpdb,
-    double kb, double ka, double kd1, double kd3, double nbe, double nbc,
-    double rcc, int ctype, int nsexcl)
-{
-  cago_t *go = cago_open0(fnpdb, rcc, ctype, nsexcl);
-  if (go == NULL) return NULL;
-  cago_setfparam(go, kb, ka, kd1, kd3, nbe, nbc);
   return go;
 }
 
@@ -355,14 +328,14 @@ __inline static void cago_close(cago_t *go)
 
 
 /* bond energy 1/2 k (r - r0)^2 */
-__inline static double potbond(vct a, vct b, double r0, double k,
-    vct fa, vct fb)
+__inline static double potbond(double *a, double *b,
+    double r0, double k, double *fa, double *fb)
 {
   double dx[3], r, dr;
 
   r = vnorm( vdiff(dx, a, b) );
   dr = r - r0;
-  if (fa != NULL) {
+  if ( fa ) {
     double amp = k * dr / r;
     vsinc(fa, dx, -amp);
     vsinc(fb, dx,  amp);
@@ -373,12 +346,12 @@ __inline static double potbond(vct a, vct b, double r0, double k,
 
 
 /* harmonic angle 1/2 k (ang - ang0)^2 */
-__inline static double potang(vct a, vct b, vct c, double ang0, double k,
-    vct fa, vct fb, vct fc)
+__inline static double potang(double *a, double *b, double *c,
+    double ang0, double k, double *fa, double *fb, double *fc)
 {
   double dang, amp, ga[3], gb[3], gc[3];
 
-  if (fa) { /* compute gradient */
+  if ( fa ) { /* compute gradient */
     dang = vang(a, b, c, ga, gb, gc) - ang0;
     amp = -k * dang;
     vsinc(fa, ga, amp);
@@ -387,20 +360,21 @@ __inline static double potang(vct a, vct b, vct c, double ang0, double k,
   } else {
     dang = vang(a, b, c, NULL, NULL, NULL) - ang0;
   }
-  return .5f * k * dang * dang;
+  return 0.5 * k * dang * dang;
 }
 
 
 
 /* 1-3 dihedral: k1 * (1 - cos(dang)) + k3 * (1 - cos(3*dang)) */
-__inline static double potdih13(vct a, vct b, vct c, vct d, double ang0,
-    double k1, double k3, vct fa, vct fb, vct fc, vct fd)
+__inline static double potdih13(double *a, double *b, double *c, double *d,
+    double ang0, double k1, double k3,
+    double *fa, double *fb, double *fc, double *fd)
 {
   double dang, amp, ga[3], gb[3], gc[3], gd[3];
 
-  if (fa) {
+  if ( fa ) {
     dang = vdih(a, b, c, d, ga, gb, gc, gd) - ang0;
-    amp  = (double)( -k1 * sin(dang) - 3 * k3 * sin(3*dang) );
+    amp  = -k1 * sin(dang) - 3 * k3 * sin(3*dang);
     vsinc(fa, ga, amp);
     vsinc(fb, gb, amp);
     vsinc(fc, gc, amp);
@@ -408,7 +382,7 @@ __inline static double potdih13(vct a, vct b, vct c, vct d, double ang0,
   } else {
     dang = vdih(a, b, c, d, NULL, NULL, NULL, NULL) - ang0;
   }
-  return (double)( k1 * (1 - cos(dang)) + k3 * (1 - cos(3 * dang)) );
+  return k1 * (1 - cos(dang)) + k3 * (1 - cos(3 * dang));
 }
 
 
@@ -425,7 +399,7 @@ __inline static double pot1210(vct a, vct b, double rc2, double eps, vct fa, vct
   invr6 = invr4 * invr2;
   invr10 = invr4 * invr6;
   if (fa) {
-    amp = 60 * eps * (invr2 - 1) * invr10 * (1/dr2);
+    amp = 60 * eps * (invr2 - 1) * invr10 / dr2;
     vsinc(fa, dx,  amp);
     vsinc(fb, dx, -amp);
   }
@@ -435,7 +409,8 @@ __inline static double pot1210(vct a, vct b, double rc2, double eps, vct fa, vct
 
 
 /* repulsive potential: (rc/r)^12 */
-__inline static double potr12(vct a, vct b, double rc2, double eps, vct fa, vct fb)
+__inline static double potr12(double *a, double *b,
+    double rc2, double eps, double *fa, double *fb)
 {
   double dx[3], dr2, invr2, invr6, u, amp;
 
@@ -443,7 +418,7 @@ __inline static double potr12(vct a, vct b, double rc2, double eps, vct fa, vct 
   invr2 = rc2 / dr2;
   invr6 = invr2 * invr2 * invr2;
   u = eps * invr6 * invr6;
-  if (fa) {
+  if ( fa ) {
     amp = 12 * u / dr2;
     vsinc(fa, dx,  amp);
     vsinc(fb, dx, -amp);
@@ -461,29 +436,29 @@ __inline static double cago_force(cago_t *go, vct *x, vct *f)
   double ene = 0, kb = go->kb, ka = go->ka, kd1 = go->kd1, kd3 = go->kd3;
   double nbe = go->nbe, nbc2 = go->nbc * go->nbc;
 
-  if (f != NULL) {
-    for (i = 0; i < n; i++) {
+  if ( f ) {
+    for ( i = 0; i < n; i++ ) {
       vzero(f[i]);
     }
   }
 
   /* bonds */
-  for (i = 0; i < n - 1; i++)
+  for ( i = 0; i < n - 1; i++ )
     ene += potbond(x[i], x[i + 1], go->bref[i], kb, f[i], f[i + 1]);
 
   /* angles */
-  for (i = 0; i < n - 2; i++)
+  for ( i = 0; i < n - 2; i++ )
     ene += potang(x[i], x[i + 1], x[i + 2], go->aref[i],
               ka, f[i], f[i + 1], f[i + 2]);
 
   /* dihedrals */
-  for (i = 0; i < n - 3; i++)
+  for ( i = 0; i < n - 3; i++ )
     ene += potdih13(x[i], x[i + 1], x[i + 2], x[i + 3], go->dref[i],
           kd1, kd3, f[i], f[i + 1], f[i + 2], f[i + 3]);
 
   /* non-bonded */
-  for (i = 0; i < n - 4; i++)
-    for (j = i + 4; j < n; j++) {
+  for ( i = 0; i < n - 4; i++ ) {
+    for ( j = i + 4; j < n; j++ ) {
       id = i*n + j;
       if ( go->iscont[id] ) { /* contact pair */
         ene += pot1210(x[i], x[j], go->r2ref[id], nbe, f[i], f[j]);
@@ -491,6 +466,8 @@ __inline static double cago_force(cago_t *go, vct *x, vct *f)
         ene += potr12(x[i], x[j], nbc2, nbe, f[i], f[j]);
       }
     }
+  }
+
   return ene;
 }
 
@@ -577,7 +554,7 @@ __inline static int cago_initmd(cago_t *go,
 __inline static int cago_vv(cago_t *go, double fs, double dt)
 {
   int i, n = go->n;
-  double dth = .5f * dt * fs;
+  double dth = 0.5 * dt * fs;
 
   for ( i = 0; i < n; i++ ) { /* VV part 1 */
     vsinc(go->v[i], go->f[i], dth / go->m[i]);
@@ -589,7 +566,7 @@ __inline static int cago_vv(cago_t *go, double fs, double dt)
   for ( i = 0; i < n; i++ ) { /* VV part 2 */
     vsinc(go->v[i], go->f[i], dth / go->m[i]);
   }
-  go->ekin = cago_ekin(go, go->v);
+
   return 0;
 }
 
@@ -704,6 +681,12 @@ __inline static int cago_metro(cago_t *go, double amp, double bet)
   } else
     return 0;
 }
+
+
+
+/* compute the RMSD from the reference structure */
+#define cago_rmsd(go, x, xf) \
+  vrmsd(x, xf, go->xref, go->m, go->n, 0, NULL, NULL)
 
 
 

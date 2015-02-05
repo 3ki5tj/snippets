@@ -101,9 +101,12 @@ static void shiftang(double (*x)[D], double (*v)[D],
 
 const char *aanames[] = {
   "GLY", "ALA", "VAL", "LEU", "ILE",
-  "PRO", "SER", "THR", "THR", "CYS",
-  "MET", "ASN", "GLN", "ASP", "GLU",
-  "LYS", "ARG", "HIS", "PHE", "TRP"};
+  "PRO", "SER", "THR", "CYS", "MET",
+  "ASN", "GLN", "ASP", "GLU",
+  "LYS", "ARG", "HIS",
+  "PHE", "TYR", "TRP"};
+
+const char aaletters[] = "GAVLIPSTCMNQDEKRHFYW";
 
 /* residue name to integer of amino acid */
 __inline static int res2iaa(const char *res)

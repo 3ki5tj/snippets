@@ -12,9 +12,13 @@ var D = 3;
 
 function vzero(x)
 {
+try{
   for ( var d = 0; d < D; d++ ) {
-    x[d] = 0;
+    x[d] = 0.0;
   }
+} catch(err) {
+  console.log(err);
+}
   return x;
 }
 
@@ -36,6 +40,17 @@ function vcopy(x, y)
     x[d] = y[d];
   }
   return x;
+}
+
+
+
+function vswap(x, y)
+{
+  for ( var d = 0; d < D; d++ ) {
+    var z = x[d];
+    x[d] = y[d];
+    y[d] = z;
+  }
 }
 
 
@@ -157,33 +172,6 @@ function vcross3d(z, x, y)
 
 
 
-/* inverse matrix a^(-1) */
-function rm3_inv(a)
-{
-  var d00 = a[1][1]*a[2][2] - a[1][2]*a[2][1];
-  var d01 = a[1][2]*a[2][0] - a[1][0]*a[2][2];
-  var d02 = a[1][0]*a[2][1] - a[1][1]*a[2][0];
-  var detm = a[0][0]*d00 + a[0][1]*d01 + a[0][2]*d02;
-  var dmin = 1e-20;
-
-  if (detm < dmin && detm > -dmin) {
-    detm = (detm < 0) ? -dmin: dmin;
-  }
-  var b = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
-  b[0][0] = d00/detm;
-  b[0][1] = (a[2][1]*a[0][2] - a[0][1]*a[2][2])/detm;
-  b[0][2] = (a[0][1]*a[1][2] - a[0][2]*a[1][1])/detm;
-  b[1][0] = d01/detm;
-  b[1][1] = (a[2][2]*a[0][0] - a[2][0]*a[0][2])/detm;
-  b[1][2] = (a[0][2]*a[1][0] - a[1][2]*a[0][0])/detm;
-  b[2][0] = d02/detm;
-  b[2][1] = (a[2][0]*a[0][1] - a[2][1]*a[0][0])/detm;
-  b[2][2] = (a[0][0]*a[1][1] - a[0][1]*a[1][0])/detm;
-  return b;
-}
-
-
-
 /* bond angle interaction */
 function vang(xi, xj, xk, gi, gj, gk)
 {
@@ -242,7 +230,7 @@ function vdih(xi, xj, xk, xl, gi, gj, gk, gl)
 
   /* optionally calculate the gradient */
   if ( gi && gj && gk && gl ) {
-    if (m2 > tol && n2 > tol) {
+    if ( m2 > tol && n2 > tol ) {
       vsmul2(gi, m, nxkj/m2);
       vsmul2(gl, n, -nxkj/n2);
       vsmul2(uvec, gi, vdot(xij, xkj)/nxkj2);
@@ -282,6 +270,40 @@ function vwrap(v, l)
       v[d] -= l;
     }
   }
+}
+
+
+
+/* return the norm the vector */
+function vnorm(a)
+{
+  return Math.sqrt( vsqr(a) );
+}
+
+
+
+/* return the distance */
+function vdistx(dx, a, b)
+{
+  return vnorm( vdiff(dx, a, b) );
+}
+
+
+
+/* return the distance */
+function vdist(a, b)
+{
+  var dx = newarr(D);
+  return vnorm( vdiff(dx, a, b) );
+}
+
+
+
+/* normalize the vector */
+function vnormalize(v)
+{
+  var s = Math.sqrt( vsqr(v) );
+  return vsmul(v, 1.0 / s);
 }
 
 
