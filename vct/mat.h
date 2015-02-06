@@ -269,6 +269,9 @@ __inline static double mdet(double m[D][D])
 
 
 
+/* relative tolerance for msolvezero */
+const double msolvezero_reltol = 100.0 * DBL_EPSILON;
+
 /* Solve matrix equation a x = 0 by Gaussian elimination (full-pivot)
  * The matrix 'a' is destroyed, solutions are saved as *row* vectors in 'x'
  * return the number of solutions */
@@ -288,7 +291,7 @@ __inline static int msolvezero(double a[D][D], double (*x)[D])
       break;
     }
     if ( i == 0 ) {
-      tol = y * 10 * DBL_EPSILON;
+      tol = y * msolvezero_reltol;
     }
 
     /* normalize the row i */
@@ -409,7 +412,7 @@ __inline static double *meigval(double v[3], double a[3][3])
  * ideally, eigenvalues should be sorted in magnitude-descending order
  * by default, vecs are transposed as a set of column vectors
  * set 'nt' != 0 to disable it: so vecs[0] is the first eigenvector  */
-__inline static void meigsys(double v[3], double vecs[3][3], double mat[3][3], int nt)
+__inline static int meigsys(double v[3], double vecs[3][3], double mat[3][3], int nt)
 {
   double vs[5][3] = {{0}}; /* for safety, vs needs 5 rows */
   int n = 0, nn, i = 0;
@@ -418,7 +421,10 @@ __inline static void meigsys(double v[3], double vecs[3][3], double mat[3][3], i
 
   for ( nn = i = 0; i < 3; i++ ) {
     n = meigvecs(vs + nn, mat, v[nn]);
-    if ( n == 0 ) return;
+    if ( n == 0 ) {
+      fprintf(stderr, "meigsys failed: try to increase msolvezero_reltol\n");
+      return -1;
+    }
     if ( (nn += n) >= 3 ) break;
   }
 
@@ -428,9 +434,12 @@ __inline static void meigsys(double v[3], double vecs[3][3], double mat[3][3], i
   if ( !nt ) {
     mtrans(vecs);
   }
+  return 0;
 }
 
 
+
+const double msvd_reltol = 1e-6;
 
 /* SVD decomposition of a matrix A = U S V^T */
 __inline static void msvd(double a[3][3],
@@ -438,6 +447,7 @@ __inline static void msvd(double a[3][3],
 {
   int i, rank;
   double ata[3][3], us[3][3];
+  static int once;
 
   /* A^T A = V S^2 V^T, so (A^T A) V = V S^2 */
 
@@ -447,18 +457,19 @@ __inline static void msvd(double a[3][3],
 
   /* 2. U^T = S^{-1} V^T A^T, and each row of U^T is an eigenvector
    * since eigenvectors are to be normalized, S^{-1} is unnecessary */
-  if (s[0] <= 0.0) {
+  if ( s[0] <= 0.0 ) {
     rank = 0;
     mcopy(u, v);
   } else {
-    double tol = 10.0 * sqrt(DBL_EPSILON);
+    double tol = msvd_reltol;
 
-    /* the test i = 1 + (s[1] > s[0]*tol) + (s[2] > s[0]*tol); */
     mmxmt(u, v, a);
-    for (i = 0; i < 3; i++) {
+    for ( i = 0; i < 3; i++ ) {
       vcopy(us[i], u[i]); /* save a copy of V^T A^T before normalizing it */
       s[i] = vnorm(u[i]);
-      if (s[i] > 0) vsmul(u[i], 1/s[i]);
+      if ( s[i] > 0 ) {
+        vsmul(u[i], 1 / s[i]);
+      }
     }
     rank = 1;
     rank += (fabs( vdot(u[0], u[1]) ) < tol && s[1] > tol);
@@ -509,35 +520,26 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
   /* 1. compute the centers */
   vzero(xc);
   vzero(yc);
-  if ( w == NULL ) {
-    for ( i = 0; i < n; i++ ) {
-      vinc(xc, x[i]);
-      vinc(yc, y[i]);
-    }
-    wtot = n;
-  } else {
-    for ( wtot = 0., i = 0; i < n; i++ ) {
-      vsinc(xc, x[i], w[i]);
-      vsinc(yc, y[i], w[i]);
-      wtot += w[i];
-    }
+  for ( wtot = 0., i = 0; i < n; i++ ) {
+    wi = ( w != NULL ) ? w[i] : 1.0;
+    vsinc(xc, x[i], wi);
+    vsinc(yc, y[i], wi);
+    wtot += wi;
   }
   vsmul(xc, 1.0/wtot);
   vsmul(yc, 1.0/wtot);
 
   /* 2. compute the asymmetric covariance matrix S = (x-xc) (y-yc)^T */
   for ( i = 0; i < n; i++ ) {
+    wi = ( w != NULL ) ? w[i] : 1.0;
+
     vdiff(xs, x[i], xc); /* shift to the center avoid the translation */
     vdiff(ys, y[i], yc);
     mvtxv(xy, xs, ys);
+    msinc(s, xy, wi);
+
     sq  = vsqr(xs);
     sq += vsqr(ys);
-    if ( w ) {
-      wi = w[i];
-    } else {
-      wi = 1.0;
-    }
-    msinc(s, xy, wi);
     dev += wi * sq; /* Tr(x^T x + y^T y) */
   }
   dev0 = dev;

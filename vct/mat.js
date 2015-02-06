@@ -351,6 +351,8 @@ function mdet(m)
 
 
 
+var msolvezero_reltol = 1e-12;
+
 /* Solve matrix equation a x = 0 by Gaussian elimination (full-pivot)
  * The matrix 'a' is destroyed, solutions are saved as *row* vectors in 'x'
  * return the number of solutions */
@@ -371,7 +373,7 @@ function msolvezero(a, x)
       break;
     }
     if ( i == 0 ) {
-      tol = y * 1e-14;
+      tol = y * msolvezero_reltol;
     }
 
     // normalize the row i
@@ -498,7 +500,8 @@ function meigsys(v, vecs, mat, nt)
   for ( i = 0; i < 3; i++ ) {
     n = meigvecs(vs, mat, v[vs.length]);
     if ( n == 0 ) {
-      return;
+      console.log("meigsys failed: increase msolvezero_reltol", i, vs.length);
+      return -1;
     }
     if ( vs.length >= 3 ) {
       break;
@@ -511,9 +514,12 @@ function meigsys(v, vecs, mat, nt)
   if ( !nt ) {
     mtrans(vecs);
   }
+  return 0;
 }
 
 
+
+var msvd_reltol = 1e-6;
 
 /* SVD decomposition of a matrix A = U S V^T */
 function msvd(a, u, s, v)
@@ -534,7 +540,7 @@ function msvd(a, u, s, v)
     rank = 0;
     mcopy(u, v);
   } else {
-    var tol = 1e-7;
+    var tol = msvd_reltol;
 
     // the test i = 1 + (s[1] > s[0]*tol) + (s[2] > s[0]*tol);
     mmxmt(u, v, a);

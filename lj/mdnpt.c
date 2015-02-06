@@ -1,12 +1,4 @@
-#ifndef D
-#define D 3
-#endif
-
-#if D == 3
-#include "lj3d.h"
-#else
-#include "lj2d.h"
-#endif
+#include "ljcore.h"
 
 
 
@@ -33,7 +25,6 @@ int main(void)
   lj = lj_open(n, rho, rcdef);
   for ( t = 1; t <= nequil + nsteps; t++ ) {
     lj_vv(lj, dt);
-    lj_rmcom(lj->v, n);
     lj->ekin = lj_vrescale(lj, tp, thdt);
     if ( t % 5 == 0 ) lj_langp0(lj, pdt, tp, pres, 0);
     if ( t % 1000 == 0 ) printf("t %d, T %g, rho %g, p %g, u %g\n", t, tp, lj->rho, lj_calcp(lj, tp), lj->epot);

@@ -24,6 +24,8 @@ typedef struct {
   double (*x)[D]; /* position */
   double (*v)[D]; /* velocity */
   double (*f)[D]; /* force */
+  double *r2ij; /* pair distances */
+  double *r2i; /* pair distances from i */
   double epot, ep0, eps;
   double vir;
   double ekin;
@@ -76,6 +78,8 @@ static lj_t *lj_open(int n, double rho, double rcdef)
   xnew(lj->x, n);
   xnew(lj->v, n);
   xnew(lj->f, n);
+  xnew(lj->r2ij, n * n);
+  xnew(lj->r2i, n);
 
   lj_setrho(lj, rho);
 
@@ -100,6 +104,8 @@ static void lj_close(lj_t *lj)
   free(lj->x);
   free(lj->v);
   free(lj->f);
+  free(lj->r2ij);
+  free(lj->r2i);
   free(lj);
 }
 
@@ -129,11 +135,12 @@ static double lj_pbcdist2(double *dx, const double *a, const double *b,
 
 
 #define lj_energy(lj) \
-  lj->epot = lj_energy_low(lj, lj->x, &lj->vir, &lj->ep0, &lj->eps)
+  lj->epot = lj_energy_low(lj, lj->x, lj->r2ij, \
+      &lj->vir, &lj->ep0, &lj->eps)
 
 /* compute force and virial, return energy */
 __inline static double lj_energy_low(lj_t *lj, double (*x)[D],
-    double *virial, double *ep0, double *eps)
+    double *r2ij, double *virial, double *ep0, double *eps)
 {
   double dx[D], dr2, ir6, ep, vir, rc2 = lj->rc2;
   double l = lj->l, invl = 1/l;
@@ -142,6 +149,10 @@ __inline static double lj_energy_low(lj_t *lj, double (*x)[D],
   for (ep = vir = 0, i = 0; i < n - 1; i++) {
     for (j = i + 1; j < n; j++) {
       dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
+      if ( r2ij != NULL ) {
+        r2ij[i*n + j] = dr2;
+        r2ij[j*n + i] = dr2;
+      }
       if ( dr2 >= rc2 ) continue;
       dr2 = 1 / dr2;
       ir6 = dr2 * dr2 * dr2;
@@ -159,11 +170,13 @@ __inline static double lj_energy_low(lj_t *lj, double (*x)[D],
 
 
 #define lj_force(lj) \
-  lj->epot = lj_force_low(lj, lj->x, lj->f, &lj->vir, &lj->ep0, &lj->eps)
+  lj->epot = lj_force_low(lj, lj->x, lj->f, \
+      lj->r2ij, &lj->vir, &lj->ep0, &lj->eps)
 
-/* compute force and virial, return energy */
+/* compute force and virial, return energy
+ * the pair distances are recomputed */
 __inline static double lj_force_low(lj_t *lj, double (*x)[D], double (*f)[D],
-    double *virial, double *ep0, double *eps)
+    double *r2ij, double *virial, double *ep0, double *eps)
 {
   double dx[D], fi[D], dr2, ir6, fs, ep, vir, rc2 = lj->rc2;
   double l = lj->l, invl = 1/l;
@@ -174,7 +187,11 @@ __inline static double lj_force_low(lj_t *lj, double (*x)[D], double (*f)[D],
     vzero(fi);
     for (j = i + 1; j < n; j++) {
       dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
-      if (dr2 > rc2) continue;
+      if ( r2ij != NULL ) {
+        r2ij[i*n + j] = dr2;
+        r2ij[j*n + i] = dr2;
+      }
+      if ( dr2 >= rc2 ) continue;
       dr2 = 1 / dr2;
       ir6 = dr2 * dr2 * dr2;
       fs = ir6 * (48 * ir6 - 24); /* f.r */
@@ -221,37 +238,13 @@ __inline static void lj_vv(lj_t *lj, double dt)
 
 
 /* compute the kinetic energy */
-static double lj_ekin(double (*v)[D], int n)
-{
-  int i;
-  double ek = 0;
-  for ( i = 0; i < n; i++ ) ek += vsqr( v[i] );
-  return ek/2;
-}
+#define lj_ekin(v, n) md_ekin(v, NULL, n)
 
 
 
+/* exact velocity-rescaling thermostat */
 #define lj_vrescale(lj, tp, dt) \
-  lj_vrescale_low(lj->v, lj->n, lj->dof, tp, dt)
-
-/* exact velocity rescaling thermostat */
-__inline static double lj_vrescale_low(double (*v)[D], int n,
-    int dof, double tp, double dt)
-{
-  int i;
-  double ek1, ek2, s, c, r, r2;
-
-  c = (dt < 700) ? exp(-dt) : 0;
-  ek1 = lj_ekin(v, n);
-  r = randgaus();
-  r2 = randchisqr(dof - 1);
-  ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
-      + 2 * r * sqrt(c * (1 - c) * ek1 * tp / 2);
-  if (ek2 < 0) ek2 = 0;
-  s = sqrt(ek2/ek1);
-  for (i = 0; i < n; i++) vsmul(v[i], s);
-  return ek2;
-}
+  md_vrescale(lj->v, NULL, lj->n, lj->dof, tp, dt)
 
 
 
@@ -292,15 +285,12 @@ static int lj_randmv(lj_t *lj, double *xi, double amp)
 
 
 /* compute pair energy */
-static int lj_pair(double *xi, double *xj, double l, double invl,
+__inline static int lj_pair(double dr2,
     double rc2, double *u, double *vir)
 {
-  double dx[D], dr2, invr2, invr6;
-
-  dr2 = lj_pbcdist2(dx, xi, xj, l, invl);
-  if (dr2 < rc2) {
-    invr2 = 1 / dr2;
-    invr6 = invr2 * invr2 * invr2;
+  if ( dr2 < rc2 ) {
+    double invr2 = 1 / dr2;
+    double invr6 = invr2 * invr2 * invr2;
     *vir = invr6 * (48 * invr6 - 24); /* f.r */
     *u  = 4.f * invr6 * (invr6 - 1);
     return 1;
@@ -318,20 +308,25 @@ __inline static double lj_depot(lj_t *lj, int i, double *xi, double *vir)
 {
   int j, n = lj->n;
   double l = lj->l, invl = 1/l, rc2 = lj->rc2, u, du, dvir;
+  double dx[D], r2;
 
   u = 0.0;
   *vir = 0.0;
   for ( j = 0; j < n; j++ ) { /* pair */
     if ( j == i ) continue;
-    if ( lj_pair(lj->x[i], lj->x[j], l, invl, rc2, &du, &dvir) ) {
+    r2 = lj->r2ij[i*n + j];
+    if ( lj_pair(r2, rc2, &du, &dvir) ) {
       u -= du;
       *vir -= dvir;
     }
-    if ( lj_pair(xi, lj->x[j], l, invl, rc2, &du, &dvir) ) {
+    r2 = lj_pbcdist2(dx, xi, lj->x[j], l, invl);
+    if ( lj_pair(r2, rc2, &du, &dvir) ) {
       u += du;
       *vir += dvir;
     }
+    lj->r2i[j] = r2;
   }
+  lj->r2i[i] = 0;
   return u;
 }
 
@@ -341,10 +336,16 @@ __inline static double lj_depot(lj_t *lj, int i, double *xi, double *vir)
 __inline static void lj_commit(lj_t *lj, int i, const double *xi,
     double du, double dvir)
 {
+  int j, n = lj->n;
+
   vwrap( vcopy(lj->x[i], xi), lj->l );
   lj->ep0 += du;
   lj->epot += du;
   lj->vir += dvir;
+  for ( j = 0; j < n; j++ ) {
+    lj->r2ij[i*n + j] = lj->r2i[j];
+    lj->r2ij[j*n + i] = lj->r2i[j];
+  }
 }
 
 
@@ -353,7 +354,7 @@ __inline static void lj_commit(lj_t *lj, int i, const double *xi,
 __inline static int lj_metro(lj_t *lj, double amp, double bet)
 {
   int i, acc = 0;
-  double xi[D], r, du = 0., dvir = 0.;
+  double xi[D], r, du = 0, dvir = 0;
 
   i = lj_randmv(lj, xi, amp);
   du = lj_depot(lj, i, xi, &dvir);

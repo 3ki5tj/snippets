@@ -475,43 +475,10 @@ NA.prototype.vv = function(dt)
 
 
 
-/* compute the kinetic energy */
-function na_ekin(v, m, n)
-{
-  var i;
-  var ek = 0;
-  for ( i = 0; i < n; i++ ) {
-    ek += m[i] * vsqr( v[i] );
-  }
-  return ek/2;
-}
-
-
-
 /* exact velocity rescaling thermostat */
-function na_vrescale_low(v, m, n, dof, tp, dt)
-{
-  var i;
-  var c = (dt < 700) ? Math.exp(-dt) : 0;
-  var ek1 = na_ekin(v, m, n);
-  var r = randgaus();
-  var r2 = randchisqr(dof - 1);
-  tp *= BOLTZK;
-  var ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
-      + 2 * r * Math.sqrt(c * (1 - c) * ek1 * tp / 2);
-  ek2 = Math.max(ek2, 0.0);
-  var s = Math.sqrt(ek2/ek1);
-  for (i = 0; i < n; i++) {
-    vsmul(v[i], s);
-  }
-  return ek2;
-}
-
-
-
 NA.prototype.vrescale = function(tp, dt)
 {
-  return na_vrescale_low(this.v, this.m, this.n, this.dof, tp, dt);
+  return md_vrescale(this.v, this.m, this.n, this.dof, BOLTZK * tp, dt);
 };
 
 

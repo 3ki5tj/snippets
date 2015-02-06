@@ -125,7 +125,7 @@ __inline static int cago_mkcont(cago_t *go, const char *fn,
   int ires, ir, jr, rai, n = go->n;
   int *ra; /* number of atoms in residue i */
   double (*x)[RAMAX][3];
-  double rc2 = rc * rc, dx[D];
+  double rc2 = rc * rc;
   char s[128];
   FILE *fp;
 
@@ -202,7 +202,7 @@ __inline static int cago_mkcont(cago_t *go, const char *fn,
       /* scan over atoms in the two residues */
       for ( ia = 0; ia < ra[ir] && !isc; ia++ ) {
         for ( ja = 0; ja < ra[jr] && !isc; ja++ ) {
-          if ( vsqr( vdiff(dx, x[ir][ia], x[jr][ja]) ) < rc2 )
+          if ( vdist2(x[ir][ia], x[jr][ja]) < rc2 )
             isc = 1;
         }
       }
@@ -248,7 +248,7 @@ __inline static int cago_refgeo(cago_t *go)
   for ( i = 0; i < n - 1; i++ ) {
     for ( j = i + 1; j < n; j++ ) {
       go->r2ref[j*n + i] = go->r2ref[i*n + j]
-          = vsqr( vdiff(dx, go->xref[i], go->xref[j]) );
+          = vdist2(go->xref[i], go->xref[j]);
     }
   }
   return 0;
@@ -331,7 +331,7 @@ __inline static void cago_close(cago_t *go)
 __inline static double potbond(double *a, double *b,
     double r0, double k, double *fa, double *fb)
 {
-  double dx[3], r, dr;
+  double dx[D], r, dr;
 
   r = vnorm( vdiff(dx, a, b) );
   dr = r - r0;
@@ -349,7 +349,7 @@ __inline static double potbond(double *a, double *b,
 __inline static double potang(double *a, double *b, double *c,
     double ang0, double k, double *fa, double *fb, double *fc)
 {
-  double dang, amp, ga[3], gb[3], gc[3];
+  double dang, amp, ga[D], gb[D], gc[D];
 
   if ( fa ) { /* compute gradient */
     dang = vang(a, b, c, ga, gb, gc) - ang0;
@@ -370,11 +370,12 @@ __inline static double potdih13(double *a, double *b, double *c, double *d,
     double ang0, double k1, double k3,
     double *fa, double *fb, double *fc, double *fd)
 {
-  double dang, amp, ga[3], gb[3], gc[3], gd[3];
+  double dang, amp, ga[3], gb[3], gc[3], gd[3], u;
 
   if ( fa ) {
     dang = vdih(a, b, c, d, ga, gb, gc, gd) - ang0;
-    amp  = -k1 * sin(dang) - 3 * k3 * sin(3*dang);
+    amp  = -k1 * sin(dang);
+    amp += -3 * k3 * sin(3*dang);
     vsinc(fa, ga, amp);
     vsinc(fb, gb, amp);
     vsinc(fc, gc, amp);
@@ -382,7 +383,9 @@ __inline static double potdih13(double *a, double *b, double *c, double *d,
   } else {
     dang = vdih(a, b, c, d, NULL, NULL, NULL, NULL) - ang0;
   }
-  return k1 * (1 - cos(dang)) + k3 * (1 - cos(3 * dang));
+  u  = k1 * (1 - cos(dang));
+  u += k3 * (1 - cos(3 * dang));
+  return u;
 }
 
 
@@ -391,9 +394,10 @@ __inline static double potdih13(double *a, double *b, double *c, double *d,
  * the minimum is at r = rc, and u = -1 */
 __inline static double pot1210(vct a, vct b, double rc2, double eps, vct fa, vct fb)
 {
-  double dx[3], dr2, invr2, invr4, invr6, invr10, amp;
+  double dx[D], dr2, invr2, invr4, invr6, invr10, amp;
 
-  dr2 = vsqr( vdiff(dx, a, b) );
+  vdiff(dx, a, b);
+  dr2 = vsqr( dx );
   invr2 = rc2 / dr2;
   invr4 = invr2 * invr2;
   invr6 = invr4 * invr2;
@@ -412,9 +416,10 @@ __inline static double pot1210(vct a, vct b, double rc2, double eps, vct fa, vct
 __inline static double potr12(double *a, double *b,
     double rc2, double eps, double *fa, double *fb)
 {
-  double dx[3], dr2, invr2, invr6, u, amp;
+  double dx[D], dr2, invr2, invr6, u, amp;
 
-  dr2 = vsqr( vdiff(dx, a, b) );
+  vdiff(dx, a, b);
+  dr2 = vsqr( dx );
   invr2 = rc2 / dr2;
   invr6 = invr2 * invr2 * invr2;
   u = eps * invr6 * invr6;
@@ -483,16 +488,7 @@ __inline static void cago_rmcom(cago_t *go, double (*x)[D], double (*v)[D])
 
 
 /* compute the kinetic energy */
-__inline static int cago_ekin(cago_t *go, double (*v)[D])
-{
-  int i, n = go->n;
-  double ek = 0.0;
-
-  for ( i = 0; i < n; i++ ) {
-    ek += go->m[i] * vsqr( v[i] );
-  }
-  return 0.5 * ek;
-}
+#define cago_ekin(go, v) md_ekin(v, go->m, go->n)
 
 
 
@@ -572,28 +568,9 @@ __inline static int cago_vv(cago_t *go, double fs, double dt)
 
 
 
-/* Exact velocity rescaling thermostat */
-__inline static double cago_vrescale(cago_t *go,
-    double (*v)[D], double tp, double dt)
-{
-  int i, n = go->n, dof = go->dof;
-  double ekav = 0.5 * tp * dof, ek1, ek2, s, c = 0, r, r2;
-
-  c = exp(-dt);
-  ek1 = cago_ekin(go, v);
-  r = randgaus();
-  r2 = randchisqr(dof - 1);
-  ek2 = ek1 + (1 - c) * (ekav*(r2 + r*r)/dof - ek1)
-      + 2 * r * sqrt(c*(1 - c) * ekav/dof*ek1);
-  if ( ek2 < 0 ) {
-    ek2 = 0;
-  }
-  s = sqrt(ek2 / ek1);
-  for ( i = 0; i < n; i++ ) {
-    vsmul(v[i], s);
-  }
-  return ek2;
-}
+/* exact velocity rescaling thermostat */
+#define cago_vrescale(go, v, tp, dt) \
+  md_vrescale(v, go->m, go->n, go->dof, tp, dt)
 
 
 
@@ -665,7 +642,7 @@ __inline static double cago_depot(cago_t *go,
 /* Metropolis algorithm */
 __inline static int cago_metro(cago_t *go, double amp, double bet)
 {
-  int i;
+  int i, acc;
   double du, xi[D];
 
   i = (int) (go->n * rand01());
@@ -674,7 +651,13 @@ __inline static int cago_metro(cago_t *go, double amp, double bet)
   xi[2] = amp * (rand01() * 2 - 1);
   vinc(xi, go->x[i]);
   du = cago_depot(go, go->x, i, xi);
-  if (du < 0 || rand01() < exp(-bet * du)) {
+  if ( du < 0 ) {
+    acc = 1;
+  } else {
+    double r = rand01();
+    acc = ( r < exp(-bet * du) );
+  }
+  if ( acc ) {
     vcopy(go->x[i], xi);
     go->epot += du;
     return 1;
@@ -701,7 +684,7 @@ __inline static int cago_ncontacts(cago_t *go,
     double (*x)[D], double gam, double *Q, int *mat)
 {
   int i, j, id, nct = 0, n = go->n;
-  double dx[D], gam2;
+  double gam2;
 
   if ( gam < 0 ) {
     gam = 1.2;
@@ -720,7 +703,7 @@ __inline static int cago_ncontacts(cago_t *go,
       if ( !go->iscont[id] ) { /* skip a noncontact pair */
         continue;
       }
-      if ( vsqr( vdiff(dx, x[i], x[j]) ) < go->r2ref[id] * gam2 ) {
+      if ( vdist2(x[i], x[j]) < go->r2ref[id] * gam2 ) {
         if ( mat ) mat[id] = mat[j*n + i] = 1;
         nct++;
       }

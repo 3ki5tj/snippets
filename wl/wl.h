@@ -121,6 +121,23 @@ __inline static void wl_trimv(double *v, int n)
 
 
 
+/* retrieve the bias potential */
+__inline static int wl_getv(wl_t *wl, int i)
+{
+  i -= wl->n0;
+  if ( i < 0 || i >= wl->n ) {
+    fprintf(stderr, "wl: out of range i %d, n %d\n", i, wl->n);
+    return -1;
+  }
+  wl->h[i] += 1.0;
+  wl->v[i] += wl->lnf;
+  wl->tot += 1.0;
+  return 0;
+}
+
+
+
+
 /* add an entry, update the histogram and potential */
 __inline static int wl_add(wl_t *wl, int i)
 {
@@ -297,9 +314,6 @@ __inline static int wl_load(wl_t *wl, const char *fn)
   fclose(fp);
   return 0;
 }
-
-
-
 
 
 

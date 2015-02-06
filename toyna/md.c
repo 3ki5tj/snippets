@@ -57,7 +57,7 @@ int main(int argc, char **argv)
     if ( tstat ) {
       na->ekin = na_vrescale(na, tp, thdt);
     } else {
-      na->ekin = na_ekin(na->v, na->m, na->na);
+      na->ekin = na_ekin(na, na->v);
     }
     if ( t % nstrep == 0 ) {
       fprintf(stderr, "%d, ep %g, ek %g, e %g\n",

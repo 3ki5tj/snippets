@@ -46,34 +46,6 @@ function lj_setrho(lj, rho)
 
 
 
-/* remove the center of mass motion */
-function lj_rmcom(x, dim, n)
-{
-  var i;
-  var rc = newarr(dim);
-
-  for ( i = 0; i < n; i++ ) {
-    vinc(rc, x[i]);
-  }
-  vsmul(rc, 1.0 / n);
-  for ( i = 0; i < n; i++ ) {
-    vdec(x[i], rc);
-  }
-}
-
-
-
-function lj_shiftang(x, v, n)
-{
-  if ( D === 2 ) {
-    lj_shiftang2d(x, v, n);
-  } else if ( D === 3 ) {
-    lj_shiftang3d(x, v, n);
-  }
-}
-
-
-
 function LJ(n, dim, rho, rcdef)
 {
   var i, d;
@@ -96,8 +68,8 @@ function LJ(n, dim, rho, rcdef)
     }
   }
 
-  lj_rmcom(this.v, dim, n);
-  lj_shiftang(this.x, this.v, n);
+  rmcom(this.v, null, n);
+  shiftang(this.x, this.v, null, n);
 
   this.epot = 0;
   this.eps = 0;
@@ -239,39 +211,15 @@ LJ.prototype.vv = function(dt)
 /* compute the kinetic energy */
 function lj_ekin(v, n)
 {
-  var i;
-  var ek = 0;
-  for ( i = 0; i < n; i++ ) {
-    ek += vsqr( v[i] );
-  }
-  return ek/2;
+  return md_ekin(v, null, n);
 }
 
 
 
 /* exact velocity rescaling thermostat */
-function lj_vrescale_low(v, n, dof, tp, dt)
-{
-  var i;
-  var c = (dt < 700) ? Math.exp(-dt) : 0;
-  var ek1 = lj_ekin(v, n);
-  var r = randgaus();
-  var r2 = randchisqr(dof - 1);
-  var ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
-      + 2 * r * Math.sqrt(c * (1 - c) * ek1 * tp / 2);
-  ek2 = Math.max(ek2, 0.0);
-  var s = Math.sqrt(ek2/ek1);
-  for (i = 0; i < n; i++) {
-    vsmul(v[i], s);
-  }
-  return ek2;
-}
-
-
-
 LJ.prototype.vrescale = function(tp, dt)
 {
-  return lj_vrescale_low(this.v, this.n, this.dof, tp, dt);
+  return md_vrescale(this.v, null, this.n, this.dof, tp, dt);
 };
 
 

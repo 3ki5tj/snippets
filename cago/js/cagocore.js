@@ -263,7 +263,7 @@ function potang(a, b, c, ang0, k, fa, fb, fc)
 function potdih13(a, b, c, d, ang0, k1, k3, fa, fb, fc, fd)
 {
   var dang, amp, ga = [0, 0, 0], gb = [0, 0, 0], gc = [0, 0, 0], gd = [0, 0, 0];
- 
+
   if ( fa ) {
     dang = vdih(a, b, c, d, ga, gb, gc, gd) - ang0;
     amp  = -k1 * Math.sin(dang) - 3 * k3 * Math.sin(3*dang);
@@ -378,13 +378,7 @@ CaGo.prototype.rmcom = function(x, v)
 /* compute the kinetic energy */
 CaGo.prototype.getekin = function(v)
 {
-  var i, n = this.n;
-  var ek = 0.0;
-
-  for ( i = 0; i < n; i++ ) {
-    ek += this.m[i] * vsqr( v[i] );
-  }
-  return 0.5 * ek;
+  return md_ekin(go.v, go.m, go.n);
 };
 
 
@@ -467,23 +461,7 @@ CaGo.prototype.vv = function(fs, dt)
 /* Exact velocity rescaling thermostat */
 CaGo.prototype.vrescale = function(v, tp, dt)
 {
-  var i, n = this.n, dof = this.dof;
-  var ekav = 0.5 * tp * dof, ek1, ek2, s, c = 0, r, r2;
-
-  c = Math.exp(-dt);
-  ek1 = this.getekin( v );
-  r = randgaus();
-  r2 = randchisqr(dof - 1);
-  ek2 = ek1 + (1 - c) * (ekav*(r2 + r*r)/dof - ek1)
-      + 2 * r * Math.sqrt(c*(1 - c) * ekav/dof*ek1);
-  if ( ek2 < 0 ) {
-    ek2 = 0;
-  }
-  s = Math.sqrt(ek2 / ek1);
-  for ( i = 0; i < n; i++ ) {
-    vsmul(v[i], s);
-  }
-  return ek2;
+  return md_vrescale(v, this.m, this.n, this.dof, tp, dt);
 };
 
 

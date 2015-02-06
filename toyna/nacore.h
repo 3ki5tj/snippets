@@ -669,40 +669,13 @@ __inline static void na_vv(na_t *na, double dt)
 
 
 /* compute the kinetic energy */
-static double na_ekin(double (*v)[D], const double *m, int n)
-{
-  int i;
-  double ek = 0;
-  for ( i = 0; i < n; i++ ) {
-    ek += m[i] * vsqr( v[i] );
-  }
-  return ek/2;
-}
+#define na_ekin(na, v) md_ekin(v, na->m, na->na)
 
 
 
+/* velocity rescaling thermostat */
 #define na_vrescale(na, tp, dt) \
-  na_vrescale_low(na->v, na->m, na->na, na->dof, tp, dt)
-
-/* exact velocity rescaling thermostat */
-__inline static double na_vrescale_low(double (*v)[D], const double *m, int n,
-    int dof, double tp, double dt)
-{
-  int i;
-  double ek1, ek2, s, c, r, r2;
-
-  tp *= BOLTZK;
-  c = (dt < 700) ? exp(-dt) : 0;
-  ek1 = na_ekin(v, m, n);
-  r = randgaus();
-  r2 = randchisqr(dof - 1);
-  ek2 = ek1 + (1 - c) * ((r2 + r * r) * tp / 2 - ek1)
-      + 2 * r * sqrt(c * (1 - c) * ek1 * tp / 2);
-  if (ek2 < 0) ek2 = 0;
-  s = sqrt(ek2/ek1);
-  for (i = 0; i < n; i++) vsmul(v[i], s);
-  return ek2;
-}
+  md_vrescale(na->v, na->m, na->na, na->dof, BOLTZK * tp, dt)
 
 
 
