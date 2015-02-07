@@ -5,6 +5,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
+#include <limits.h>
 #include <float.h>
 
 
@@ -12,9 +14,17 @@
 
 
 #define WL_FLATNESSABS 0x0010 /* use (hmax-hmin)/(hmax+hmin) for flatness */
+#define WL_VERBOSE     0x0001
+
+#define WL_VMAX        DBL_MAX
+
+
 
 typedef struct {
-  int n0, n1, n;
+  int n;
+  int isf;
+  int nmin;
+  double xmin, dx;
   int isinvt; /* has entered the 1/t stage */
   unsigned flags;
   double *h; /* histogram */
@@ -28,7 +38,7 @@ typedef struct {
 
 
 
-__inline static wl_t *wl_open(int n0, int n1,
+__inline static wl_t *wl_open0(int n,
     double lnf0, double flatness, double frac,
     double c, unsigned flags)
 {
@@ -39,20 +49,18 @@ __inline static wl_t *wl_open(int n0, int n1,
     fprintf(stderr, "no memory for WL\n");
     return NULL;
   }
-  wl->n0 = n0;
-  wl->n1 = n1;
-  wl->n = n1 - n0;
-  if ( (wl->h = calloc(1, sizeof(double) * wl->n)) == NULL ) {
+  wl->n = n;
+  if ( (wl->h = calloc(1, sizeof(double) * n)) == NULL ) {
     fprintf(stderr, "no memory for the WL histogram\n");
     free(wl);
     return NULL;
   }
-  if ( (wl->v = calloc(1, sizeof(double) * wl->n)) == NULL ) {
+  if ( (wl->v = calloc(1, sizeof(double) * n)) == NULL ) {
     fprintf(stderr, "no memory for the WL potential\n");
     free(wl);
     return NULL;
   }
-  for ( i = 0; i < wl->n; i++ ) {
+  for ( i = 0; i < n; i++ ) {
     wl->h[i] = 0.0;
     wl->v[i] = 0.0;
   }
@@ -63,6 +71,43 @@ __inline static wl_t *wl_open(int n0, int n1,
   wl->frac = frac;
   wl->c = c;
   wl->flags = flags;
+  return wl;
+}
+
+
+
+/* open a Wang-Landau object for an integer */
+__inline static wl_t *wl_openi(int nmin, int nmax,
+    double lnf0, double flatness, double frac,
+    double c, unsigned flags)
+{
+  wl_t *wl;
+  int n = nmax - nmin;
+
+  wl = wl_open0(n, lnf0, flatness, frac, c, flags);
+  wl->nmin = nmin;
+  wl->xmin = nmin;
+  wl->dx = 1.0;
+  wl->isf = 0;
+  return wl;
+}
+
+
+
+/* open a Wang-Landau object for a floating-point number */
+__inline static wl_t *wl_openf(double xmin, double xmax, double dx,
+    double lnf0, double flatness, double frac,
+    double c, unsigned flags)
+{
+  wl_t *wl;
+  int n;
+
+  n = (int) ((xmax - xmin) / dx + 0.5);
+  wl = wl_open0(n, lnf0, flatness, frac, c, flags);
+  wl->xmin = xmin;
+  wl->dx = dx;
+  wl->nmin = 0;
+  wl->isf = 1;
   return wl;
 }
 
@@ -122,11 +167,35 @@ __inline static void wl_trimv(double *v, int n)
 
 
 /* retrieve the bias potential */
-__inline static int wl_getv(wl_t *wl, int i)
+__inline static double wl_getvi(wl_t *wl, int i)
 {
-  i -= wl->n0;
+  i -= wl->nmin;
+  return ( i >= 0 && i < wl->n ) ? wl->v[i] : WL_VMAX;
+}
+
+
+
+/* retrieve the bias potential */
+__inline static double wl_getvf(wl_t *wl, double x)
+{
+  if ( x < wl->xmin ) {
+    return WL_VMAX;
+  } else {
+    int i = (int) ((x - wl->xmin) / wl->dx);
+    return ( i < wl->n ) ? wl->v[i] : WL_VMAX;
+  }
+}
+
+
+
+/* add an integral entry, update the histogram and potential */
+__inline static int wl_addi(wl_t *wl, int i)
+{
+  i -= wl->nmin;
   if ( i < 0 || i >= wl->n ) {
-    fprintf(stderr, "wl: out of range i %d, n %d\n", i, wl->n);
+    if ( wl->flags & WL_VERBOSE ) {
+      fprintf(stderr, "wl: out of range i %d, n %d\n", i, wl->n);
+    }
     return -1;
   }
   wl->h[i] += 1.0;
@@ -138,12 +207,22 @@ __inline static int wl_getv(wl_t *wl, int i)
 
 
 
-/* add an entry, update the histogram and potential */
-__inline static int wl_add(wl_t *wl, int i)
+/* add a floating-point entry, update the histogram and potential */
+__inline static int wl_addf(wl_t *wl, double x)
 {
-  i -= wl->n0;
+  int i;
+
+  if ( x < wl->xmin ) {
+    if ( wl->flags & WL_VERBOSE ) {
+      fprintf(stderr, "wl: out of range x %g < %g\n", x, wl->xmin);
+    }
+    return -1;
+  }
+  i = (int) ((x - wl->xmin) / wl->dx);
   if ( i < 0 || i >= wl->n ) {
-    fprintf(stderr, "wl: out of range i %d, n %d\n", i, wl->n);
+    if ( wl->flags & WL_VERBOSE ) {
+      fprintf(stderr, "wl: out of range x %g >= %g\n", x, wl->xmin + wl->dx * wl->n);
+    }
     return -1;
   }
   wl->h[i] += 1.0;
@@ -245,7 +324,7 @@ __inline static int wl_updatelnf(wl_t *wl)
 
 
 /* save data to file */
-__inline static int wl_save(wl_t *wl, const char *fn)
+__inline static int wl_save(const wl_t *wl, const char *fn)
 {
   FILE *fp;
   int i;
@@ -257,10 +336,15 @@ __inline static int wl_save(wl_t *wl, const char *fn)
   }
   htot = wl_gethtot(wl->h, wl->n);
   wl_trimv(wl->v, wl->n);
-  fprintf(fp, "# %d %d %g\n", wl->n0, wl->n1, wl->tot);
+  fprintf(fp, "# %d %d %g %g %g\n", wl->isf, wl->n, wl->xmin, wl->dx, wl->tot);
   for ( i = 0; i < wl->n; i++ ) {
-    fprintf(fp, "%d %g %g %g\n",
-        i + wl->n0, wl->v[i], wl->h[i]/htot, wl->h[i]);
+    if ( wl->isf ) {
+      fprintf(fp, "%g", wl->xmin + (i + 0.5) * wl->dx);
+    } else {
+      fprintf(fp, "%d", wl->nmin + i);
+    }
+    fprintf(fp, " %g %g %g\n",
+        wl->v[i], wl->h[i]/htot, wl->h[i]);
   }
   fclose(fp);
   return 0;
@@ -272,8 +356,8 @@ __inline static int wl_save(wl_t *wl, const char *fn)
 __inline static int wl_load(wl_t *wl, const char *fn)
 {
   FILE *fp;
-  int i, i1, n, n0, n1;
-  double x, y, v, tot;
+  int i, n = wl->n, isf;
+  double x1, x2, x, y, v, tot, xmin, dx;
   char ln[64000] = "";
 
   if ( (fp = fopen(fn, "r")) == NULL ) {
@@ -282,19 +366,22 @@ __inline static int wl_load(wl_t *wl, const char *fn)
   }
   if ( fgets(ln, sizeof ln, fp) == NULL
     || ln[0] != '#'
-    || sscanf(ln + 1, "%d%d%lf", &n0, &n1, &tot) != 3 ) {
+    || sscanf(ln + 1, "%d%d%lf%lf%lf", &isf, &n, &xmin, &dx, &tot) != 5 ) {
     fprintf(fp, "%s: bad information line!\n%s", fn, ln);
     fclose(fp);
     return -1;
   }
-  if ( n0 != wl->n0 || n1 != wl->n1 ) {
-    fprintf(stderr, "%s: dimensions mismatch [%d, %d) vs [%d, %d)\n",
-        fn, n0, wl->n0, n1, wl->n1);
+  if ( isf != wl->isf
+    || n != wl->n
+    || fabs(xmin - wl->xmin) > 1e-5
+    || fabs(dx - wl->dx) > 1e-8 ) {
+    fprintf(stderr, "%s: dimensions mismatch, ", fn);
+    fprintf(stderr, "isf %d#%d, n %d#%d, xmin %g#%g, dx %g#%g\n",
+        isf, wl->isf, n, wl->n, xmin, wl->xmin, dx, wl->dx);
     fclose(fp);
     return -1;
   }
   wl->tot = tot;
-  n = n1 - n0;
 
   for ( i = 0; i < n; i++ ) {
     if ( fgets(ln, sizeof ln, fp) == NULL ) {
@@ -302,9 +389,14 @@ __inline static int wl_load(wl_t *wl, const char *fn)
       fclose(fp);
       return -1;
     }
-    if ( 4 != sscanf(ln, "%d %lf %lf %lf", &i1, &v, &x, &y)
-      || i + n0 != i1 ) {
-      fprintf(stderr, "%s: bad line %d\n%s", fn, i, ln);
+    if ( wl->isf ) {
+      x2 = wl->xmin + (i + 0.5) * wl->dx;
+    } else {
+      x2 = wl->nmin + i;
+    }
+    if ( 4 != sscanf(ln, "%lf %lf %lf %lf", &x1, &v, &x, &y)
+      || fabs(x1 - x2) > 1e-6 ) {
+      fprintf(stderr, "%s: bad line %d, %g#%g\n%s", fn, i, x1, x2, ln);
       fclose(fp);
       return -1;
     }

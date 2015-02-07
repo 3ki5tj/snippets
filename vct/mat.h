@@ -269,13 +269,13 @@ __inline static double mdet(double m[D][D])
 
 
 
-/* relative tolerance for msolvezero */
-const double msolvezero_reltol = 100.0 * DBL_EPSILON;
+double msolvezero_lasty;
+double msolvezero_lasttol;
 
 /* Solve matrix equation a x = 0 by Gaussian elimination (full-pivot)
  * The matrix 'a' is destroyed, solutions are saved as *row* vectors in 'x'
  * return the number of solutions */
-__inline static int msolvezero(double a[D][D], double (*x)[D])
+__inline static int msolvezero(double a[D][D], double (*x)[D], double reltol)
 {
   double tol = 0, y;
   int i, j, k, cmap[D], sgn = 1;
@@ -287,11 +287,13 @@ __inline static int msolvezero(double a[D][D], double (*x)[D])
   for ( i = 0; i < D; i++ ) {
     /* find the pivot, the largest element in the matrix */
     y = mpivotf_(a, i, cmap, &sgn);
+    msolvezero_lasty = y;
+    msolvezero_lasttol = tol;
     if ( y <= tol ) { /* we have D - i solutions */
       break;
     }
     if ( i == 0 ) {
-      tol = y * msolvezero_reltol;
+      tol = y * reltol;
     }
 
     /* normalize the row i */
@@ -336,7 +338,7 @@ __inline static int meigvecs(double (*vecs)[D], double mat[D][D], double val)
   for ( d = 0; d < D; d++ ) {
     m[d][d] -= val;
   }
-  return msolvezero(m, vecs);
+  return msolvezero(m, vecs, DBL_EPSILON * 10000.0);
 }
 
 
@@ -422,7 +424,8 @@ __inline static int meigsys(double v[3], double vecs[3][3], double mat[3][3], in
   for ( nn = i = 0; i < 3; i++ ) {
     n = meigvecs(vs + nn, mat, v[nn]);
     if ( n == 0 ) {
-      fprintf(stderr, "meigsys failed: try to increase msolvezero_reltol\n");
+      fprintf(stderr, "meigsys failed: try to increase msolvezero_reltol, i %d, nn %d, %g > %g\n",
+          i, nn, msolvezero_lasty, msolvezero_lasttol);
       return -1;
     }
     if ( (nn += n) >= 3 ) break;
@@ -439,7 +442,7 @@ __inline static int meigsys(double v[3], double vecs[3][3], double mat[3][3], in
 
 
 
-const double msvd_reltol = 1e-6;
+double msvd_reltol = 1e-6;
 
 /* SVD decomposition of a matrix A = U S V^T */
 __inline static void msvd(double a[3][3],
@@ -447,7 +450,6 @@ __inline static void msvd(double a[3][3],
 {
   int i, rank;
   double ata[3][3], us[3][3];
-  static int once;
 
   /* A^T A = V S^2 V^T, so (A^T A) V = V S^2 */
 

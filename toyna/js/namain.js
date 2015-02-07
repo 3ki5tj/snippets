@@ -387,7 +387,6 @@ function nadraw(na, target, userscale)
     var scl = scale * getzscale(xyz[i], zmin, zmax, ortho);
     var x = Math.floor(  xyz[i][0] * scl + width  * 0.5 );
     var y = Math.floor( -xyz[i][1] * scl + height * 0.5 );
-    var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
     var color, rad;
     var i0 = idmap[ i ];
     var atype = i0 % apr;
@@ -411,6 +410,7 @@ function nadraw(na, target, userscale)
       color = rgb2str(160 + 50 * zf, 160 + 50 * zf, 160 + 50 * zf);
       rad = 1.6;
     }
+    var spotcolor = lightenColor(color, 0.3);
     var rz = Math.floor( rad * scl );
     paintBall(ctx, x, y, rz, color, spotcolor);
   }

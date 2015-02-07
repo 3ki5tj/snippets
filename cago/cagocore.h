@@ -441,10 +441,8 @@ __inline static double cago_force(cago_t *go, vct *x, vct *f)
   double ene = 0, kb = go->kb, ka = go->ka, kd1 = go->kd1, kd3 = go->kd3;
   double nbe = go->nbe, nbc2 = go->nbc * go->nbc;
 
-  if ( f ) {
-    for ( i = 0; i < n; i++ ) {
-      vzero(f[i]);
-    }
+  for ( i = 0; i < n; i++ ) {
+    vzero(f[i]);
   }
 
   /* bonds */
@@ -540,6 +538,7 @@ __inline static int cago_initmd(cago_t *go,
     go->v[i][2] = s * randgaus();
   }
   cago_rmcom(go, go->x, go->v); /* remove center of mass motion */
+  go->epot = cago_force(go, go->x, go->f);
   go->ekin = cago_ekin(go, go->v);
   return 0;
 }
@@ -578,37 +577,45 @@ __inline static int cago_vv(cago_t *go, double fs, double dt)
 __inline static double cago_depot(cago_t *go,
     double (*x)[D], int i, double *xi)
 {
-  int j, id, n = go->n;
+  int j, j0, j1, id, n = go->n;
   double (*xn)[D] = go->x1; /* we use x1 freely here */
   double ene = 0;
   double ka = go->ka, kb = go->kb, kd1 = go->kd1, kd3 = go->kd3;
   double nbe = go->nbe, nbc2 = go->nbc * go->nbc;
 
   /* copy coordinates */
-  for (j = 0; j < n; j++) {
-    if (j == i) vcopy(xn[i], xi);
-    else vcopy(xn[j], x[j]);
+  for ( j = 0; j < n; j++ ) {
+    if ( j == i ) {
+      vcopy(xn[i], xi);
+    } else {
+      vcopy(xn[j], x[j]);
+    }
   }
 
   /* bonds */
-  for (j = i - 1; j <= i; j++) {
-    if (j < 0 || j >= n - 1) continue;
-    ene -= potbond(x[j], x[j + 1], go->bref[j], kb, NULL, NULL);
-    ene += potbond(xn[j], xn[j + 1], go->bref[j], kb, NULL, NULL);
+  j0 = intmax(i - 1, 0);
+  j1 = intmin(i + 1, n - 1);
+  for ( j = j0; j < j1; j++ ) {
+    ene -= potbond(x[j], x[j + 1], go->bref[j],
+        kb, NULL, NULL);
+    ene += potbond(xn[j], xn[j + 1], go->bref[j],
+        kb, NULL, NULL);
   }
 
   /* angles */
-  for (j = i - 1; j <= i + 1; j++) {
-    if (j < 1 || j >= n - 1) continue;
-    ene -= potang(x[j - 1], x[j], x[j + 1], go->aref[j - 1], ka,
-        NULL, NULL, NULL);
-    ene += potang(xn[j - 1], xn[j], xn[j + 1], go->aref[j - 1], ka,
-        NULL, NULL, NULL);
+  j0 = intmax(i - 2, 0);
+  j1 = intmin(i + 1, n - 2);
+  for ( j = j0; j < j1; j++ ) {
+    ene -= potang(x[j], x[j + 1], x[j + 2], go->aref[j],
+        ka, NULL, NULL, NULL);
+    ene += potang(xn[j], xn[j + 1], xn[j + 2], go->aref[j],
+        ka, NULL, NULL, NULL);
   }
 
   /* dihedrals */
-  for (j = i - 3; j <= i; j++) {
-    if (j < 0 || j >= n - 3) continue;
+  j0 = intmax(i - 3, 0);
+  j1 = intmin(i + 1, n - 3);
+  for ( j = j0; j < j1; j++ ) {
     ene -= potdih13(x[j], x[j + 1], x[j + 2], x[j + 3], go->dref[j],
         kd1, kd3, NULL, NULL, NULL, NULL);
     ene += potdih13(xn[j], xn[j + 1], xn[j + 2], xn[j + 3], go->dref[j],
@@ -616,24 +623,19 @@ __inline static double cago_depot(cago_t *go,
   }
 
   /* non-bonded interaction */
-  for (j = 0; j < n; j++) {
-    if ( j > i - 4 || j < i + 4 ) continue;
+  for ( j = 0; j < n; j++ ) {
+    if ( j > i - 4 && j < i + 4 ) continue;
 
-    /* subtract the old energies */
     id = i*n + j;
     if ( go->iscont[id] ) { /* contact pair */
       ene -= pot1210(x[i], x[j], go->r2ref[id], nbe, NULL, NULL);
+      ene += pot1210(xn[i], xn[j], go->r2ref[id], nbe, NULL, NULL);
     } else { /* non-contact pair */
       ene -= potr12(x[i], x[j], nbc2, nbe, NULL, NULL);
-    }
-
-    /* add the new energies */
-    if ( go->iscont[id] ) { /* contact pair */
-      ene += pot1210(x[i], x[j], go->r2ref[id], nbe, NULL, NULL);
-    } else { /* non-contact pair */
-      ene += potr12(x[i], x[j], nbc2, nbe, NULL, NULL);
+      ene += potr12(xn[i], xn[j], nbc2, nbe, NULL, NULL);
     }
   }
+
   return ene;
 }
 
@@ -670,6 +672,23 @@ __inline static int cago_metro(cago_t *go, double amp, double bet)
 /* compute the RMSD from the reference structure */
 #define cago_rmsd(go, x, xf) \
   vrmsd(x, xf, go->xref, go->m, go->n, 0, NULL, NULL)
+
+
+
+__inline static double cago_rmsd2(cago_t *go,
+  double (*x)[D], int i, double *xi)
+{
+  int j, n = go->n;
+
+  for ( j = 0; j < n; j++ ) {
+    if ( j != i ) {
+      vcopy(go->x1[j], x[j]);
+    } else {
+      vcopy(go->x1[j], xi);
+    }
+  }
+  return cago_rmsd(go, go->x1, NULL);
+}
 
 
 

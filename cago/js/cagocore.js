@@ -327,10 +327,8 @@ CaGo.prototype.force = function(x, f)
   var ene = 0, kb = this.kb, ka = this.ka, kd1 = this.kd1, kd3 = this.kd3;
   var nbe = this.nbe, nbc2 = this.nbc * this.nbc;
 
-  if ( f ) {
-    for ( i = 0; i < n; i++ ) {
-      vzero(f[i]);
-    }
+  for ( i = 0; i < n; i++ ) {
+    vzero(f[i]);
   }
 
   // bonds
@@ -462,6 +460,92 @@ CaGo.prototype.vv = function(fs, dt)
 CaGo.prototype.vrescale = function(v, tp, dt)
 {
   return md_vrescale(v, this.m, this.n, this.dof, tp, dt);
+};
+
+
+
+/* the change of the potential energy */
+CaGo.prototype.depot = function(x, i, xi)
+{
+  var j, j0, j1, id, n = this.n;
+  var xn = this.x1;
+  var ene = 0;
+  var ka = this.ka, kb = this.kb, kd1 = this.kd1, kd3 = this.kd3;
+  var nbe = this.nbe, nbc2 = this.nbc * this.nbc;
+
+  // copy coordinates
+  for ( j = 0; j < n; j++ ) {
+    if ( j == i ) {
+      vcopy(xn[i], xi);
+    } else {
+      vcopy(xn[j], x[j]);
+    }
+  }
+
+  // bonds
+  j0 = Math.max(i - 1, 0);
+  j1 = Math.min(i + 1, n - 1);
+  for ( j = j0; j < j1; j++ ) {
+    ene -= potbond(x[j], x[j + 1], this.bref[j], kb);
+    ene += potbond(xn[j], xn[j + 1], this.bref[j], kb);
+  }
+
+  // angles
+  j0 = Math.max(i - 2, 0);
+  j1 = Math.min(i + 1, n - 2);
+  for ( j = j0; j < j1; j++ ) {
+    ene -= potang(x[j], x[j + 1], x[j + 2], this.aref[j], ka);
+    ene += potang(xn[j], xn[j + 1], xn[j + 2], this.aref[j], ka);
+  }
+
+  // dihedrals
+  j0 = Math.max(i - 3, 0);
+  j1 = Math.min(i + 1, n - 3);
+  for ( j = j0; j < j1; j++ ) {
+    ene -= potdih13(x[j], x[j + 1], x[j + 2], x[j + 3], this.dref[j], kd1, kd3);
+    ene += potdih13(xn[j], xn[j + 1], xn[j + 2], xn[j + 3], this.dref[j], kd1, kd3);
+  }
+
+  // non-bonded interaction
+  for ( j = 0; j < n; j++ ) {
+    if ( j > i - 4 && j < i + 4 ) continue;
+
+    id = i*n + j;
+    if ( this.iscont[id] ) { // contact pair
+      ene -= pot1210(x[i], x[j], this.r2ref[id], nbe);
+      ene += pot1210(xn[i], xn[j], this.r2ref[id], nbe);
+    } else { // non-contact pair
+      ene -= potr12(x[i], x[j], nbc2, nbe);
+      ene += potr12(xn[i], xn[j], nbc2, nbe);
+    }
+  }
+
+  return ene;
+};
+
+
+
+/* Metropolis algorithm */
+CaGo.prototype.metro = function(amp, bet)
+{
+  var i = Math.floor(this.n * rand01());
+  var xi = [amp * (rand01() * 2 - 1),
+            amp * (rand01() * 2 - 1),
+            amp * (rand01() * 2 - 1)];
+  vinc(xi, this.x[i]);
+  var du = this.depot(this.x, i, xi), acc;
+  if ( du < 0 ) {
+    acc = 1;
+  } else {
+    var r = rand01();
+    acc = ( r < Math.exp(-bet * du) );
+  }
+  if ( acc ) {
+    vcopy(this.x[i], xi);
+    this.epot += du;
+    return 1;
+  } else
+    return 0;
 };
 
 

@@ -207,6 +207,17 @@ function installmouse()
 
 
 
+function getsinfo()
+{
+  var s = "";
+  s += '<span class="math"><i>U</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
+  s += '<span class="math">RMSD</span>: ' + roundto(sumR/sum1, 3) + "&#8491;, ";
+  s += '<span class="math">Contacts</span>: ' + roundto(sumC/sum1, 2) + "/" + roundto(go.ncont, 2) + ".";
+  return s;
+}
+
+
+
 function domd()
 {
   var istep, sinfo = "";
@@ -219,9 +230,7 @@ function domd()
     sumR += go.rmsd(go.x, null);
     sumC += go.ncontacts(go.x);
   }
-  sinfo += '<span class="math"><i>U</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
-  sinfo += '<span class="math">RMSD</span>: ' + roundto(sumR/sum1, 3) + "&#8491;, "
-  sinfo += '<span class="math">Contacts</span>: ' + roundto(sumC/sum1, 2) + "/" + roundto(go.ncont, 2) + "."
+  sinfo += getsinfo();
   return sinfo;
 }
 
@@ -236,9 +245,11 @@ function domc()
     mcacc += go.metro(mcamp, 1.0 / tp);
     sum1 += 1.0;
     sumU += go.epot;
+    sumR += go.rmsd(go.x, null);
+    sumC += go.ncontacts(go.x);
   }
   sinfo += "acc: " + roundto(100.0 * mcacc / mctot, 2) + "%, ";
-  sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
+  sinfo += getsinfo();
   return sinfo;
 }
 
@@ -508,7 +519,7 @@ function startsimul()
       rc, contact_type, nsexcl);
   grab("seq").innerHTML = fmtseq( go.iaa, 60 );
   go.initmd(false, 0.01, tp);
-  go.force(go.x, go.f);
+  go.epot = go.force(go.x, go.f);
   installmouse();
   cagotimer = setInterval(
     function(){ pulse(); },

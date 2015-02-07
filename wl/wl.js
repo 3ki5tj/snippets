@@ -6,16 +6,28 @@
 
 
 var WL_FLATNESSABS = 0x0010; // use (hmax-hmin)/(hmax+hmin) for flatness
+var WL_VERBOSE     = 0x0001;
+
+var WL_VMAX        = 1e30;
 
 
 
-function WL(n0, n1, lnf0, flatness, frac, c, flags)
+function WL(xmin, xmax, dx, isf, lnf0, flatness, frac, c, flags)
 {
-  this.n0 = n0;
-  this.n1 = n1;
-  this.n = n1 - n0;
-  this.h = newarr(this.n);
-  this.v = newarr(this.n);
+  var n;
+  this.isf = isf;
+  if ( isf ) {
+    n = Math.floor((xmax - xmin) / dx + 0.5);
+    this.nmin = 0;
+  } else {
+    n = xmax - xmin;
+    this.nmin = xmin;
+  }
+  this.n = n;
+  this.xmin = xmin;
+  this.dx = dx;
+  this.h = newarr(n);
+  this.v = newarr(n);
   this.lnf = lnf0;
   this.tot = 0;
   this.isinvt = 0;
@@ -74,12 +86,46 @@ WL.prototype.trimv = function()
 
 
 
-/* add an entry, update the histogram and potential */
-WL.prototype.add = function(i)
+/* retrieve the bias potential */
+WL.prototype.getv = function(x)
 {
-  i -= this.n0;
+  var i;
+
+  if ( this.isf ) {
+    if ( x < this.xmin ) {
+      i = -1;
+    } else {
+      i = Math.floor( (x - this.xmin) / this.dx );
+    }
+  } else {
+    i = x - this.nmin;
+  }
+  return ( i >= 0 && i < this.n ) ? this.v[i] : WL_VMAX;
+}
+
+
+
+/* add an entry, update the histogram and potential */
+WL.prototype.add = function(x)
+{
+  var i;
+
+  if ( this.isf ) {
+    if ( x < this.xmin ) {
+      if ( this.flags & WL_VERBOSE ) {
+        console.log("wl: out of range", x, this.xmin);
+      }
+      return -1;
+    } else {
+      i = Math.floor( (x - this.xmin) / this.dx );
+    }
+  } else {
+    i = x - this.nmin;
+  }
   if ( i < 0 || i >= this.n ) {
-    console.log("wl: out of range", i, this.n);
+    if ( this.flags & WL_VERBOSE ) {
+      console.log("wl: out of range", i, this.n);
+    }
     return -1;
   }
   this.h[i] += 1.0;
