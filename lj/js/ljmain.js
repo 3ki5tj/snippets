@@ -31,7 +31,6 @@ var sum1 = 1e-30;
 var sumU = 0.0;
 var sumP = 0.0;
 
-var userscale = 1.0;
 
 
 
@@ -56,67 +55,15 @@ function getparams()
   nstepspsmc = get_int("nstepspersecmc", 10000);
   nstepspfmc = nstepspsmc * timer_interval / 1000;
 
-  userscale = get_float("ljscale");
+  mousescale = get_float("ljscale");
 }
 
 
 
 function changescale()
 {
-  userscale = get_float("ljscale");
+  mousescale = get_float("ljscale");
   paint();
-}
-
-
-
-/* for the mouse wheel event */
-function ljwheel(e)
-{
-  var delta = 0; // positive for scrolling up
-  e = e || window.event;
-  if ( e.wheelDelta ) { // IE/Opera
-    delta = e.wheelDelta / 120;
-  } else if ( e.detail ) { // Firefox
-    delta = -e.detail / 3;
-  }
-  if ( delta > 0 ) {
-    userscale *= 1.05;
-  } else if ( delta < 0 ) {
-    userscale *= 0.95;
-  }
-  grab("ljscale").value = userscale;
-  //console.log("wheel", delta);
-  if ( e.preventDefault ) {
-    e.preventDefault();
-  }
-  e.returnValue = false;
-  paint();
-}
-
-
-
-/* install the mouse wheel event */
-function installwheel(target, handler)
-{
-  if ( target.addEventListener ) {
-    // for IE9+, Chrome, Safari, Opera
-    target.addEventListener('mousewheel', handler, false);
-    // for Firefox
-    target.addEventListener('DOMMouseScroll', handler, false);
-  } else { // for IE 6/7/8
-    target.attachEvent("onmousewheel", handler);
-  }
-}
-
-
-
-function installmouse()
-{
-  var target = grab("ljbox");
-  target.onmousedown = ljmousedown;
-  target.onmouseup = ljmouseup;
-  target.onmousemove = ljmousemove;
-  installwheel(target, ljwheel);
 }
 
 
@@ -164,9 +111,9 @@ function paint()
     return;
   }
   if ( lj.dim === 2 ) {
-    ljdraw2d(lj, "ljbox", userscale);
+    ljdraw2d(lj, "ljbox", mousescale);
   } else if ( lj.dim === 3 ) {
-    ljdraw3d(lj, "ljbox", userscale);
+    ljdraw3d(lj, "ljbox", mousescale);
   }
 }
 
@@ -229,7 +176,7 @@ function startsimul()
   getparams();
   lj = new LJ(n, D, rho, rcdef);
   lj.force();
-  installmouse();
+  installmouse("ljbox", "ljscale");
   ljtimer = setInterval(
     function(){ pulse(); },
     timer_interval);

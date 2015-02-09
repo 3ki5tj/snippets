@@ -48,57 +48,6 @@ function lj_gettail3d(lj, rho, n)
 
 
 
-var mousedown = 0;
-var mousemoved = 0;
-var mousex = -1;
-var mousey = -1;
-var viewmat = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
-
-
-
-function ljmousedown(e)
-{
-  e = e || window.event;
-  mousex = e.clientX;
-  mousey = e.clientY;
-  mousedown = 1;
-  //console.log("mousedown", e.clientX, e.clientY, m2str(viewmat));
-}
-
-
-
-function ljmouseup(e)
-{
-  e = e || window.event;
-  mousex = -1;
-  mousey = -1;
-  mousemoved = mousedown - 1;
-  mousedown = 0;
-  //console.log("mouseup", e.clientX, e.clientY, m2str(viewmat));
-}
-
-
-
-function ljmousemove(e)
-{
-  if ( !mousedown ) {
-    return;
-  }
-  e = e || window.event;
-  if ( mousex >= 0 && mousey >= 0 ) {
-    var target = e.target ? e.target : e.srcElement;
-    viewmat = mxrot3d(viewmat, 180.0 * (e.clientY - mousey) / target.height);
-    viewmat = myrot3d(viewmat, 180.0 * (e.clientX - mousex) / target.width);
-    paint(); // defined in ljmain.js
-  }
-  mousex = e.clientX;
-  mousey = e.clientY;
-  mousedown += 1;
-  //console.log("mousemove", e.clientX, e.clientY, m2str(viewmat));
-}
-
-
-
 /* apply the view matrix */
 function transform(x, l)
 {

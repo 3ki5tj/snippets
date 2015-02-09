@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title> &alpha;-carbon G&#333; model </title>
+  <link rel="stylesheet" type="text/css" href="./css/default.css" />
+  <script type="text/javascript" src="./js/util.js"></script>
+  <script type="text/javascript" src="./js/mtrand.js"></script>
+  <script type="text/javascript" src="./js/draw.js"></script>
+  <script type="text/javascript" src="./js/mouse3d.js"></script>
+  <script type="text/javascript" src="./js/vct.js"></script>
+  <script type="text/javascript" src="./js/mat.js"></script>
+  <script type="text/javascript" src="./js/mdutil.js"></script>
+  <script type="text/javascript" src="./js/cagoutil.js"></script>
+  <script type="text/javascript" src="./js/cagocore.js"></script>
+  <script type="text/javascript" src="./js/cagodraw.js"></script>
+  <script type="text/javascript" src="./js/cagomain.js"></script>
+</head>
+<body>
+
+<h2 class="center">
+  Molecular dynamics of <i>&alpha;</i>-carbon G&#333; model
+</h2>
+
+
+
+<form>
+  <div class="panel">
+  <div class="panel-title">System</div>
+
+  PDB file
+  <select id="pdbpreset" onchange="changeparams()">
+    <option value="empty">Empty</option>
+    <option value="1LE1">Trpzip2, 1LE1</option>
+    <option value="1LY2">Trp-cage, 1LY2</option>
+    <option value="2CI2">CI2, 2CI2</option>
+    <option value="1VII" selected>Villin head-piece, 1VII</option>
+    <option value="1KIK">SH3 domain, 1KIK</option>
+    <option value="2A3D">&alpha;3D, 2A3D</option>
+    <option value="4MBN">Myoglobin, 4MBN</option>
+    <option value="user">User</option>
+  </select>
+  <textarea rows="12" id="strpdb" wrap="off"></textarea>
+  <br>
+
+  </div>
+
+
+
+  <div class="panel">
+  <div class="panel-title">Force field</div>
+
+  Bond length
+  <span class="math">(<i>i</i>, <i>i</i>+1)</span>,
+  <span class="math"><i>k<sub>b</sub></i></span>:
+  <input type="text" size="6" value="200.0" id="kb"
+    onchange="changeparams()">.
+  &nbsp;
+  <br>
+
+  Bond angle
+  <span class="math">(<i>i</i>, <i>i</i>+1, <i>i</i>+2)</span>,
+  <span class="math"><i>k<sub>a</sub></i></span>:
+  <input type="text" size="6" value="40.0" id="ka"
+    onchange="changeparams()">.
+  &nbsp;
+  <br>
+
+  Dihedral
+  <span class="math">(<i>i</i>, <i>i</i>+1, <i>i</i>+2, <i>i</i>+3)</span>,
+  <span class="math"><i>k</i><sub><i>d</i>1</sub></span>:
+  <input type="text" size="6" value="1.0" id="kd1"
+    onchange="changeparams()">,
+  &nbsp;
+
+  <span class="math"><i>k</i><sub><i>d</i>3</sub></span>:
+  <input type="text" size="6" value="0.5" id="kd3"
+    onchange="changeparams()">.
+  &nbsp;
+  <br>
+
+  Nonbonded,
+  <span class="math"><i>&epsilon;</i></span>:
+  <input type="text" size="6" value="1.0" id="nbe"
+    onchange="changeparams()">.
+  &nbsp;
+
+  <span class="math"><i>&sigma;</i></span>:
+  <input type="text" size="6" value="4.0" id="nbc"
+    onchange="changeparams()"> &#8491;.
+  &nbsp;
+  <br>
+
+  Cutoff distance for contacts,
+  <span class="math"><i>r<sub>c</sub></i></span>:
+  <input type="text" size="6" value="6.0" id="rc"
+    onchange="changeparams()"> &#8491;.
+  &nbsp;
+  <br>
+
+  Atoms for defining contacts:
+  <select id="contact_type" onchange="changeparams()">
+    <option value="CA"><i>&alpha;</i>-carbon</option>
+    <option value="Heavy" selected>Heavy (non-hydrogen)</option>
+    <option value="All">All</option>
+  </select>
+
+  <br>
+
+  Temperature,
+  <span class="math"><i>T</i></span>:
+  <input type="text" size="6" value="1.0" id="temperature"
+    onchange="changeparams()">.
+  &nbsp;
+  <br>
+
+  Simulation method
+  <select id="simulmethod" onchange="changeparams()">
+    <option value="MD">molecular dynamics (MD)</option>
+    <option value="MC">Monte Carlo (MC)</option>
+  </select>
+  </div>
+
+
+
+  <div class="panel">
+  <div class="panel-title">Molecular dynamics (MD)</div>
+
+  Number of MD steps per second:
+  <input type="text" size="10" value="5000"
+    id="nstepspersecmd" onchange="changeparams()">.
+  <br>
+
+  MD time step:
+  <input type="text" size="6" value="0.002" id="mddt"
+    onchange="changeparams()">.
+  <br>
+
+  Thermostat time step:
+  <input type="text" size="6" value="0.1" id="thermostatdt"
+    onchange="changeparams()">.
+  <br>
+
+  </div>
+
+
+
+  <div class="panel">
+  <div class="panel-title">Monte Carlo (MC)</div>
+
+  Number of MC steps per second:
+  <input type="text" size="10" value="10000"
+    id="nstepspersecmc" onchange="changeparams()">.
+  <br>
+
+  MC move amplitude:
+  <input type="text" size="6" value="0.2" id="mcamp"
+    onchange="changeparams()">.
+  <br>
+
+  </div>
+
+
+
+  <div class="center">
+    <input type="button" value="Start simulation"
+      id="start" class="largebtn" onclick="startsimul()">
+
+    <input type="button" value="Pause"
+      id="pause" class="largebtn" onclick="pausesimul()">
+
+    <input type="button" value="Stop"
+      id="stop" class="largebtn" onclick="stopsimul()">
+
+    <input type="reset" value="Reset"
+      id="reset" class="largebtn">
+  </div>
+
+  <br>
+
+  <div class="center">
+    <canvas id="cagobox" width="480" height="480"></canvas>
+    <br>
+    Zoom: <input id="cagoscale" type="range" value="1.0"
+      min="0.05" max="3.0" step="0.01" style="width: 480px"
+      onchange="changescale()">
+    <br>
+
+    <input type="checkbox" checked id="orthographic"
+      onchange="paint()">
+    Orthographic.
+    &nbsp;
+    <br>
+
+    <span id="seq">&nbsp;</span>
+    <br>
+
+    <span id="sinfo" style="width: 480px"></span>
+  </div>
+</form>
+
+
+
+<div class="panel">
+  <div class="panel-title">Source code</div>
+  <a href="https://www.dropbox.com/sh/dtfxeq5nygonrnq/AAAhHr6NytLnDqE9yY-JdmM_a">Dropbox</a>.
+</div>
+
+</body>
+</html>

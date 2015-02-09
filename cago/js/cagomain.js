@@ -40,8 +40,6 @@ var sumU = 0.0;
 var sumR = 0.0;
 var sumC = 0.0;
 
-var userscale = 1.0;
-
 
 
 var preset_pdb = {
@@ -94,115 +92,15 @@ function getparams()
   nstepspsmc = get_int("nstepspersecmc", 10000);
   nstepspfmc = nstepspsmc * timer_interval / 1000;
 
-  userscale = get_float("cagoscale");
+  mousescale = get_float("cagoscale");
 }
 
 
 
 function changescale()
 {
-  userscale = get_float("cagoscale");
+  mousescale = get_float("cagoscale");
   paint();
-}
-
-
-
-var mousedown = false;
-var mousex = -1;
-var mousey = -1;
-var viewmat = [[1.0, 0, 0], [0, 1.0, 0], [0, 0, 1.0]];
-
-
-
-function cagomousedown(e)
-{
-  e = e || window.event;
-  mousex = e.clientX;
-  mousey = e.clientY;
-  mousedown = true;
-  //console.log("mousedown", e.clientX, e.clientY, m2str(viewmat));
-}
-
-
-
-function cagomouseup(e)
-{
-  e = e || window.event;
-  mousex = -1;
-  mousey = -1;
-  mousedown = false;
-  //console.log("mouseup", e.clientX, e.clientY, m2str(viewmat));
-}
-
-
-
-function cagomousemove(e)
-{
-  if ( !mousedown ) {
-    return;
-  }
-  e = e || window.event;
-  if ( mousex >= 0 && mousey >= 0 ) {
-    var target = e.target ? e.target : e.srcElement;
-    viewmat = mxrot3d(viewmat, 180.0 * (e.clientY - mousey) / target.height);
-    viewmat = myrot3d(viewmat, 180.0 * (e.clientX - mousex) / target.width);
-    paint();
-  }
-  mousex = e.clientX;
-  mousey = e.clientY;
-  //console.log("mousemove", e.clientX, e.clientY, m2str(viewmat));
-}
-
-
-
-/* for the mouse wheel event */
-function cagowheel(e)
-{
-  var delta = 0; // positive for scrolling up
-  e = e || window.event;
-  if ( e.wheelDelta ) { // IE/Opera
-    delta = e.wheelDelta / 120;
-  } else if ( e.detail ) { // Firefox
-    delta = -e.detail / 3;
-  }
-  if ( delta > 0 ) {
-    userscale *= 1.05;
-  } else if ( delta < 0 ) {
-    userscale *= 0.95;
-  }
-  grab("cagoscale").value = userscale;
-  //console.log("wheel", delta);
-  if ( e.preventDefault ) {
-    e.preventDefault();
-  }
-  e.returnValue = false;
-  paint();
-}
-
-
-
-/* install the mouse wheel event */
-function installwheel(target, handler)
-{
-  if ( target.addEventListener ) {
-    // for IE9+, Chrome, Safari, Opera
-    target.addEventListener('mousewheel', handler, false);
-    // for Firefox
-    target.addEventListener('DOMMouseScroll', handler, false);
-  } else { // for IE 6/7/8
-    target.attachEvent("onmousewheel", handler);
-  }
-}
-
-
-
-function installmouse()
-{
-  var target = grab("cagobox");
-  target.onmousedown = cagomousedown;
-  target.onmouseup = cagomouseup;
-  target.onmousemove = cagomousemove;
-  installwheel(target, cagowheel);
 }
 
 
@@ -255,191 +153,10 @@ function domc()
 
 
 
-function transform(x)
-{
-  var i, d, n = x.length, l = 0;
-  var xyz = newarr2d(n, 3), xc = [0, 0, 0], xi = [0, 0, 0];
-
-  // compute the center of mass
-  for ( i = 0; i < n; i++ ) {
-    vinc(xc, x[i]);
-  }
-  vsmul(xc, 1.0/n);
-
-  // rotate the coordinates of each particle
-  for ( i = 0; i < n; i++ ) {
-    vdiff(xi, x[i], xc);
-    vmxv(xyz[i], viewmat, xi);
-    //console.log(x[i], xi, xc, xyz[i]);
-    //vinc(xyz[i], xc);
-    for ( d = 0; d < D; d++ ) {
-      l = Math.max( Math.abs( xi[d] ), l );
-    }
-  }
-  return [xyz, xc, l];
-}
-
-
-
-function sortbyz(x)
-{
-  var i, j, k, l, n = x.length;
-  var xyz = newarr2d(n, 3), rt = newarr(D);
-  var idmap = newarr(n);
-  var invmap = newarr(n);
-
-  for ( i = 0; i < n; i++ ) {
-    idmap[i] = i;
-    // i:         index of the output array `xyz`
-    // idmap[i]:  index of the input array `x`
-    // so xyz[i] --> x[ idmap[i] ];
-    invmap[i] = i;
-  }
-
-  // use bubble sort
-  for ( i = 0; i < n; i++ ) {
-    vcopy(xyz[i], x[i]);
-  }
-
-  for ( i = 0; i < n; i++ ) {
-    // find the ith smallest z
-    k = i;
-    var zmin = x[ idmap[i] ][2];
-    for ( j = i + 1; j < n; j++ ) {
-      if ( x[ idmap[j] ][2] < zmin ) {
-        k = j;
-        zmin = x[ idmap[j] ][2];
-      }
-    }
-    if ( k != i ) {
-      // before
-      //  xyz[i] --> x[ idmap[i] ]
-      //  xyz[k] --> x[ idmap[k] ]
-      // after
-      //  xyz[i] --> x[ idmap[k] ]
-      //  xyz[k] --> x[ idmap[i] ]
-      l = idmap[i];
-      idmap[i] = idmap[k];
-      idmap[k] = l;
-    }
-  }
-
-  for ( i = 0; i < n; i++ ) {
-    vcopy(xyz[i], x[ idmap[i] ]);
-  }
-  // compute the inverse map
-  for ( i = 0; i < n; i++ ) {
-    invmap[ idmap[i] ] = i;
-  }
-  return [xyz, idmap, invmap];
-}
-
-
-
-// draw a metallic line
-function drawLineFancy(ctx, xi, yi, xj, yj)
-{
-  drawLine(ctx, xi, yi, xj, yj, '#aaaaaa', 4);
-  drawLine(ctx, xi, yi, xj, yj, '#bbbbbb', 2);
-  drawLine(ctx, xi, yi, xj, yj, '#cccccc', 1);
-}
-
-
-
-// get the scaling factor due to z
-function getzscale(r, zmin, zmax, ortho)
-{
-  if ( ortho ) {
-    return 0.9;
-  } else {
-    var zf = (r[2] - zmin) / (zmax - zmin);
-    return 0.8 + 0.2 * zf;
-  }
-}
-
-
-
-// draw all atoms in the box
-function cagodraw(go, target, userscale)
-{
-  var c = grab(target);
-  var ctx = c.getContext("2d");
-  var width = c.width;
-  var height = c.height;
-  var i, j, jb, k, ir, ic, ret;
-
-  // draw the background
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-
-  ret = transform(go.x); // apply the rotation matrix
-  var xt = ret[0];
-  //go.l = ret[2];
-  go.l = 5.0 * Math.pow( go.n, 1.0/3 );
-  ret = sortbyz(xt); // sort particles by the z order
-  var xyz = ret[0];
-  var idmap = ret[1], invmap = ret[2];
-  // xyz[i]           --> xt[ idmap[i] ]
-  // xyz[ invmap[i] ] --> xt[ i ]
-
-  var ortho = grab("orthographic").checked;
-  var scale = userscale * Math.min(width, height) / (go.l * 2.0);
-
-  // draw each particle
-  var zmax = xyz[go.n - 1][2], zmin = xyz[0][2];
-
-  for (i = 0; i < go.n; i++) {
-    var z = xyz[i][2];
-    var zf = (z - zmin) / (zmax - zmin);
-    // make closer particles larger
-    var scl = scale * getzscale(xyz[i], zmin, zmax, ortho);
-    var x = Math.floor(  xyz[i][0] * scl + width  * 0.5 );
-    var y = Math.floor( -xyz[i][1] * scl + height * 0.5 );
-    var i0 = idmap[ i ];
-    //color = rgb2str(160 + 50 * zf, 160 + 50 * zf, 160 + 50 * zf);
-    var iaa = go.iaa[ i0 ];
-    var rad = aaradii[ iaa ];
-    var color = darkenColor( aacolors[ iaa ], 0.8 + 0.2 * zf );
-    var spotcolor = lightenColor( aacolors[ iaa ], 0.7 - 0.4 * zf );
-    var rz = Math.floor( rad * scl );
-    var xj, yj, sclj;
-
-    paintBall(ctx, x, y, rz, color, spotcolor);
-
-    // draw bonds to the adjacent residues
-    var j0;
-    j0 = i0 + 1;
-    if ( j0 < go.n ) {
-      j = invmap[ j0 ];
-      if ( j > i ) {
-        sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
-        xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
-        yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
-
-        drawLineFancy(ctx, x, y, xj, yj);
-      }
-    }
-
-    j0 = i0 - 1;
-    if ( j0 >= 0 ) {
-      j = invmap[ j0 ];
-      if ( j > i ) {
-        sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
-        xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
-        yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
-
-        drawLineFancy(ctx, x, y, xj, yj);
-      }
-    }
-  }
-}
-
-
-
 function paint()
 {
   if ( go ) {
-    cagodraw(go, "cagobox", userscale);
+    cagodraw(go, "cagobox", mousescale);
   }
 }
 
@@ -522,7 +239,7 @@ function startsimul()
   grab("seq").innerHTML = fmtseq( go.iaa, 60 );
   go.initmd(false, 0.01, tp);
   go.epot = go.force(go.x, go.f);
-  installmouse();
+  installmouse("cagobox", "cagoscale");
   cagotimer = setInterval(
     function(){ pulse(); },
     timer_interval);
