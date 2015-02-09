@@ -80,7 +80,7 @@ function cago_loadbasic(go, strpdb)
     var iaa = res2iaa( s.substr(17, 3).trim() );
     go.iaa.push( iaa );
 
-    var ires = parseInt( s.substr(22, 4).trim() );
+    var ires = parseInt( s.substr(22, 4).trim(), 10 );
     go.ires.push( ires );
   }
 
@@ -136,7 +136,7 @@ function cago_mkcont(go, strpdb, rc, ctype, nsexcl)
       continue;
     }
 
-    ires = parseInt( s.substr(22, 4) );
+    ires = parseInt( s.substr(22, 4), 10 );
 
     // find the actual residue index
     for ( ir = 0; ir < n; ir++ ) {
@@ -165,8 +165,9 @@ function cago_mkcont(go, strpdb, rc, ctype, nsexcl)
       // scan over atoms in the two residues
       for ( ia = 0; ia < x[ir].length && !isc; ia++ ) {
         for ( ja = 0; ja < x[jr].length && !isc; ja++ ) {
-          if ( vsqr( vdiff(dx, x[ir][ia], x[jr][ja]) ) < rc2 )
+          if ( vsqr( vdiff(dx, x[ir][ia], x[jr][ja]) ) < rc2 ) {
             isc = true;
+          }
         }
       }
 
@@ -200,9 +201,11 @@ function CaGo(strpdb, kb, ka, kd1, kd3, nbe, nbc, rcc, ctype, nsexcl)
   cago_mkcont(this, strpdb, rcc, ctype, nsexcl);
 
   // count the number of contacts
-  for ( this.ncont = 0, i = 0; i < this.n - 1; i++ )
-    for ( j = i + 1; j < this.n; j++ )
+  for ( this.ncont = 0, i = 0; i < this.n - 1; i++ ) {
+    for ( j = i + 1; j < this.n; j++ ) {
       this.ncont += this.iscont[i][j];
+    }
+  }
 
   // compute the reference bond length, angles, etc.
   cago_refgeo(this);
@@ -508,7 +511,9 @@ CaGo.prototype.depot = function(x, i, xi)
 
   // non-bonded interaction
   for ( j = 0; j < n; j++ ) {
-    if ( j > i - 4 && j < i + 4 ) continue;
+    if ( j > i - 4 && j < i + 4 ) {
+      continue;
+    }
 
     id = i*n + j;
     if ( this.iscont[id] ) { // contact pair
@@ -544,8 +549,9 @@ CaGo.prototype.metro = function(amp, bet)
     vcopy(this.x[i], xi);
     this.epot += du;
     return 1;
-  } else
+  } else {
     return 0;
+  }
 };
 
 
@@ -599,7 +605,7 @@ CaGo.prototype.ncontacts = function(x, gam, mat)
   }
 
   return nct;
-}
+};
 
 
 

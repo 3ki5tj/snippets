@@ -402,6 +402,8 @@ function cagodraw(go, target, userscale)
     var color = darkenColor( aacolors[ iaa ], 0.8 + 0.2 * zf );
     var spotcolor = lightenColor( aacolors[ iaa ], 0.7 - 0.4 * zf );
     var rz = Math.floor( rad * scl );
+    var xj, yj, sclj;
+
     paintBall(ctx, x, y, rz, color, spotcolor);
 
     // draw bonds to the adjacent residues
@@ -410,9 +412,9 @@ function cagodraw(go, target, userscale)
     if ( j0 < go.n ) {
       j = invmap[ j0 ];
       if ( j > i ) {
-        var sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
-        var xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
-        var yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
+        sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
+        xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
+        yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
 
         drawLineFancy(ctx, x, y, xj, yj);
       }
@@ -422,9 +424,9 @@ function cagodraw(go, target, userscale)
     if ( j0 >= 0 ) {
       j = invmap[ j0 ];
       if ( j > i ) {
-        var sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
-        var xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
-        var yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
+        sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
+        xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
+        yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
 
         drawLineFancy(ctx, x, y, xj, yj);
       }

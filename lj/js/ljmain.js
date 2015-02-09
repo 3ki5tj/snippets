@@ -160,7 +160,9 @@ function domc()
 
 function paint()
 {
-  if ( !lj ) return;
+  if ( !lj ) {
+    return;
+  }
   if ( lj.dim === 2 ) {
     ljdraw2d(lj, "ljbox", userscale);
   } else if ( lj.dim === 3 ) {
@@ -204,7 +206,9 @@ function stopsimul()
 
 function pausesimul()
 {
-  if ( !lj ) return;
+  if ( !lj ) {
+    return;
+  }
   if ( ljtimer !== null ) {
     clearInterval(ljtimer);
     ljtimer = null;

@@ -61,8 +61,9 @@ function vmxv(c, a, b)
   for ( var i = 0; i < D; i++ ) {
     for ( var j = 0; j < D; j++ ) {
       var s = 0;
-      for ( var k = 0; k < D; k++ )
+      for ( var k = 0; k < D; k++ ) {
         s += a[i][k] * b[k];
+      }
       c[i] = s;
     }
   }
@@ -76,8 +77,9 @@ function mmxm(c, a, b)
   for ( var i = 0; i < D; i++ ) {
     for ( var j = 0; j < D; j++ ) {
       var s = 0;
-      for ( var k = 0; k < D; k++ )
+      for ( var k = 0; k < D; k++ ) {
         s += a[i][k] * b[k][j];
+      }
       c[i][j] = s;
     }
   }
@@ -91,8 +93,9 @@ function mmtxm(c, a, b)
   for ( var i = 0; i < D; i++ ) {
     for ( var j = 0; j < D; j++ ) {
       var s = 0;
-      for ( var k = 0; k < D; k++ )
+      for ( var k = 0; k < D; k++ ) {
         s += a[k][i] * b[k][j];
+      }
       c[i][j] = s;
     }
   }
@@ -372,7 +375,7 @@ function msolvezero(a, x)
     if ( y <= tol ) { // we have D - i solutions
       break;
     }
-    if ( i == 0 ) {
+    if ( i === 0 ) {
       tol = y * msolvezero_reltol;
     }
 
@@ -467,7 +470,7 @@ function meigval(v, a)
   pr = Math.sqrt(p);
   pr3 = p * pr;
   if ( pr3 <= Math.abs(q) ) {
-    if (q < 0.) { // choose phi = pi/3
+    if ( q < 0.0 ) { // choose phi = pi/3
       v[1] = v[0] = m + pr;
       v[2] = m - 2.0 * pr;
     } else { // phi = 0
@@ -499,7 +502,7 @@ function meigsys(v, vecs, mat, nt)
 
   for ( i = 0; i < 3; i++ ) {
     n = meigvecs(vs, mat, v[vs.length]);
-    if ( n == 0 ) {
+    if ( n === 0 ) {
       console.log("meigsys failed: increase msolvezero_reltol", i, vs.length);
       return -1;
     }
@@ -544,10 +547,12 @@ function msvd(a, u, s, v)
 
     // the test i = 1 + (s[1] > s[0]*tol) + (s[2] > s[0]*tol);
     mmxmt(u, v, a);
-    for (i = 0; i < 3; i++) {
+    for ( i = 0; i < 3; i++ ) {
       vcopy(us[i], u[i]); // save a copy of V^T A^T before normalizing it
       s[i] = vnorm(u[i]);
-      if (s[i] > 0) vsmul(u[i], 1/s[i]);
+      if ( s[i] > 0 ) {
+        vsmul(u[i], 1/s[i]);
+      }
     }
     rank = 1;
     rank += (Math.abs( vdot(u[0], u[1]) ) < tol && s[1] > tol);
@@ -558,18 +563,26 @@ function msvd(a, u, s, v)
         var z = [0, 0, 0], w, tmp;
 
         w = Math.abs( u[0][i = 0] );
-        if ((tmp = Math.abs(u[0][1])) < w) w = tmp, i = 1;
-        if ((tmp = Math.abs(u[0][2])) < w) i = 2;
+        if ( (tmp = Math.abs(u[0][1])) < w ) {
+          w = tmp;
+          i = 1;
+        }
+        if ( (tmp = Math.abs(u[0][2])) < w ) {
+          i = 2;
+        }
         z[i] = 1.0; // select the smallest element in u[0] as z
         vnormalize( vcross3d(u[1], z, u[0]) );
         s[1] = vdot(u[1], us[1]); // S = U^T (V^T A^T)^T is more accurate than sqrt(A^T A)
-        if (s[1] < 0) { s[1] = -s[1]; vneg(u[1]); } // make sure s[1] > 0
+        if (s[1] < 0) {
+          s[1] = -s[1];
+          vneg( u[1] );
+        } // make sure s[1] > 0
       }
       vnormalize( vcross3d(u[2], u[0], u[1]) );
       s[2] = vdot(u[2], us[2]);
-      if (s[2] < 0) {
+      if ( s[2] < 0 ) {
         s[2] = -s[2];
-        vneg(u[2]);
+        vneg( u[2] );
       }
     }
     msort2(s, u, v);
@@ -614,7 +627,7 @@ function vrmsd(x, xf, y, w, n, refl, r, t)
     }
     wtot = n;
   } else {
-    for ( wtot = 0., i = 0; i < n; i++ ) {
+    for ( wtot = 0.0, i = 0; i < n; i++ ) {
       vsinc(xc, x[i], w[i]);
       vsinc(yc, y[i], w[i]);
       wtot += w[i];
@@ -668,8 +681,10 @@ function vrmsd(x, xf, y, w, n, refl, r, t)
       vmxv(xs, r, x[i]); // xs = R x
       vadd(xfi, xs, t); // xfi = R x + t
       sq = vsqr( vdiff(dx, y[i], xfi) );
-      if ( xf ) vcopy(xf[i], xfi);
-      dev +=  (w ? w[i]*sq : sq); // recompute the deviation
+      if ( xf ) {
+        vcopy(xf[i], xfi);
+      }
+      dev += (w ? w[i]*sq : sq); // recompute the deviation
     }
   }
   return Math.sqrt(dev/wtot);

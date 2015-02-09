@@ -226,7 +226,9 @@ function vdih(xi, xj, xk, xl, gi, gj, gk, gl)
           1), -1);
   }
   phi = Math.acos(cosphi);
-  if (vdot(n, xij) < 0.0) phi = -phi;
+  if (vdot(n, xij) < 0.0) {
+    phi = -phi;
+  }
 
   /* optionally calculate the gradient */
   if ( gi && gj && gk && gl ) {
