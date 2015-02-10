@@ -86,16 +86,6 @@ function sortbyz(x)
 
 
 
-// draw a metallic line
-function drawLineFancy(ctx, xi, yi, xj, yj)
-{
-  drawLine(ctx, xi, yi, xj, yj, '#aaaaaa', 4);
-  drawLine(ctx, xi, yi, xj, yj, '#bbbbbb', 2);
-  drawLine(ctx, xi, yi, xj, yj, '#cccccc', 1);
-}
-
-
-
 // get the scaling factor due to z
 function getzscale(r, zmin, zmax, ortho)
 {
@@ -141,44 +131,39 @@ function cagodraw(go, target, userscale)
   for (i = 0; i < go.n; i++) {
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
-    // make closer particles larger
-    var scl = scale * getzscale(xyz[i], zmin, zmax, ortho);
-    var x = Math.floor(  xyz[i][0] * scl + width  * 0.5 );
-    var y = Math.floor( -xyz[i][1] * scl + height * 0.5 );
     var i0 = idmap[ i ];
     //color = rgb2str(160 + 50 * zf, 160 + 50 * zf, 160 + 50 * zf);
     var iaa = go.iaa[ i0 ];
-    var rad = aaradii[ iaa ];
     var color = darkenColor( aacolors[ iaa ], 0.8 + 0.2 * zf );
     var spotcolor = lightenColor( aacolors[ iaa ], 0.7 - 0.4 * zf );
-    var rz = Math.floor( rad * scl );
+    // make closer particles larger
+    var scli = scale * getzscale(xyz[i], zmin, zmax, ortho);
+    var xi = Math.floor(  xyz[i][0] * scli + width  * 0.5 );
+    var yi = Math.floor( -xyz[i][1] * scli + height * 0.5 );
+    var rad = aaradii[ iaa ];
+    var rz = Math.floor( rad * scli );
     var xj, yj, sclj;
 
-    paintBall(ctx, x, y, rz, color, spotcolor);
+    paintBall(ctx, xi, yi, rz, color, spotcolor);
 
     // draw bonds to the adjacent residues
-    var j0;
-    j0 = i0 + 1;
-    if ( j0 < go.n ) {
+    var j0, jarr = [], jj;
+    if ( i0 < go.n - 1 ) { jarr.push( i0 + 1 ); }
+    if ( i0 >= 1 ) { jarr.push( i0 - 1 ); }
+
+    for ( jj = 0; jj < jarr.length; jj++ ) {
+      j0 = jarr[jj];
       j = invmap[ j0 ];
       if ( j > i ) {
-        sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
-        xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
-        yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
+        var ri = getContactPoint(xyz[i], xyz[j], rad);
+        xi = Math.floor(  ri[0] * scli + width  * 0.5 );
+        yi = Math.floor( -ri[1] * scli + height * 0.5 );
 
-        drawLineFancy(ctx, x, y, xj, yj);
-      }
-    }
+        var sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
+        var xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
+        var yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
 
-    j0 = i0 - 1;
-    if ( j0 >= 0 ) {
-      j = invmap[ j0 ];
-      if ( j > i ) {
-        sclj = scale * getzscale(xyz[j], zmin, zmax, ortho);
-        xj = Math.floor(  xyz[j][0] * sclj + width  * 0.5 );
-        yj = Math.floor( -xyz[j][1] * sclj + height * 0.5 );
-
-        drawLineFancy(ctx, x, y, xj, yj);
+        drawLineGradient(ctx, xi, yi, xj, yj);
       }
     }
   }

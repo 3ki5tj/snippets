@@ -326,7 +326,7 @@ function potr12(a, b, rc2, eps, fa, fb)
  * J. Mol. Biol, Vol. 298 (2000) 937-953 */
 CaGo.prototype.force = function(x, f)
 {
-  var i, j, id, n = this.n;
+  var i, j, n = this.n;
   var ene = 0, kb = this.kb, ka = this.ka, kd1 = this.kd1, kd3 = this.kd3;
   var nbe = this.nbe, nbc2 = this.nbc * this.nbc;
 
@@ -470,7 +470,7 @@ CaGo.prototype.vrescale = function(v, tp, dt)
 /* the change of the potential energy */
 CaGo.prototype.depot = function(x, i, xi)
 {
-  var j, j0, j1, id, n = this.n;
+  var j, j0, j1, n = this.n;
   var xn = this.x1;
   var ene = 0;
   var ka = this.ka, kb = this.kb, kd1 = this.kd1, kd3 = this.kd3;
@@ -478,12 +478,9 @@ CaGo.prototype.depot = function(x, i, xi)
 
   // copy coordinates
   for ( j = 0; j < n; j++ ) {
-    if ( j == i ) {
-      vcopy(xn[i], xi);
-    } else {
-      vcopy(xn[j], x[j]);
-    }
+    vcopy(xn[j], x[j]);
   }
+  vcopy(xn[i], xi);
 
   // bonds
   j0 = Math.max(i - 1, 0);
@@ -515,10 +512,9 @@ CaGo.prototype.depot = function(x, i, xi)
       continue;
     }
 
-    id = i*n + j;
-    if ( this.iscont[id] ) { // contact pair
-      ene -= pot1210(x[i], x[j], this.r2ref[id], nbe);
-      ene += pot1210(xn[i], xn[j], this.r2ref[id], nbe);
+    if ( this.iscont[i][j] ) { // contact pair
+      ene -= pot1210(x[i], x[j], this.r2ref[i][j], nbe);
+      ene += pot1210(xn[i], xn[j], this.r2ref[i][j], nbe);
     } else { // non-contact pair
       ene -= potr12(x[i], x[j], nbc2, nbe);
       ene += potr12(xn[i], xn[j], nbc2, nbe);
@@ -534,10 +530,10 @@ CaGo.prototype.depot = function(x, i, xi)
 CaGo.prototype.metro = function(amp, bet)
 {
   var i = Math.floor(this.n * rand01());
-  var xi = [amp * (rand01() * 2 - 1),
-            amp * (rand01() * 2 - 1),
-            amp * (rand01() * 2 - 1)];
-  vinc(xi, this.x[i]);
+  var xi = newarr(D);
+  for ( var d = 0; d < D; d++ ) {
+    xi[d] = this.x[i][d] + amp * (rand01() * 2 - 1);
+  }
   var du = this.depot(this.x, i, xi), acc;
   if ( du < 0 ) {
     acc = 1;
@@ -557,7 +553,7 @@ CaGo.prototype.metro = function(amp, bet)
 
 
 /* compute the RMSD from the reference structure */
-CaGo.prototype.rmsd = function(x, xf)
+CaGo.prototype.getRMSD = function(x, xf)
 {
   return vrmsd(x, xf, this.xref, this.m, this.n, 0, null, null);
 };

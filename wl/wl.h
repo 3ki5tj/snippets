@@ -296,6 +296,9 @@ __inline static int wl_updatelnf(wl_t *wl)
 {
   double flatness, nlnf, lnfinvt;
 
+  if ( wl->lnf <= 0 ) {
+    return 0;
+  }
   if ( wl->isinvt ) {
     wl->lnf = wl_lnfinvt(wl);
     return 0;

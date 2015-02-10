@@ -86,16 +86,6 @@ function sortbyz(x)
 
 
 
-// draw a metallic line
-function drawLineFancy(ctx, xi, yi, xj, yj)
-{
-  drawLine(ctx, xi, yi, xj, yj, '#aaaaaa', 4);
-  drawLine(ctx, xi, yi, xj, yj, '#bbbbbb', 2);
-  drawLine(ctx, xi, yi, xj, yj, '#cccccc', 1);
-}
-
-
-
 // get the scaling factor due to z
 function getzscale(r, zmin, zmax, ortho)
 {
@@ -163,10 +153,10 @@ function nadraw(na, target, userscale)
       var yjb = Math.floor( -xyz[jb][1] * scljb + height * 0.5 );
 
       if ( apr === 2 ) {
-        drawLineFancy(ctx, xi, yi, xj, yj);
+        drawLineGradient(ctx, xi, yi, xj, yj);
       } else {
-        drawLineFancy(ctx, xi, yi, xj, yj);
-        drawLineFancy(ctx, xj, yj, xjb, yjb);
+        drawLineGradient(ctx, xi, yi, xj, yj);
+        drawLineGradient(ctx, xj, yj, xjb, yjb);
       }
 
       if ( ir < na.nr - 1 ) {
@@ -175,9 +165,9 @@ function nadraw(na, target, userscale)
         var xk = Math.floor(  xyz[k][0] * sclk + width  * 0.5 );
         var yk = Math.floor( -xyz[k][1] * sclk + height * 0.5 );
         if ( apr === 2 ) {
-          drawLineFancy(ctx, xi, yi, xk, yk);
+          drawLineGradient(ctx, xi, yi, xk, yk);
         } else {
-          drawLineFancy(ctx, xj, yj, xk, yk);
+          drawLineGradient(ctx, xj, yj, xk, yk);
         }
       }
     }

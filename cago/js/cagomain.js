@@ -125,7 +125,7 @@ function domd()
     go.vrescale(go.v, tp, thdt);
     sum1 += 1.0;
     sumU += go.epot;
-    sumR += go.rmsd(go.x, null);
+    sumR += go.getRMSD(go.x, null);
     sumC += go.ncontacts(go.x);
   }
   sinfo += getsinfo();
@@ -143,7 +143,7 @@ function domc()
     mcacc += go.metro(mcamp, 1.0 / tp);
     sum1 += 1.0;
     sumU += go.epot;
-    sumR += go.rmsd(go.x, null);
+    sumR += go.getRMSD(go.x, null);
     sumC += go.ncontacts(go.x);
   }
   sinfo += "acc: " + roundto(100.0 * mcacc / mctot, 2) + "%, ";

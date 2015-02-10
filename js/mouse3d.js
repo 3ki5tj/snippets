@@ -1,3 +1,6 @@
+/* mouse control for rotating and scaling a 3D object
+ * Note: onclick is not captured */
+
 
 
 
@@ -48,7 +51,7 @@ function mousemove3d(e)
     var target = e.target ? e.target : e.srcElement;
     viewmat = mxrot3d(viewmat, 180.0 * (e.clientY - mousey) / target.height);
     viewmat = myrot3d(viewmat, 180.0 * (e.clientX - mousex) / target.width);
-    paint(); // defined in ljmain.js
+    paint(); // to be defined
   }
   mousex = e.clientX;
   mousey = e.clientY;

@@ -23,6 +23,22 @@ function drawLine(ctx, xi, yi, xj, yj, color, lineWidth)
 
 
 
+// draw a 3-layer line
+function drawLineGradient(ctx, xi, yi, xj, yj, grd)
+{
+  if ( !grd ) {
+    grd = [ { color: '#aaaaaa', width:8 },
+            { color: '#bbbbbb', width:4 },
+            { color: '#cccccc', width:2 } ];
+  }
+
+  for ( var i = 0; i < grd.length; i++ ) {
+    drawLine(ctx, xi, yi, xj, yj, grd[i].color, grd[i].width);
+  }
+}
+
+
+
 /* draw a ball that is centered at (x, y) with radius r
  * color is the color of the ball
  * the format of color is "#rrggbb" */
@@ -69,6 +85,18 @@ function paintBall(ctx, x, y, r, color, spotcolor,
   ctx.arc(x, y, r, 0, 2*Math.PI);
   ctx.closePath();
   ctx.fill();
+}
+
+
+
+/* compute the contact point to start a bond from i to j */
+function getContactPoint(xi, xj, radius)
+{
+  var rji, xji = newarr(D);
+
+  rji = vdistx(xji, xj, xi);
+  vsmul(xji,  radius / rji);
+  return vinc(xji, xi);
 }
 
 

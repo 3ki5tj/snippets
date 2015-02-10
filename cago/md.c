@@ -2,7 +2,8 @@
 
 
 
-const char *fnpdb = "pdb/1VII.pdb";
+//const char *fnpdb = "pdb/1VII.pdb";
+const char *fnpdb = "pdb/1L2Y.pdb";
 double kb = 200.0;
 double ka = 40.0;
 double kd1 = 1.0;
@@ -13,10 +14,11 @@ double rc = 6.0;
 
 double mddt = 0.002;
 double thdt = 0.1;
-double tp = 1.1;
+//double tp = 1.1;
+double tp = 1.0;
 long nequil = 10000;
 long nsteps = 10000000;
-long nstrep = 10000;
+long nstrep = 100000;
 
 
 
@@ -24,6 +26,9 @@ int main(void)
 {
   cago_t *go;
   long t;
+  double rmsd;
+  int nc;
+  double sum1 = DBL_MIN, sumU = 0, sumN = 0, sumR = 0;
 
   if ( (go = cago_open(fnpdb, kb, ka, kd1, kd3, nbe, nbc, rc,
                        PDB_CONTACT_HEAVY, 4)) == NULL ) {
@@ -40,11 +45,17 @@ int main(void)
     if ( t <= nequil ) {
       continue;
     }
+
+    rmsd = cago_rmsd(go, go->x, NULL);
+    nc = cago_ncontacts( go, go->x, -1, NULL, NULL);
+    sum1 += 1;
+    sumU += go->epot;
+    sumN += nc;
+    sumR += rmsd;
+
     if ( t % nstrep == 0 ) {
-      double rmsd = cago_rmsd(go, go->x, NULL);
-      int nc = cago_ncontacts( go, go->x, 1.2, NULL, NULL);
-      printf("%ld: ep %g, rmsd %g, nc %d/%d\n",
-          t, go->epot, rmsd, nc, go->ncont);
+      printf("%ld: ep %g, rmsd %g, nc %g/%d\n",
+          t, sumU/sum1, sumR/sum1, sumN/sum1, go->ncont);
     }
   }
 

@@ -27,6 +27,7 @@ function WL(xmin, xmax, dx, isf, lnf0, flatness, frac, c, flags)
   this.xmin = xmin;
   this.dx = dx;
   this.h = newarr(n);
+  this.hh = newarr(n);
   this.v = newarr(n);
   this.lnf = lnf0;
   this.tot = 0;
@@ -62,7 +63,7 @@ function wl_clearh(h, n)
 
 
 
-/* trim the bottom of the potential */
+/* shift the potential such that the minimum is 0 */
 function wl_trimv(v, n)
 {
   var i, vmin = v[0];
@@ -77,8 +78,6 @@ function wl_trimv(v, n)
   }
 }
 
-
-
 WL.prototype.trimv = function()
 {
   wl_trimv(this.v, this.n);
@@ -86,18 +85,18 @@ WL.prototype.trimv = function()
 
 
 
-/* retrieve the bias potential */
+/* retrieve the bias potential at x */
 WL.prototype.getv = function(x)
 {
   var i;
 
-  if ( this.isf ) {
+  if ( this.isf ) { // floating-point version
     if ( x < this.xmin ) {
       i = -1;
     } else {
       i = Math.floor( (x - this.xmin) / this.dx );
     }
-  } else {
+  } else { // integer version
     i = x - this.nmin;
   }
   return ( i >= 0 && i < this.n ) ? this.v[i] : WL_VMAX;
@@ -129,6 +128,7 @@ WL.prototype.add = function(x)
     return -1;
   }
   this.h[i] += 1.0;
+  this.hh[i] += 1.0;
   this.v[i] += this.lnf;
   this.tot += 1.0;
   return 0;
@@ -195,6 +195,10 @@ WL.prototype.updatelnf = function()
 {
   var flatness, nlnf, lnfinvt;
 
+  if ( this.lnf <= 0 ) {
+    return 0;
+  }
+
   if ( this.isinvt ) {
     this.lnf = this.lnfinvt();
     return 0;
@@ -204,7 +208,7 @@ WL.prototype.updatelnf = function()
   if ( flatness < this.flatness ) {
     nlnf = this.lnf * this.frac;
     lnfinvt = this.lnfinvt();
-    console.log(this.c, this.n, this.tot, lnfinvt, nlnf);
+    //console.log(this.c, this.n, this.tot, lnfinvt, nlnf);
     if ( nlnf < lnfinvt ) {
       console.log("changing lnf from " + this.lnf.toExponential(3) + " to " + lnfinvt.toExponential(3) + " (1/t), flatness " + roundto(flatness*100.0, 2) + "%");
       this.isinvt = 1;
@@ -218,7 +222,6 @@ WL.prototype.updatelnf = function()
   }
   return 0;
 }
-
 
 
 

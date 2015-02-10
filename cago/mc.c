@@ -2,7 +2,8 @@
 
 
 
-const char *fnpdb = "pdb/1VII.pdb";
+//const char *fnpdb = "pdb/1VII.pdb";
+const char *fnpdb= "pdb/1L2Y.pdb";
 double kb = 200.0;
 double ka = 40.0;
 double kd1 = 1.0;
@@ -11,7 +12,8 @@ double nbe = 1.0;
 double nbc = 4.0;
 double rc = 6.0;
 
-double tp = 1.1;
+double tp = 1.0;
+//double tp = 1.1;
 double amp = 0.2;
 long nequil = 1000000;
 long nsteps = 1000000000;
@@ -32,7 +34,6 @@ int main(void)
   }
   cago_initmd(go, 0, 0.01, tp);
   go->dof = go->n * D;
-
 
   for ( t = 1; t <= nequil + nsteps; t++ ) {
     acc = cago_metro(go, amp, 1/tp);

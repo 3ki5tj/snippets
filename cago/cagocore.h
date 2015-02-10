@@ -585,12 +585,9 @@ __inline static double cago_depot(cago_t *go,
 
   /* copy coordinates */
   for ( j = 0; j < n; j++ ) {
-    if ( j == i ) {
-      vcopy(xn[i], xi);
-    } else {
-      vcopy(xn[j], x[j]);
-    }
+    vcopy(xn[j], x[j]);
   }
+  vcopy(xn[i], xi);
 
   /* bonds */
   j0 = intmax(i - 1, 0);
@@ -663,8 +660,9 @@ __inline static int cago_metro(cago_t *go, double amp, double bet)
     vcopy(go->x[i], xi);
     go->epot += du;
     return 1;
-  } else
+  } else {
     return 0;
+  }
 }
 
 
@@ -672,23 +670,6 @@ __inline static int cago_metro(cago_t *go, double amp, double bet)
 /* compute the RMSD from the reference structure */
 #define cago_rmsd(go, x, xf) \
   vrmsd(x, xf, go->xref, go->m, go->n, 0, NULL, NULL)
-
-
-
-__inline static double cago_rmsd2(cago_t *go,
-  double (*x)[D], int i, double *xi)
-{
-  int j, n = go->n;
-
-  for ( j = 0; j < n; j++ ) {
-    if ( j != i ) {
-      vcopy(go->x1[j], x[j]);
-    } else {
-      vcopy(go->x1[j], xi);
-    }
-  }
-  return cago_rmsd(go, go->x1, NULL);
-}
 
 
 
