@@ -179,17 +179,28 @@
   <br>
 
   <div class="center">
-    <canvas id="cagobox" width="480" height="480"></canvas>
+    <canvas id="gobox" width="480" height="480"></canvas>
     <br>
-    Zoom: <input id="cagoscale" type="range" value="1.0"
+    Zoom: <input id="goscale" type="range" value="1.0"
       min="0.05" max="3.0" step="0.01" style="width: 480px"
       onchange="changescale()">
     <br>
+
+    <input type="checkbox" id="drawref" checked>
+    Draw the native structure.
+    &nbsp;
 
     <input type="checkbox" checked id="orthographic"
       onchange="paint()">
     Orthographic.
     &nbsp;
+    <br>
+
+    Ball size:
+    <input type="range" value="1.0"
+      min="0.01" max="2.0" step="0.01"
+      style="border: 1px solid #cccccc;"
+      id="ballscale">.
     <br>
 
     <span id="seq">&nbsp;</span>

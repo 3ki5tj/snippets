@@ -222,6 +222,8 @@ function CaGo(strpdb, kb, ka, kd1, kd3, nbe, nbc, rcc, ctype, nsexcl)
   this.kd3 = kd3;
   this.nbe = nbe;
   this.nbc = nbc;
+
+  this.ncgam = 1.2; // default value
 }
 
 
@@ -336,25 +338,25 @@ CaGo.prototype.force = function(x, f)
 
   // bonds
   for ( i = 0; i < n - 1; i++ ) {
-    ene += potbond(x[i], x[i + 1], go.bref[i], kb, f[i], f[i + 1]);
+    ene += potbond(x[i], x[i + 1], this.bref[i], kb, f[i], f[i + 1]);
   }
 
   // angles
   for ( i = 0; i < n - 2; i++ ) {
-    ene += potang(x[i], x[i + 1], x[i + 2], go.aref[i],
+    ene += potang(x[i], x[i + 1], x[i + 2], this.aref[i],
               ka, f[i], f[i + 1], f[i + 2]);
   }
 
   // dihedrals
   for ( i = 0; i < n - 3; i++ ) {
-    ene += potdih13(x[i], x[i + 1], x[i + 2], x[i + 3], go.dref[i],
+    ene += potdih13(x[i], x[i + 1], x[i + 2], x[i + 3], this.dref[i],
           kd1, kd3, f[i], f[i + 1], f[i + 2], f[i + 3]);
   }
 
   // non-bonded
   for ( i = 0; i < n - 4; i++ ) {
     for ( j = i + 4; j < n; j++ ) {
-      if ( go.iscont[i][j] ) { // contact pair
+      if ( this.iscont[i][j] ) { // contact pair
         ene += pot1210(x[i], x[j], this.r2ref[i][j], nbe, f[i], f[j]);
       } else {
         ene += potr12(x[i], x[j], nbc2, nbe, f[i], f[j]);
@@ -379,7 +381,7 @@ CaGo.prototype.rmcom = function(x, v)
 /* compute the kinetic energy */
 CaGo.prototype.getekin = function(v)
 {
-  return md_ekin(go.v, go.m, go.n);
+  return md_ekin(this.v, this.m, this.n);
 };
 
 
@@ -564,17 +566,17 @@ CaGo.prototype.getRMSD = function(x, xf)
  * this counting process is independent of the process of defining contacts.
  * here, given a set of defined contacts, we simple observe how many pairs
  *   are close enough to be regarded as contacts
- * a contact is formed if the pair distance is <= gam * native-distance
- * return the number of contacts
- * `*Q' is the ratio of formed contacts / the total number of contacts  */
+ * a contact is formed if the pair distance is <= gam times the native distance
+ * `mat` is the 0-1 contact matrix
+ * return the number of contacts */
 CaGo.prototype.ncontacts = function(x, gam, mat)
 {
   var i, j, nct = 0, n = this.n;
   var dx = [0, 0, 0], gam2;
 
-  // determine gam, multiple of the reference distance
-  if ( isNaN(gam) ) {
-    gam = 1.2;
+  // determine gam, a multiple of the reference distance
+  if ( !gam || isNaN(gam) ) {
+    gam = this.ncgam;
   }
   gam2 = gam * gam;
 

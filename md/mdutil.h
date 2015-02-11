@@ -154,7 +154,7 @@ __inline static double md_vrescale(double (*v)[D],
   int i;
   double ek1, ek2, s, c, r, r2;
 
-  c = (dt < 700) ? exp(-dt) : 0;
+  c = exp(-dt);
   ek1 = md_ekin(v, m, n);
   r = randgaus();
   r2 = randchisqr(dof - 1);

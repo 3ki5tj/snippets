@@ -144,7 +144,7 @@ function md_ekin(v, m, n)
 /* exact velocity rescaling thermostat */
 function md_vrescale(v, m, n, dof, tp, dt)
 {
-  var c = (dt < 700) ? Math.exp(-dt) : 0;
+  var c = Math.exp(-dt);
   var ek1 = md_ekin(v, m, n);
   var r = randgaus();
   var r2 = randchisqr(dof - 1);
@@ -171,8 +171,14 @@ function md_vscramble(v, m, n, k)
   for ( l = 0; l < k; l++ ) {
     i = Math.floor(rand01() * n);
     j = (i + 1 + Math.floor(rand01() * (n - 1))) % n;
-    smi = Math.sqrt( m[i] );
-    smj = Math.sqrt( m[j] );
+
+    if ( m ) {
+      smi = Math.sqrt( m[i] );
+      smj = Math.sqrt( m[j] );
+    } else {
+      smi = smj = 1;
+    }
+
     for ( d = 0; d < D; d++ ) {
       vi = smi * v[i][d];
       vj = smj * v[j][d];

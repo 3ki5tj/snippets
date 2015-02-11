@@ -225,6 +225,16 @@ function lightenColor(colorStr, fac)
 
 
 
+/* get the greyscale version of a color */
+function greyColor(colorStr, fac)
+{
+  var color = parseRGB(colorStr);
+  var x = Math.floor((color.r + color.g + color.b)/3);
+  return rgb2str(x, x, x);
+}
+
+
+
 /* bar chart for Dygraph */
 function barChartPlotter(e)
 {

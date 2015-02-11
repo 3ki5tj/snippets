@@ -92,14 +92,14 @@ function getparams()
   nstepspsmc = get_int("nstepspersecmc", 10000);
   nstepspfmc = nstepspsmc * timer_interval / 1000;
 
-  mousescale = get_float("cagoscale");
+  mousescale = get_float("goscale");
 }
 
 
 
 function changescale()
 {
-  mousescale = get_float("cagoscale");
+  mousescale = get_float("goscale");
   paint();
 }
 
@@ -109,8 +109,8 @@ function getsinfo()
 {
   var s = "";
   s += '<span class="math"><i>U</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
-  s += '<span class="math">RMSD</span>: ' + roundto(sumR/sum1, 3) + "&#8491;, ";
-  s += '<span class="math">Contacts</span>: ' + roundto(sumC/sum1, 2) + "/" + roundto(go.ncont, 2) + ".";
+  s += 'RMSD: ' + roundto(sumR/sum1, 3) + "&#8491;, ";
+  s += 'Contacts: ' + roundto(sumC/sum1, 2) + "/" + roundto(go.ncont, 2) + ".";
   return s;
 }
 
@@ -156,7 +156,14 @@ function domc()
 function paint()
 {
   if ( go ) {
-    cagodraw(go, "cagobox", mousescale);
+    var ballscale = get_float("ballscale", 1.0);
+    var drawref = grab("drawref").checked;
+    if ( drawref ) { // draw the reference structure
+      cagodraw(go, go.xref, "gobox", mousescale, ballscale, false, true);
+    }
+    // we draw go.x1 instead of go.x, because the former
+    // has been fit against the native structure
+    cagodraw(go, go.x1, "gobox", mousescale, ballscale, drawref, false);
   }
 }
 
@@ -171,6 +178,7 @@ function pulse()
   } else if ( simulmethod === "MC" ) {
     sinfo = domc();
   }
+  go.getRMSD(go.x, go.x1);
   grab("sinfo").innerHTML = sinfo;
 
   paint();
@@ -239,7 +247,7 @@ function startsimul()
   grab("seq").innerHTML = fmtseq( go.iaa, 60 );
   go.initmd(false, 0.01, tp);
   go.epot = go.force(go.x, go.f);
-  installmouse("cagobox", "cagoscale");
+  installmouse("gobox", "goscale");
   cagotimer = setInterval(
     function(){ pulse(); },
     timer_interval);

@@ -93,14 +93,26 @@ function getzscale(r, zmin, zmax, ortho)
     return 0.9;
   } else {
     var zf = (r[2] - zmin) / (zmax - zmin);
-    return 0.8 + 0.2 * zf;
+    return 0.7 + 0.3 * zf;
   }
 }
 
 
 
+function getContactPoint(xi, xj, radius)
+{
+  var rji, xji = newarr(D);
+
+  rji = vdistx(xji, xj, xi);
+  vsmul(xji,  radius / rji);
+  return vinc(xji, xi);
+}
+
+
+
 // draw all atoms in the box
-function cagodraw(go, target, userscale)
+function cagodraw(go, x, target, userscale, ballscale,
+    overwrite, grey)
 {
   var c = grab(target);
   var ctx = c.getContext("2d");
@@ -108,11 +120,17 @@ function cagodraw(go, target, userscale)
   var height = c.height;
   var i, j, jb, k, ir, ic, ret;
 
-  // draw the background
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
+  if ( !ballscale ) {
+    ballscale = 1.0;
+  }
 
-  ret = transform3d(go.x); // apply the rotation matrix
+  if ( !overwrite ) {
+    // draw the background
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  ret = transform3d(x); // apply the rotation matrix
   var xt = ret[0];
   //go.l = ret[2];
   go.l = 5.0 * Math.pow( go.n, 1.0/3 );
@@ -135,15 +153,16 @@ function cagodraw(go, target, userscale)
     //color = rgb2str(160 + 50 * zf, 160 + 50 * zf, 160 + 50 * zf);
     var iaa = go.iaa[ i0 ];
     var color = darkenColor( aacolors[ iaa ], 0.8 + 0.2 * zf );
-    var spotcolor = lightenColor( aacolors[ iaa ], 0.7 - 0.4 * zf );
+    if ( grey ) {
+      color = lightenColor( greyColor( color ), 0.5 );
+    }
+    var spotcolor = lightenColor( color, 0.3 );
     // make closer particles larger
     var scli = scale * getzscale(xyz[i], zmin, zmax, ortho);
     var xi = Math.floor(  xyz[i][0] * scli + width  * 0.5 );
     var yi = Math.floor( -xyz[i][1] * scli + height * 0.5 );
-    var rad = aaradii[ iaa ];
+    var rad = aaradii[ iaa ] * ballscale;
     var rz = Math.floor( rad * scli );
-    var xj, yj, sclj;
-
     paintBall(ctx, xi, yi, rz, color, spotcolor);
 
     // draw bonds to the adjacent residues
@@ -168,6 +187,4 @@ function cagodraw(go, target, userscale)
     }
   }
 }
-
-
 
