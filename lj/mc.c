@@ -1,5 +1,5 @@
 /* basic Monte Carlo simulation */
-#include "ljcore.h"
+#include "lj.h"
 
 
 

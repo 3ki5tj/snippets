@@ -5,7 +5,7 @@ LM =
 
 srcs = $(wildcard *.c)
 bins = $(patsubst %.c,%, $(srcs))
-deps = $(wildcard *.h) Makefile
+deps = $(wildcard ../*.h) $(wildcard *.h) Makefile
 
 all: $(bins)
 

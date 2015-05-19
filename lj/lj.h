@@ -1,5 +1,5 @@
-#ifndef LJCORE_H__
-#define LJCORE_H__
+#ifndef LJ_H__
+#define LJ_H__
 
 
 
@@ -9,7 +9,18 @@
 
 
 #include "mtrand.h"
-#include "util.h" /* vct.h and mat.h are included within */
+#include "vct.h"
+#include "mat.h"
+#include "mdutil.h"
+
+
+
+#ifndef xnew
+#define xnew(x, n) { \
+  if ((x = calloc((n), sizeof(*(x)))) == NULL) { \
+    fprintf(stderr, "no memory for " #x " x %d\n", (int) (n)); \
+    exit(1); } }
+#endif
 
 
 
@@ -38,9 +49,93 @@ typedef struct {
 
 /* functions that are dimension D dependent */
 #if D == 2
-#include "lj2d.h"
-#else
-#include "lj3d.h"
+
+
+
+/* initialize a fcc lattice */
+static void lj_initfcc(lj_t *lj)
+{
+  int i, j, id, n1, n = lj->n;
+  double a, noise;
+
+  n1 = (int) (pow(2*n, 1.0/D) + .999999); /* # of particles per side */
+  a = lj->l / n1;
+  noise = a * 1e-5;
+  for (id = 0, i = 0; i < n1 && id < n; i++)
+    for (j = 0; j < n1 && id < n; j++) {
+      if ((i+j) % 2 != 0) continue;
+      /* add some noise to prevent two atoms happened to
+       * be separated by precisely some special cutoff distance,
+       * which might be half of the box */
+      lj->x[id][0] = (i + .5) * a + noise * (2*rand01() - 1);
+      lj->x[id][1] = (j + .5) * a + noise * (2*rand01() - 1);
+      id++;
+    }
+}
+
+
+
+/* get the tail correction */
+static double lj_gettail(lj_t *lj, double rho, int n, double *ptail)
+{
+  double irc, irc3, irc6, utail;
+
+  irc = 1/lj->rc;
+  irc3 = irc * irc * irc;
+  irc6 = irc3 * irc3;
+  utail = M_PI*rho*n*(.4*irc6 - 1)*irc3*irc;
+  if (ptail != NULL)
+    *ptail = M_PI*rho*rho*(2.4*irc6 - 3)*irc3*irc;
+  return utail;
+}
+
+
+
+#else /* D == 3 */
+
+
+
+/* initialize a fcc lattice */
+static void lj_initfcc(lj_t *lj)
+{
+  int i, j, k, id, n1, n = lj->n;
+  double a, noise;
+
+  n1 = (int) (pow(2*n, 1.0/D) + .999999); /* # of particles per side */
+  a = lj->l / n1;
+  noise = a * 1e-5;
+  for (id = 0, i = 0; i < n1 && id < n; i++)
+    for (j = 0; j < n1 && id < n; j++)
+      for (k = 0; k < n1 && id < n; k++) {
+        if ((i+j+k) % 2 != 0) continue;
+        /* add some noise to prevent two atoms happened to
+         * be separated by precisely some special cutoff distance,
+         * which might be half of the box */
+        lj->x[id][0] = (i + .5) * a + noise * (2*rand01() - 1);
+        lj->x[id][1] = (j + .5) * a + noise * (2*rand01() - 1);
+        lj->x[id][2] = (k + .5) * a + noise * (2*rand01() - 1);
+        id++;
+      }
+}
+
+
+
+/* get the tail correction */
+static double lj_gettail(lj_t *lj, double rho, int n, double *ptail)
+{
+  double irc, irc3, irc6, utail;
+
+  irc = 1/lj->rc;
+  irc3 = irc * irc * irc;
+  irc6 = irc3 * irc3;
+  utail = 8*M_PI*rho*n/9*(irc6 - 3)*irc3;
+  if (ptail != NULL)
+    *ptail = 32*M_PI*rho*rho/9*(irc6 - 1.5)*irc3;
+  return utail;
+}
+
+
+
 #endif
 
 
@@ -53,7 +148,10 @@ static void lj_setrho(lj_t *lj, double rho)
   lj->rho = rho;
   lj->vol = lj->n/rho;
   lj->l = pow(lj->vol, 1.0 / D);
-  lj->rc = dblmin( lj->rcdef, lj->l * 0.5 );
+  lj->rc = lj->l * 0.5;
+  if ( lj->rc > lj->rcdef ) {
+    lj->rc = lj->rcdef;
+  }
   lj->rc2 = lj->rc * lj->rc;
   irc = 1 / lj->rc;
   irc *= irc * irc;
@@ -415,4 +513,4 @@ __inline static int lj_writepos(lj_t *lj,
 
 
 
-#endif /* LJCORE_H__ */
+#endif /* LJ_H__ */

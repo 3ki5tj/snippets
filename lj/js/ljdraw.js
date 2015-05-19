@@ -43,6 +43,22 @@ function ljdraw2d(lj, target, userscale)
 
 
 
+/* apply the view matrix */
+function transform(x, l)
+{
+  var n = x.length;
+  var xyz = newarr2d(n, 3), xc = [l * 0.5, l * 0.5, l * 0.5], xi = [0, 0, 0];
+
+  for ( var i = 0; i < n; i++ ) {
+    vdiff(xi, x[i], xc);
+    vmxv(xyz[i], viewmat, xi);
+    vinc(xyz[i], xc);
+  }
+  return xyz;
+}
+
+
+
 function sortbyz(x)
 {
   var i, j, k, l, n = x.length;
@@ -72,7 +88,7 @@ function sortbyz(x)
 
 
 
-// draw all atoms in the box
+/* draw all atoms in the box */
 function ljdraw3d(lj, target, userscale)
 {
   var c = grab(target);

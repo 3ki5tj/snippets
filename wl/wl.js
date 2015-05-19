@@ -36,6 +36,7 @@ function WL(xmin, xmax, dx, isf, lnf0, flatness, frac, c, flags)
   this.frac = frac;
   this.c = c;
   this.flags = flags;
+  this.stage = 1;
 }
 
 
@@ -218,6 +219,7 @@ WL.prototype.updatelnf = function()
       this.lnf = nlnf;
       wl_clearh(this.h, this.n);
     }
+    this.stage += 1;
     return 1;
   }
   return 0;

@@ -1,8 +1,5 @@
 /* basic molecular dynamics simulation in the NVT or NVE ensemble */
-#ifndef D
-#define D 3
-#endif
-#include "ljcore.h"
+#include "lj.h"
 
 
 

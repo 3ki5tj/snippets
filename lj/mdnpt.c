@@ -1,4 +1,4 @@
-#include "ljcore.h"
+#include "lj.h"
 
 
 
