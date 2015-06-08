@@ -140,6 +140,8 @@ static void wham_estimatelnz(wham_t *w, double *lnz)
 
   lnz[0] = 0;
   for ( j = 1; j < nbeta; j++ ) {
+    /* estimate the free energy different between
+     * the pair j - 1 and j */
     db = w->beta[j] - w->beta[j - 1];
     s = 0;
     dlnz = LOG0;
@@ -157,6 +159,18 @@ static void wham_estimatelnz(wham_t *w, double *lnz)
     }
     lnz[j] = lnz[j - 1] + (s > 0 ? log(s) - dlnz : 0);
   }
+}
+
+
+
+static void wham_normalize(double *lnz, int nbeta)
+{
+  int i;
+
+  for ( i = 1; i < nbeta; i++ ) {
+    lnz[i] -= lnz[0];
+  }
+  lnz[0] = 0;
 }
 
 
@@ -211,6 +225,10 @@ static double wham_step(wham_t *w, double *lnz, double *res, int update)
     if ( fabs(res[j]) > err ) err = fabs(res[j]);
     if ( update ) lnz[j] += res[j];
   }
+    
+  if ( update ) {
+    wham_normalize(lnz, nbeta);
+  }
 
   return err;
 }
@@ -225,7 +243,7 @@ static double wham_getlndos(wham_t *w, double *lnz,
   int it;
   double err, errp = 1e30;
 
-  for ( it = 1; it <= itmax; it++ ) {
+  for ( it = 0; it < itmax; it++ ) {
     err = wham_step(w, lnz, w->res, 1);
     if ( verbose ) {
       fprintf(stderr, "it %d, err %g -> %g\n",
@@ -237,7 +255,7 @@ static double wham_getlndos(wham_t *w, double *lnz,
     errp = err;
   }
 
-  fprintf(stderr, "WHAM converged at step %d, error %g\n", it, err);
+  fprintf(stderr, "WHAM converged in %d steps, error %g\n", it, err);
   return err;
 }
 
@@ -250,7 +268,7 @@ static double wham(hist_t *hist, const double *beta, double *lnz,
 {
   wham_t *w = wham_open(beta, hist);
   double err;
- 
+
   wham_estimatelnz(w, lnz);
   err = wham_getlndos(w, lnz, itmax, tol, verbose);
   if ( fnlndos ) {
@@ -277,15 +295,17 @@ static double wham_getres(void *w, double *lnz, double *res)
 
 
 static double wham_mdiis(hist_t *hist, const double *beta, double *lnz,
-    int nbases, double damp, int itmax, double tol, int verbose,
+    int nbases, double damp, int queue, double threshold,
+    int itmax, double tol, int verbose,
     const char *fnlndos, const char *fneav)
 {
   wham_t *w = wham_open(beta, hist);
   double err;
- 
+
   wham_estimatelnz(w, lnz);
-  err = iter_mdiis(lnz, hist->rows, wham_getres, w,
-      nbases, damp, itmax, tol, verbose);
+  err = iter_mdiis(lnz, hist->rows,
+      wham_getres, wham_normalize, w,
+      nbases, damp, queue, threshold, itmax, tol, verbose);
   if ( fnlndos ) wham_savelndos(w, fnlndos);
   wham_getav(w, fneav);
   wham_close(w);

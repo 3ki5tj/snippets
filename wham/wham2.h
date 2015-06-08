@@ -254,6 +254,18 @@ static void wham2_estimatelnz(wham2_t *w, double *lnz)
 
 
 
+static void wham2_normalize(double *lnz, int nbeta)
+{
+  int i;
+
+  for ( i = 1; i < nbeta; i++ ) {
+    lnz[i] -= lnz[0];
+  }
+  lnz[0] = 0;
+}
+
+
+
 static double wham2_step(wham2_t *w, double *lnz, double *res, int update)
 {
   hist2_t *hist = w->hist;
@@ -321,6 +333,9 @@ static double wham2_step(wham2_t *w, double *lnz, double *res, int update)
     if ( update ) lnz[k] += res[k];
   }
 
+  if ( update ) {
+    wham2_normalize(lnz, nbeta);
+  }
   return err;
 }
 
@@ -346,7 +361,7 @@ static double wham2_getlndos(wham2_t *w, double *lnz,
     errp = err;
   }
 
-  fprintf(stderr, "WHAM converged at step %d, error %g\n", it, err);
+  fprintf(stderr, "WHAM converged in %d steps, error %g\n", it, err);
   return err;
 }
 
@@ -361,7 +376,7 @@ static double wham2(hist2_t *hist,
   wham2_t *w = wham2_open(bx, by, hist);
   double err;
 
-  wham2_estimatelnz(w, lnz); 
+  wham2_estimatelnz(w, lnz);
   err = wham2_getlndos(w, lnz, itmax, tol, verbose);
   if ( fnlndos ) wham2_savelndos(w, fnlndos);
   wham2_getav(w, fneav);
@@ -386,15 +401,17 @@ static double wham2_getres(void *w, double *lnz, double *res)
 
 static double wham2_mdiis(hist2_t *hist,
     const double *bx, const double *by, double *lnz,
-    int nbases, double damp, int itmax, double tol, int verbose,
+    int nbases, double damp, int queue, double threshold,
+    int itmax, double tol, int verbose,
     const char *fnlndos, const char *fneav)
 {
   wham2_t *w = wham2_open(bx, by, hist);
   double err;
 
   wham2_estimatelnz(w, lnz);
-  err = iter_mdiis(lnz, hist->rows, wham2_getres, w,
-      nbases, damp, itmax, tol, verbose);
+  err = iter_mdiis(lnz, hist->rows,
+      wham2_getres, wham2_normalize, w,
+      nbases, damp, queue, threshold, itmax, tol, verbose);
   if ( fnlndos ) wham2_savelndos(w, fnlndos);
   wham2_getav(w, fneav);
   wham2_close(w);
