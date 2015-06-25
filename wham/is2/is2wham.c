@@ -3,6 +3,8 @@
 #include "../wham.h"
 #define IS2_LB 6
 #include "is2.h"
+#include <time.h>
+
 
 
 int nequil = 100000;
@@ -46,6 +48,8 @@ int main(int argc, char **argv)
     IS2_SETPROBA(is[itp], beta[itp]);
     lnz[itp] = epot[itp] = 0;
   }
+
+  mtscramble( time(NULL) );
   hs = hist_open(ntp, xmin, xmax, dx);
 
   /* try to load the histogram, if it fails, do simulations */
