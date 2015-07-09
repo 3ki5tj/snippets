@@ -39,11 +39,13 @@ const char *wham_methods[] = {
 
 typedef struct {
   const double *beta; /* temperature array, reference */
-  double *res; /* difference between new and old lnz */
-  double *lndos; /* density of states */
   double *lntot; /* total number of visits to each temperature */
+  double *res; /* difference between new and old lnz */
+  double *htot; /* overall histogram */
+  double *lndos; /* density of states */
   const hist_t *hist; /* histograms, reference */
   double *sum, *ave, *var, *hnorm;
+  double *ave1, *var1;
   int imin, imax;
 } wham_t;
 
@@ -53,43 +55,45 @@ static wham_t *wham_open(const double *beta, const hist_t *hist)
 {
   wham_t *w;
   int i, j, nbeta = hist->rows, n = hist->n;
-  double h;
 
   xnew(w, 1);
   w->beta = beta;
   w->hist = hist;
   xnew(w->lntot, hist->rows);
   xnew(w->res, hist->rows);
+  xnew(w->htot, hist->n);
   xnew(w->lndos, hist->n);
   xnew(w->sum, hist->rows);
   xnew(w->ave, hist->rows);
   xnew(w->var, hist->rows);
   xnew(w->hnorm, hist->rows);
+  xnew(w->ave1, hist->rows);
+  xnew(w->var1, hist->rows);
 
   /* compute the total */
+  for ( i = 0; i < n; i++ ) {
+    w->htot[i] = 0;
+  }
   for ( j = 0; j < nbeta; j++ ) {
-    double x = 0;
-    for ( i = 0; i < n; i++ )
-      x += hist->arr[j*n+i];
-    w->lntot[j] = (x > 0) ? log(x) : LOG0;
+    double x, s = 0;
+    for ( i = 0; i < n; i++ ) {
+      x = hist->arr[j*n + i];
+      s += x;
+      w->htot[i] += x;
+    }
+    w->lntot[j] = (s > 0) ? log(s) : LOG0;
   }
 
   /* determine the boundaries */
   /* find imin */
   for ( i = 0; i < n; i++ ) {
-    for ( h = 0, j = 0; j < nbeta; j++ ) {
-      h += hist->arr[j * n + i];
-    }
-    if ( h > 0 ) break;
+    if ( w->htot[i] > 0 ) break;
   }
   w->imin = i;
 
   /* find imax */
   for ( i = n - 1; i >= 0; i-- ) {
-    for ( h = 0, j = 0; j < nbeta; j++ ) {
-      h += hist->arr[j * n + i];
-    }
-    if ( h > 0 ) break;
+    if ( w->htot[i] > 0 ) break;
   }
   w->imax = i + 1;
 
@@ -101,13 +105,16 @@ static wham_t *wham_open(const double *beta, const hist_t *hist)
 
 static void wham_close(wham_t *w)
 {
-  free(w->res);
-  free(w->lndos);
   free(w->lntot);
+  free(w->res);
+  free(w->htot);
+  free(w->lndos);
   free(w->sum);
   free(w->ave);
   free(w->var);
   free(w->hnorm);
+  free(w->ave1);
+  free(w->var1);
   free(w);
 }
 
@@ -129,14 +136,25 @@ static int wham_savelndos(wham_t *w, const char *fn)
   FILE *fp;
   int i;
   double emin = w->hist->xmin, de = w->hist->dx;
+  double e, y, dy;
 
   if ((fp = fopen(fn, "w")) == NULL) {
     fprintf(stderr, "cannot write %s\n", fn);
     return -1;
   }
-  for ( i = w->imin; i < w->imax; i++ )
-    if ( w->lndos[i] > LOG0 )
-      fprintf(fp, "%g %g\n", emin + (i+.5)*de, w->lndos[i]);
+  for ( i = w->imin; i < w->imax; i++ ) {
+    e = emin + (i * 2 + 1) * de / 2;
+    y = w->lndos[i];
+    if ( y <= LOG0 ) continue;
+    if ( i == w->imin ) {
+      dy = (w->lndos[i+1] - y) / de;
+    } else if ( i + 1 < w->imax ) {
+      dy = (w->lndos[i+1] - w->lndos[i-1]) / (2 * de);
+    } else {
+      dy = (y - w->lndos[i-1]) / de;
+    }
+    fprintf(fp, "%g %g %g\n", e, y, dy);
+  }
   fclose(fp);
   return 0;
 }
@@ -157,7 +175,7 @@ static void wham_getav(wham_t *w, const char *fn)
 
   for ( j = 0; j < nbeta; j++ ) {
     b = w->beta[j];
-    T = 1./b;
+    T = 1 / b;
     lnz = slne = slnee = LOG0;
     for ( i = w->imin; i < w->imax; i++ ) {
       if ( w->lndos[i] <= LOG0 ) continue;
@@ -249,34 +267,29 @@ static double wham_step(wham_t *w, double *lnz, double *res,
     double damp)
 {
   const hist_t *hist = w->hist;
-  int i, j, imin, n = hist->n, nbeta = hist->rows;
-  double x, num, lnden, e, emin = hist->xmin, de = hist->dx, err;
+  int i, j, n = hist->n, nbeta = hist->rows;
+  double x, lnden, e, emin = hist->xmin, de = hist->dx, err;
 
-  imin = -1;
   for ( i = w->imin; i < w->imax; i++ ) {
-    num = 0;
-    lnden = LOG0;
+    if ( w->htot[i] <= 0 ) {
+      w->lndos[i] = LOG0;
+      continue;
+    }
+
     e = emin + (i + .5) * de;
+    lnden = LOG0;
     /*        num           Sum_j h_j(i)
      * dos = ----- = ------------------------------------------
      *        den     Sum_j tot_j exp(-beta_j * e) / Z_j
      * */
     for ( j = 0; j < nbeta; j++ ) {
-      x = hist->arr[j*n + i];
-      //if ( x <= 0 ) continue;
-      num += x;
       lnden = wham_lnadd(lnden, w->lntot[j] - w->beta[j] * e - lnz[j]);
     }
-    if ( num > 0 ) {
-      w->lndos[i] = log(num) - lnden;
-      if ( imin < 0 ) imin = i;
-    } else {
-      w->lndos[i] = LOG0;
-    }
+    w->lndos[i] = log(w->htot[i]) - lnden;
   }
 
   /* shift the baseline of the density of states */
-  for ( x = w->lndos[imin], i = 0; i < n; i++ )
+  for ( x = w->lndos[w->imin], i = 0; i < n; i++ )
     if ( w->lndos[i] > LOG0 )
       w->lndos[i] -= x;
 
@@ -361,7 +374,7 @@ static void stwham_getlndos(wham_t *w)
 {
   const hist_t *hist = w->hist;
   int i, j, imin, imax, n = hist->n, nbeta = hist->rows;
-  double x, y, y2, tot, hn, hp, stbeta, de = hist->dx;
+  double x, y, stbeta, de = hist->dx;
   clock_t t0, t1;
 
   t0 = clock();
@@ -369,44 +382,62 @@ static void stwham_getlndos(wham_t *w)
   imin = w->imin;
   imax = w->imax;
   for ( i = imin; i < imax; i++ ) {
-    tot = 0;
+    if ( w->htot[i] <= 0 ) continue;
+
     stbeta = 0;
     for ( j = 0; j < nbeta; j++ ) {
-      x = hist->arr[j*n + i];
-      tot += x;
       /* compute the statistical temperature from copy j
        *            sum_j [(n_j)'(E) + n_j(E) beta_j]
        * beta(E) = -----------------------------------
        *                     sum_k n_k(E)
        * y is the numerator */
-      y = x * w->beta[j];
-      y2 = 0;
-      if ( i - 1 >= imin && i + 1 < imax ) {
-        hn = hist->arr[j*n + i + 1];
-        hp = hist->arr[j*n + i - 1];
-        /* compute (n_j)'(E) + n_j(E) beta */
-        y2 = (hn - hp) / (2 * de);
-      }
-      stbeta += y + y2;
+      stbeta += hist->arr[j*n + i] * w->beta[j];
     }
 
-    /* lndos currently holds the statistical temperature */
-    if ( tot > 0 ) {
-      w->lndos[i] = stbeta / tot;
-    } else {
-      w->lndos[i] = 0;
-      continue;
-    }
+    /* lndos currently holds the second part of
+     * the statistical temperature */
+    w->lndos[i] = stbeta / w->htot[i];
   }
 
-  /* integrate the statistical temperature
+  for ( i = imin; i < imax; i++ ) {
+    int il, ir;
+
+    if ( w->htot[i] > 0 ) continue;
+
+    /* find the closest nonempty bin */
+    for ( il = i - 1; il >= 0; il-- ) {
+      if ( w->htot[il] > 0 ) break;
+    }
+    for ( ir = i + 1; ir < n; ir++ ) {
+      if ( w->htot[ir] > 0 ) break;
+    }
+    if ( il >= 0 && i - il <= ir - i ) {
+      stbeta = w->lndos[il];
+    } else if ( ir < n ) {
+      stbeta = w->lndos[ir];
+    } else {
+      stbeta = 0;
+    }
+    w->lndos[i] = stbeta;
+  }
+
+  /* integrate the second part of the statistical temperature
    * to get the density of states */
   x = y = 0;
   for ( i = imin; i < imax; i++ ) {
     stbeta = w->lndos[i];
-    w->lndos[i] = y + 0.5 * (x + stbeta) * de;
+    w->lndos[i] = y + (x + stbeta) / 2 * de;
     x = stbeta; /* previous temperature */
     y = w->lndos[i]; /* previous lndos */
+  }
+
+  /* add the first part */
+  for ( i = imin; i < imax; i++ ) {
+    if ( w->htot[i] > 0 ) {
+      w->lndos[i] += log(w->htot[i]);
+    } else {
+      w->lndos[i] = LOG0;
+    }
   }
 
   for ( i = 0; i < imin; i++ ) {
@@ -441,21 +472,15 @@ static double stwham(const hist_t *hist, const double *beta, double *lnz,
 
 
 
-/* non-iteratively compute the logarithm of the density of states
- * using umbrella integration */
-static void umbint_getlndos(wham_t *w)
+/* compute histogram averages */
+static void wham_gethave(wham_t *w)
 {
   const hist_t *hist = w->hist;
-  int i, j, imin, imax, n = hist->n, nbeta = hist->rows;
-  double x, y, tot, stbeta, de = hist->dx;
-  clock_t t0, t1;
-
-  t0 = clock();
+  int i, j, n = hist->n, nbeta = hist->rows;
+  double tot, sx, sxx, x, y, de = hist->dx;
 
   /* compute averages and variance */
   for ( j = 0; j < nbeta; j++ ) {
-    double sx, sxx;
-
     tot = sx = sxx = 0;
     for ( i = w->imin; i < w->imax; i++ ) {
       y = hist->arr[j*n + i];
@@ -472,11 +497,30 @@ static void umbint_getlndos(wham_t *w)
     w->sum[j] = tot;
     w->ave[j] = sx;
     w->var[j] = sxx;
+  }
+}
+
+
+
+/* non-iteratively compute the logarithm of the density of states
+ * using umbrella integration */
+static void umbint_getlndos(wham_t *w)
+{
+  const hist_t *hist = w->hist;
+  int i, j, imin, imax, n = hist->n, nbeta = hist->rows;
+  double x, y, tot, stbeta, de = hist->dx;
+  clock_t t0, t1;
+
+  t0 = clock();
+
+  /* compute averages and variance */
+  wham_gethave(w);
+  for ( j = 0; j < nbeta; j++ ) {
     w->hnorm[j] = w->sum[j] * de / sqrt(2 * M_PI * w->var[j]);
   }
 
-  imin = w->imin;
-  imax = w->imax;
+  imin = 0; // w->imin;
+  imax = n; // w->imax;
   for ( i = imin; i < imax; i++ ) {
     double ei = hist->xmin + (i + 0.5) * de;
 
@@ -491,12 +535,7 @@ static void umbint_getlndos(wham_t *w)
     }
 
     /* lndos currently holds the statistical temperature */
-    if ( tot > 0 ) {
-      w->lndos[i] = stbeta / tot;
-    } else {
-      w->lndos[i] = 0;
-      continue;
-    }
+    w->lndos[i] = (tot > 0) ? stbeta / tot : 0;
   }
 
   /* integrate the statistical temperature

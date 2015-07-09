@@ -131,8 +131,8 @@ static int mdiis_solve(mdiis_t *m)
   m->coef[nb] = -1;
 
   /* copy the matrix, for the content is to be destroyed */
-  for ( i = 0; i < nb1; i++ ) {
-    for ( j = 0; j < nb1; j++ ) {
+  for ( i = 0; i < nb; i++ ) {
+    for ( j = 0; j < nb; j++ ) {
       m->mat2[i*nb1 + j] = m->mat[i*mnb + j];
     }
   }
@@ -142,7 +142,11 @@ static int mdiis_solve(mdiis_t *m)
   }
   m->mat2[nb*nb1 + nb] = 0;
 
-  if ( lusolve(m->mat2, m->coef, nb1, 1e-20) != 0 ) {
+#ifndef MDIIS_TINY
+#define MDIIS_TINY 1e-20
+#endif
+
+  if ( lusolve(m->mat2, m->coef, nb1, MDIIS_TINY) != 0 ) {
     fprintf(stderr, "MDIIS lusolve failed\n");
     exit(1);
   }
