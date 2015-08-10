@@ -22,7 +22,7 @@ typedef struct {
 
 /* set transition probability */
 #define IS2_SETPROBA(is, bet) { \
-  double x_ = exp(-4. * bet); \
+  double x_ = exp(-4 * bet); \
   is->uproba[2] = (unsigned) ((double)(0xffffffff) * x_); \
   is->uproba[4] = (unsigned) ((double)(0xffffffff) * x_*x_); }
 
@@ -31,27 +31,28 @@ typedef struct {
 /* pick a random site, count neighbors with different spins */
 __inline static int is2_pick(const is2_t *is, int *h)
 {
-  int id, ix, iy, l, lm, n, nm, *p;
+  int id, ix, iy, l, lm, n, nm, ssn;
 
   lm = (l = is->l) - 1;
   nm = (n = is->n) - l;
   id = (int) (rand01() * n);
-  iy = id / l, ix = id % l;
-  p = is->s + id;
-  *h = *p * ( ((ix != 0 ) ? *(p-1) : *(p+lm))   /* left  */
-            + ((ix != lm) ? *(p+1) : *(p-lm))   /* right */
-            + ((iy != 0 ) ? *(p-l) : *(p+nm))   /* down  */
-            + ((iy != lm) ? *(p+l) : *(p-nm))); /* up    */
+  ix = id % l;
+  iy = id / l;
+  ssn = ((ix != 0 ) ? is->s[id - 1] : is->s[id + lm])   /* left  */
+      + ((ix != lm) ? is->s[id + 1] : is->s[id - lm])   /* right */
+      + ((iy != 0 ) ? is->s[id - l] : is->s[id + nm])   /* down  */
+      + ((iy != lm) ? is->s[id + l] : is->s[id - nm]);  /* up    */
+  *h = is->s[id] * ssn; /* -(*h) is the energy before the flip */
   return id;
 }
 
 
 
-/* flip site id, with h different neighbors */
+/* flip site id, with (-h) is the energy before the flip */
 __inline static int is2_flip(is2_t *is, int id, int h)
 {
-  is->M += (is->s[id] = -is->s[id])*2;
-  return is->E += h*2;
+  is->M += (is->s[id] = -is->s[id]) * 2;
+  return is->E += h * 2;
 }
 
 
@@ -63,12 +64,17 @@ __inline static int is2_flip(is2_t *is, int id, int h)
 #define IS2_N   (IS2_L * IS2_L)
 
 #define IS2_GETH(is, id, h) { \
-  unsigned ix, iy; \
-  iy = id / IS2_L, ix = id % IS2_L; \
-  h = is->s[id] * ( is->s[iy*IS2_L + (ix+1)%IS2_L] \
-                  + is->s[iy*IS2_L + (ix+IS2_L-1)%IS2_L] \
-                  + is->s[(iy+1)%IS2_L*IS2_L + ix] \
-                  + is->s[(iy-1+IS2_L)%IS2_L*IS2_L + ix] ); }
+  unsigned ix, ixp, ixm, iy, iyp, iym; \
+  ix = id % IS2_L; \
+  iy = id - ix; \
+  ixp = (ix + 1) % IS2_L; \
+  ixm = (ix + (IS2_L - 1)) % IS2_L; \
+  iyp = (iy + IS2_L) % IS2_N; \
+  iym = (iy + (IS2_N - IS2_L)) % IS2_N; \
+  h = is->s[id] * ( is->s[iy  + ixp] \
+                  + is->s[iy  + ixm] \
+                  + is->s[iyp + ix ] \
+                  + is->s[iym + ix ] ); }
 #define IS2_IRND(is, id)  id = mtrand() >> (32 - 2*IS2_LB);
 /* random picking */
 #define IS2_PICK(is, id, h) { IS2_IRND(is, id); IS2_GETH(is, id, h); }
@@ -92,17 +98,21 @@ __inline static int is2_flip(is2_t *is, int id, int h)
 /* compute total energy and magnetization */
 __inline static int is2_em(is2_t *is)
 {
-  int l, i, j, s, u, e, m, *p, *pu;
+  int l, n, i, j, e, m;
 
   e = m = 0;
-  p = is->s;
   l = is->l;
-  for (i = 0; i < l; ) {
-    pu = (++i == l) ? is->s : p+l;
-    for (j = 0; j < l; ) {
-      m += (s = *p++);
-      u = *pu++;
-      e += s*(u + ((++j == l) ? *(p-l) : *p));
+  n = l * l;
+  for ( i = 0; i < n; i += l ) {
+    for ( j = 0; j < l; j++ ) {
+      int id = i + j;
+      int idr = i + (j + 1) % l;
+      int idu = (i + l) % n + j;
+      int s = is->s[id];
+      int su = is->s[idu];
+      int sr = is->s[idr];
+      m += s;
+      e += s * (su + sr);
     }
   }
   is->M = m;
