@@ -16,7 +16,53 @@ typedef struct {
   int M, E;
   int *s; /* 0 or 1 */
   unsigned uproba[5]; /* temporary probability for MC transitions */
+  /* for Wolff's algorithm */
+  int *queue;
+  int *used;
 } is2_t;
+
+
+
+/* initialize an lxl Ising model */
+__inline static is2_t *is2_open(int l)
+{
+  int i, n;
+  is2_t *is;
+
+  if ( (is = calloc(1, sizeof(*is))) == NULL ) {
+    fprintf(stderr, "no memory for is2\n");
+    return NULL;
+  }
+  is->l = l;
+  is->n = n = l * l;
+  if ( (is->s = calloc(n, sizeof(*is->s))) == NULL ) {
+    fprintf(stderr, "no memory for is->n\n");
+    return NULL;
+  }
+  for (i = 0; i < n; i++) is->s[i] = -1;
+  is->M = -n;
+  is->E = -2*n;
+  is->uproba[0] = 0xffffffff;
+  if ( (is->queue = calloc(n, sizeof(*is->queue))) == NULL ) {
+    fprintf(stderr, "no memory for is->queue\n");
+    return NULL;
+  }
+  if ( (is->used = calloc(n, sizeof(*is->used))) == NULL ) {
+    fprintf(stderr, "no memory for is->used\n");
+    return NULL;
+  }
+  return is;
+}
+
+
+
+__inline static void is2_close(is2_t *is)
+{
+  free(is->s);
+  free(is->queue);
+  free(is->used);
+  free(is);
+}
 
 
 
@@ -121,6 +167,94 @@ __inline static int is2_em(is2_t *is)
 
 
 
+/* add spin j to the queue if s[j] is different from s */
+__inline static void is2_addtoqueue(is2_t *is, int j, int s,
+    double r, int *cnt)
+{
+  if ( is->s[j] == s && !is->used[j] && rand01() < r ) {
+    is->queue[ (*cnt)++ ] = j;
+    is->used[j] = 1;
+  }
+}
+
+
+
+/* return the field by s[j], which does not belong to the cluster */
+__inline static int is2_clusde(is2_t *is, int j)
+{
+  return is->used[j] ? 0 : is->s[j];
+}
+
+
+
+/* Wolff algorithm */
+__inline static int is2_wolff(is2_t *is, double padd)
+{
+  int l = is->l, n = is->n, i, ix, iy, id, s, cnt = 0, h;
+
+  /* randomly selected a seed */
+  id = (int) ( rand01() * n );
+  is->queue[ cnt++ ] = id;
+  for ( i = 0; i < n; i++ ) {
+    is->used[i] = 0;
+  }
+  is->used[id] = 1;
+  s = is->s[id];
+
+  /* go through spins in the queue */
+  for ( i = 0; i < cnt; i++ ) {
+    id = is->queue[i];
+    /* add neighbors of i with the same spins */
+    ix = id % l;
+    iy = id - ix;
+    is2_addtoqueue(is, iy + (ix + 1) % l,     s, padd, &cnt);
+    is2_addtoqueue(is, iy + (ix + l - 1) % l, s, padd, &cnt);
+    is2_addtoqueue(is, (iy + l) % n + ix,     s, padd, &cnt);
+    is2_addtoqueue(is, (iy + n - l) % n + ix, s, padd, &cnt);
+  }
+
+  /* flip all spins in the queue */
+  h = 0;
+  for ( i = 0; i < cnt; i++ ) {
+    id = is->queue[i];
+    is->s[id] = -s;
+    /* compute the energy change */
+    ix = id % l;
+    iy = id - ix;
+    h += is2_clusde(is, iy + (ix + 1) % l);
+    h += is2_clusde(is, iy + (ix + l - 1) % l);
+    h += is2_clusde(is, (iy + l) % n + ix);
+    h += is2_clusde(is, (iy + n - l) % n + ix);
+  }
+  is->E += 2 * s * h;
+  is->M -= 2 * s * cnt;
+  return 0;
+}
+
+
+
+__inline static int is2_save(const is2_t *is, const char *fname)
+{
+  FILE *fp;
+  int i, j, l, *p;
+
+  if ((fp = fopen(fname, "w")) == NULL) {
+    fprintf(stderr, "cannot write %s\n", fname);
+    return -1;
+  }
+  l = is->l;
+  fprintf(fp, "2 %d %d %d\n", l, l, is->n);
+  for (p = is->s, i = 0; i < l; i++) {
+    for (j = 0; j < l; j++, p++)
+      fprintf(fp, "%c", (*p > 0) ? '#' : ' ');
+    fprintf(fp, "\n");
+  }
+  fclose(fp);
+  return 0;
+}
+
+
+
 __inline static int is2_load(is2_t *is, const char *fname)
 {
   FILE *fp;
@@ -151,61 +285,6 @@ __inline static int is2_load(is2_t *is, const char *fname)
   fclose(fp);
   is2_em(is);
   return 0;
-}
-
-
-
-__inline static int is2_save(const is2_t *is, const char *fname)
-{
-  FILE *fp;
-  int i, j, l, *p;
-
-  if ((fp = fopen(fname, "w")) == NULL) {
-    fprintf(stderr, "cannot write %s\n", fname);
-    return -1;
-  }
-  l = is->l;
-  fprintf(fp, "2 %d %d %d\n", l, l, is->n);
-  for (p = is->s, i = 0; i < l; i++) {
-    for (j = 0; j < l; j++, p++)
-      fprintf(fp, "%c", (*p > 0) ? '#' : ' ');
-    fprintf(fp, "\n");
-  }
-  fclose(fp);
-  return 0;
-}
-
-
-
-/* initialize an lxl Ising model */
-__inline static is2_t *is2_open(int l)
-{
-  int i, n;
-  is2_t *is;
-
-  if ( (is = calloc(1, sizeof(*is))) == NULL ) {
-    fprintf(stderr, "no memory for is2\n");
-    return NULL;
-  }
-  is->l = l;
-  is->n = n = l*l;
-  if ( (is->s = calloc(n, sizeof(*is->s))) == NULL ) {
-    fprintf(stderr, "no memory for is->n\n");
-    return NULL;
-  }
-  for (i = 0; i < n; i++) is->s[i] = -1;
-  is->M = -n;
-  is->E = -2*n;
-  is->uproba[0] = 0xffffffff;
-  return is;
-}
-
-
-
-__inline static void is2_close(is2_t *is)
-{
-  free(is->s);
-  free(is);
 }
 
 
