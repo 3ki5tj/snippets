@@ -167,22 +167,18 @@ __inline static int is2_em(is2_t *is)
 
 
 
-/* add spin j to the queue if s[j] is different from s */
-__inline static void is2_addtoqueue(is2_t *is, int j, int s,
+/* add spin j to the queue if s[j] is different from s
+ * return the spin */
+__inline static int is2_addtoqueue(is2_t *is, int j, int s,
     double r, int *cnt)
 {
-  if ( is->s[j] == s && !is->used[j] && rand01() < r ) {
+  int sj = is->s[j];
+
+  if ( sj == s && !is->used[j] && rand01() < r ) {
     is->queue[ (*cnt)++ ] = j;
-    is->used[j] = 1;
+    is->used[j] = (char) 1;
   }
-}
-
-
-
-/* return the field by s[j], which does not belong to the cluster */
-__inline static int is2_clusde(is2_t *is, int j)
-{
-  return is->used[j] ? 0 : is->s[j];
+  return sj;
 }
 
 
@@ -190,42 +186,32 @@ __inline static int is2_clusde(is2_t *is, int j)
 /* Wolff algorithm */
 __inline static int is2_wolff(is2_t *is, double padd)
 {
-  int l = is->l, n = is->n, i, ix, iy, id, s, cnt = 0, h;
+  int l = is->l, n = is->n, i, ix, iy, id, s, cnt = 0, h = 0;
 
   /* randomly selected a seed */
   id = (int) ( rand01() * n );
+  s = is->s[id];
   is->queue[ cnt++ ] = id;
   for ( i = 0; i < n; i++ ) {
     is->used[i] = 0;
   }
-  is->used[id] = 1;
-  s = is->s[id];
+  is->used[id] = (char) 1;
 
   /* go through spins in the queue */
   for ( i = 0; i < cnt; i++ ) {
     id = is->queue[i];
+    /* flip the spin, in this way, the local field can be
+     * correctly computed, when we consider spins in the cluster */
+    is->s[id] = -s;
     /* add neighbors of i with the same spins */
     ix = id % l;
     iy = id - ix;
-    is2_addtoqueue(is, iy + (ix + 1) % l,     s, padd, &cnt);
-    is2_addtoqueue(is, iy + (ix + l - 1) % l, s, padd, &cnt);
-    is2_addtoqueue(is, (iy + l) % n + ix,     s, padd, &cnt);
-    is2_addtoqueue(is, (iy + n - l) % n + ix, s, padd, &cnt);
+    h += is2_addtoqueue(is, iy + (ix + 1) % l,     s, padd, &cnt);
+    h += is2_addtoqueue(is, iy + (ix + l - 1) % l, s, padd, &cnt);
+    h += is2_addtoqueue(is, (iy + l) % n + ix,     s, padd, &cnt);
+    h += is2_addtoqueue(is, (iy + n - l) % n + ix, s, padd, &cnt);
   }
 
-  /* flip all spins in the queue */
-  h = 0;
-  for ( i = 0; i < cnt; i++ ) {
-    id = is->queue[i];
-    is->s[id] = -s;
-    /* compute the energy change */
-    ix = id % l;
-    iy = id - ix;
-    h += is2_clusde(is, iy + (ix + 1) % l);
-    h += is2_clusde(is, iy + (ix + l - 1) % l);
-    h += is2_clusde(is, (iy + l) % n + ix);
-    h += is2_clusde(is, (iy + n - l) % n + ix);
-  }
   is->E += 2 * s * h;
   is->M -= 2 * s * cnt;
   return 0;
