@@ -1,5 +1,5 @@
 /* test program for the two-dimensional WHAM */
-#define WHAM2_MDIIS
+#define ENABLE_MDIIS
 #include "../wham2.h"
 #include "lj.h"
 
@@ -91,13 +91,8 @@ int main(int argc, char **argv)
   }
 
   /* do WHAM */
-  if ( method == METHOD_DIRECT ) {
-    wham2(hs, beta, bp, lnz,
-        itmax, tol, verbose, fnlndos, fneav);
-  } else {
-    wham2_mdiis(hs, beta, bp, lnz, nbases, 1.0,
-        itmax, tol, verbose, fnlndos, fneav);
-  }
+  wham2x(hs, beta, bp, lnz, 1.0, nbases, 0, 10.0,
+      0, itmax, tol, verbose, fnlndos, fneav, method);
 
   /* clean up */
   hist2_close(hs);

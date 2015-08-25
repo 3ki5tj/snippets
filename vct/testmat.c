@@ -10,6 +10,7 @@ int main(void)
   double m3[D][D] = {{1, 2, 3}, {4, 5, 5}, {5, 7, 8}};
   double m4[D][D] = {{1, -1, 0}, {-1, 2, -1}, {0, -1, 1}};
   double t1[D][D], t2[D][D], t3[D][D], v[D];
+  double tol = 1e-7;
   int i, j, n;
 
   /* test the determinant and inverse */
@@ -24,7 +25,7 @@ int main(void)
   }
 
   printf("solvezero I:\n");
-  n = msolvezero(m2, t2);
+  n = msolvezero(m2, t2, tol);
   for ( i = 0; i < n; i++ ) {
     printf("solution %d/%d:\t", i, n);
     for ( j = 0; j < D; j++ ) {
@@ -34,7 +35,7 @@ int main(void)
   }
 
   printf("solvezero II:\n");
-  n = msolvezero(m3, t3);
+  n = msolvezero(m3, t3, tol);
   for ( i = 0; i < n; i++ ) {
     printf("solution %d/%d:\t", i, n);
     for ( j = 0; j < D; j++ ) {

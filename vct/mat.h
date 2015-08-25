@@ -255,8 +255,8 @@ __inline static double mdet(double m[D][D])
     det *= a[i][i];
 
     /* normalize the row i */
-    for ( y = 1.0 / a[i][i], k = i; k < D; k++ )
-      a[i][k] *= y;
+    for ( y = a[i][i], k = i; k < D; k++ )
+      a[i][k] /= y;
 
     /* use the pivot to simplify the matrix */
     for ( j = i + 1; j < D; j++ ) /* for rows j */
@@ -297,9 +297,9 @@ __inline static int msolvezero(double a[D][D], double (*x)[D], double reltol)
     }
 
     /* normalize the row i */
-    y = 1.0 / a[i][i];
+    y = a[i][i];
     for ( k = i; k < D; k++ ) {
-      a[i][k] *= y;
+      a[i][k] /= y;
     }
 
     /* use the pivot to simplify the matrix */
@@ -327,9 +327,8 @@ __inline static int msolvezero(double a[D][D], double (*x)[D], double reltol)
 
 
 
-/* given an eigenvalue, return the corresponding eigenvectors
- * Note: there might be multiple eigenvectors for the eigenvalue */
-__inline static int meigvecs(double (*vecs)[D], double mat[D][D], double val)
+__inline static int meigvecs_low(double (*vecs)[D],
+    double mat[D][D], double val, double reltol)
 {
   double m[D][D];
   int d;
@@ -338,7 +337,30 @@ __inline static int meigvecs(double (*vecs)[D], double mat[D][D], double val)
   for ( d = 0; d < D; d++ ) {
     m[d][d] -= val;
   }
-  return msolvezero(m, vecs, DBL_EPSILON * 10000.0);
+  return msolvezero(m, vecs, reltol);
+}
+
+
+
+/* maximal acceptable relative tolerance for solving eigenvectors */
+double meig_reltol = 1e-6;
+
+#define meigvecs(vecs, mat, val) meigvecs_(vecs, mat, val, meig_reltol)
+
+/* given an eigenvalue, return the corresponding eigenvectors
+ * Note: there might be multiple eigenvectors for the eigenvalue */
+__inline static int meigvecs_(double (*vecs)[D], double mat[D][D],
+    double val, double reltol)
+{
+  double rtol;
+  int i = 0;
+
+  /* increase the tolerance, until a solution is found */
+  for ( rtol = DBL_EPSILON * 10; rtol < reltol; rtol *= 10 ) {
+    if ( (i = meigvecs_low(vecs, mat, val, rtol)) > 0 )
+      break;
+  }
+  return i;
 }
 
 
@@ -410,26 +432,34 @@ __inline static double *meigval(double v[3], double a[3][3])
 
 
 
+#define meigsys(v, vecs, mat, nt) meigsys_(v, vecs, mat, nt, meig_reltol)
+
 /* given the matrix 'mat' and its eigenvalues 'v' return eigenvalues 'vecs'
- * ideally, eigenvalues should be sorted in magnitude-descending order
+ * ideally, eigenvalues are sorted in descending order
  * by default, vecs are transposed as a set of column vectors
  * set 'nt' != 0 to disable it: so vecs[0] is the first eigenvector  */
-__inline static int meigsys(double v[3], double vecs[3][3], double mat[3][3], int nt)
+__inline static int meigsys_(double v[3], double vecs[3][3], double mat[3][3],
+    int nt, double reltol)
 {
   double vs[5][3] = {{0}}; /* for safety, vs needs 5 rows */
   int n = 0, nn, i = 0;
 
+  /* eigenvalues are sorted in descending order */
   meigval(v, mat);
 
   for ( nn = i = 0; i < 3; i++ ) {
-    n = meigvecs(vs + nn, mat, v[nn]);
+    n = meigvecs_(vs + nn, mat, v[nn], reltol);
     if ( n == 0 ) {
       fprintf(stderr, "meigsys failed: try to increase msolvezero_reltol, i %d, nn %d, %g > %g\n",
           i, nn, msolvezero_lasty, msolvezero_lasttol);
       return -1;
     }
+    /* if we get multiple 'n' eigenvectors for the same eigenvalue
+     * we have to advance the index 'nn' for eigenvalues */
     if ( (nn += n) >= 3 ) break;
   }
+
+  /* maybe we can obtain the last eigenvector by cross-product? */
 
   mcopy(vecs, vs);
   msort2(v, vecs, NULL);

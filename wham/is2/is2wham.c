@@ -1,8 +1,10 @@
 /* test program for WHAM */
-#define WHAM_MDIIS
+#define ENABLE_MDIIS
 #include "../wham.h"
 #define IS2_LB 6
 #include "is2.h"
+#include <time.h>
+
 
 
 int nequil = 100000;
@@ -11,6 +13,7 @@ int verbose = 0;
 
 int ntp = 80;
 double xmin = -2*IS2_N - 4, xmax = 4, dx = 4;
+int method = 0;
 int itmax = 100000;
 double tol = 1e-7;
 int nbases = 5;
@@ -18,10 +21,6 @@ int nbases = 5;
 const char *fnlndos = "lndos.dat";
 const char *fneav = "eav.dat";
 const char *fnhist = "hist.dat";
-
-enum { METHOD_DIRECT = 0, METHOD_MDIIS = 1 };
-int method = METHOD_DIRECT;
-
 
 
 
@@ -46,6 +45,8 @@ int main(int argc, char **argv)
     IS2_SETPROBA(is[itp], beta[itp]);
     lnz[itp] = epot[itp] = 0;
   }
+
+  mtscramble( time(NULL) );
   hs = hist_open(ntp, xmin, xmax, dx);
 
   /* try to load the histogram, if it fails, do simulations */
@@ -71,13 +72,9 @@ int main(int argc, char **argv)
     fprintf(stderr, "simulation ended, doing WHAM\n");
   }
 
-  if ( method == METHOD_DIRECT ) {
-    wham(hs, beta, lnz,
-        itmax, tol, verbose, fnlndos, fneav);
-  } else {
-    wham_mdiis(hs, beta, lnz, nbases, 1.0,
-        itmax, tol, verbose, fnlndos, fneav);
-  }
+  whamx(hs, beta, lnz, 1.0, nbases, 0, 10.0,
+      0, itmax, tol, verbose, fnlndos, fneav, method);
+
   hist_close(hs);
   for ( itp = 0; itp < ntp; itp++ )
     is2_close( is[itp] );

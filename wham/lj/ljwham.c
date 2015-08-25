@@ -1,5 +1,5 @@
 /* test program for WHAM */
-#define WHAM_MDIIS
+#define ENABLE_MDIIS
 #include "../wham.h"
 #include "lj.h"
 
@@ -67,13 +67,9 @@ int main(int argc, char **argv)
     fprintf(stderr, "simulation ended, doing WHAM\n");
   }
 
-  if ( method == METHOD_DIRECT ) {
-    wham(hs, beta, lnz,
-        itmax, tol, verbose, fnlndos, fneav);
-  } else {
-    wham_mdiis(hs, beta, lnz, nbases, 1.0,
-        itmax, tol, verbose, fnlndos, fneav);
-  }
+  whamx(hs, beta, lnz, 1.0, nbases, 0, 10.0,
+      0, itmax, tol, verbose, fnlndos, fneav, method);
+
   hist_close(hs);
   for ( itp = 0; itp < ntp; itp++ )
     lj_close( lj[itp] );

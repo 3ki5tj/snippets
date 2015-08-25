@@ -200,8 +200,24 @@ __inline static int is2_wolff(is2_t *is, double padd)
   /* go through spins in the queue */
   for ( i = 0; i < cnt; i++ ) {
     id = is->queue[i];
-    /* flip the spin, in this way, the local field can be
-     * correctly computed, when we consider spins in the cluster */
+    /* flip the spin to correctly compute the local field,
+     * which is the total magnetization of all spins
+     * surrounding the cluster.
+     *
+     * consider a bond id-jd, with jd being a neighbor of id
+     * 1) if jd does not make it to the cluster, then it
+     *    lies on the border, and it contributes
+     *    s[jd] to the local field
+     * 2) if s[jd] == s, and will be included in the cluster
+     *    in the future, it should contribute zero to the
+     *    local field.  But we let it contribute s to the
+     *    local field for now.  Since jd is added to the
+     *    queue, when jd is considered in this loop, or
+     *    when the bond jd-id is reconsidered, it will
+     *    contribute an s[id] to the local field.  But at
+     *    that time, s[id] = -s due to the flip here,
+     *    so the total contribution would be s + (-s) = 0.
+     *  */
     is->s[id] = -s;
     /* add neighbors of i with the same spins */
     ix = id % l;
@@ -306,7 +322,7 @@ __inline static double lnaddn(double a, double b)
 
 
 /* exact solution of ising model */
-__inline static double is2_exact(is2_t *is, double beta, double *eav, double *cv)
+__inline static double is2_exact(int lx, int ly, double beta, double *eav, double *cv)
 {
   double lxh, n, ex, f, th, sech, bet2, bsqr, log2, x;
   double lnz, lnz1, lnz2, lnz3, lnz4, dz, ddz;
@@ -315,10 +331,8 @@ __inline static double is2_exact(is2_t *is, double beta, double *eav, double *cv
   double g, g0, dg, ddg, dg0;
   double xn2b, sh2b, coth2b;
   double lnch2b, lncc2b, lncl, lnsl, cd, cdsqr, lnddcl;
-  int r, sgn4 = 1, lx, ly;
+  int r, sgn4 = 1;
 
-  lx = is->l;
-  ly = is->l;
   lxh = .5*lx;
   n = lx * ly;
   log2 = log(2.0);

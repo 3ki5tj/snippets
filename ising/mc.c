@@ -19,7 +19,7 @@ static void runmetro(is2_t *is, double tp)
     sE += is->E;
     sEE += is->E * is->E;
   }
-  is2_exact(is, beta, &eavref, &cvref);
+  is2_exact(is->l, is->l, beta, &eavref, &cvref);
   h = is->E;
   sE /= nsteps;
   sEE = sEE / nsteps - sE * sE;
@@ -42,7 +42,7 @@ static void runwolff(is2_t *is, double tp)
     sE += is->E;
     sEE += 1.0 * is->E * is->E;
   }
-  is2_exact(is, beta, &eavref, &cvref);
+  is2_exact(is->l, is->l, beta, &eavref, &cvref);
   h = is->E;
   sE /= nsteps;
   sEE = sEE / nsteps - sE * sE;

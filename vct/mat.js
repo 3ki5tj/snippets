@@ -336,9 +336,9 @@ function mdet(m)
     det *= a[i][i];
 
     // normalize the row i
-    y = 1.0 / a[i][i];
+    y = a[i][i];
     for ( k = i; k < D; k++ ) {
-      a[i][k] *= y;
+      a[i][k] /= y;
     }
 
     // use the pivot to simplify the matrix
@@ -359,10 +359,14 @@ var msolvezero_reltol = 1e-12;
 /* Solve matrix equation a x = 0 by Gaussian elimination (full-pivot)
  * The matrix 'a' is destroyed, solutions are saved as *row* vectors in 'x'
  * return the number of solutions */
-function msolvezero(a, x)
+function msolvezero(a, x, reltol)
 {
   var tol = 0, y;
   var i, j, k, cmap = newarr(D), sgn = 1;
+
+  if ( !reltol ) {
+    reltol = msolvezero_reltol;
+  }
 
   for ( i = 0; i < D; i++ ) {
     cmap[i] = i;
@@ -376,13 +380,13 @@ function msolvezero(a, x)
       break;
     }
     if ( i === 0 ) {
-      tol = y * msolvezero_reltol;
+      tol = y * reltol;
     }
 
     // normalize the row i
-    y = 1.0 / a[i][i];
+    y = a[i][i];
     for ( k = i; k < D; k++ ) {
-      a[i][k] *= y;
+      a[i][k] /= y;
     }
 
     // use the pivot to simplify the matrix
@@ -412,9 +416,7 @@ function msolvezero(a, x)
 
 
 
-/* given an eigenvalue, return the corresponding eigenvectors
- * Note: there might be multiple eigenvectors for the eigenvalue */
-function meigvecs(vecs, mat, val)
+function meigvecs_low(vecs, mat, val, reltol)
 {
   var m = newarr2d(D, D);
 
@@ -422,7 +424,30 @@ function meigvecs(vecs, mat, val)
   for ( var d = 0; d < D; d++ ) {
     m[d][d] -= val;
   }
-  return msolvezero(m, vecs);
+  return msolvezero(m, vecs, reltol);
+}
+
+
+
+/* maximal acceptable relative tolerance for solving eigenvectors */
+var meig_reltol = 1e-6;
+
+/* given an eigenvalue, return the corresponding eigenvectors
+ * Note: there might be multiple eigenvectors for the eigenvalue */
+function meigvecs(vecs, mat, val, reltol)
+{
+  var rtol, i = 0;
+
+  if ( !reltol ) {
+    reltol = meig_reltol;
+  }
+
+  // increase the tolerance, until a solution is found
+  for ( rtol = 1e-14; rtol < reltol; rtol *= 10 ) {
+    if ( (i = meigvecs_low(vecs, mat, val, rtol)) > 0 )
+      break;
+  }
+  return i;
 }
 
 
@@ -490,18 +515,22 @@ function meigval(v, a)
 
 
 /* given the matrix 'mat' and its eigenvalues 'v' return eigenvalues 'vecs'
- * ideally, eigenvalues should be sorted in magnitude-descending order
+ * ideally, eigenvalues are sorted in descending order
  * by default, vecs are transposed as a set of column vectors
  * set 'nt' != 0 to disable it: so vecs[0] is the first eigenvector  */
-function meigsys(v, vecs, mat, nt)
+function meigsys(v, vecs, mat, nt, reltol)
 {
   var vs = [];
   var n = 0, i = 0;
 
+  if ( !reltol ) {
+    reltol = meig_reltol;
+  }
+
   meigval(v, mat);
 
   for ( i = 0; i < 3; i++ ) {
-    n = meigvecs(vs, mat, v[vs.length]);
+    n = meigvecs_(vs, mat, v[vs.length], reltol);
     if ( n === 0 ) {
       console.log("meigsys failed: increase msolvezero_reltol", i, vs.length);
       return -1;

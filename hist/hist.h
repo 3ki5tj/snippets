@@ -98,7 +98,10 @@ __inline static void hist_getsums(double *h, int n,
   }
   if ( s[0] > 0 ) {
     s[1] /= s[0];
-    s[2] = s[2] / s[0] - s[1] * s[1];
+    s[2] = s[2] - s[1] * s[1] * s[0];
+    if ( s[0] > 1 ) {
+      s[2] /= s[0] - 1;
+    }
   }
 }
 
@@ -323,7 +326,7 @@ __inline static int hist_load(hist_t *hs, const char *fn, unsigned flags)
       }
       if ( !hashist ) y = y2*fac;
       if ( flags & HIST_INT ) {
-        y = (long) (y + 0.5);
+        y = (double) (long) (y + 0.5);
       }
       if ( add ) y += hs->arr[r*n + i1];
       hs->arr[r*n + i1] = y;

@@ -106,9 +106,14 @@ __inline static void hist2_getsums(const double *h, int n,
   if ( s[0] > 0 ) {
     s[1] /= s[0];
     s[2] /= s[0];
-    s[3]  = s[3] / s[0] - s[1] * s[1];
-    s[4]  = s[4] / s[0] - s[1] * s[2];
-    s[5]  = s[5] / s[0] - s[2] * s[2];
+    s[3]  = s[3] - s[1] * s[1] * s[0];
+    s[4]  = s[4] - s[1] * s[2] * s[0];
+    s[5]  = s[5] - s[2] * s[2] * s[0];
+    if ( s[0] > 1 ) {
+      s[3] /= s[0] - 1;
+      s[4] /= s[0] - 1;
+      s[5] /= s[0] - 1;
+    }
   }
 }
 
@@ -358,7 +363,7 @@ __inline static int hist2_load(hist2_t *hs, const char *fn, unsigned flags)
       }
       if ( !hashist ) g = g2 * fac;
       if ( flags & HIST2_INT ) {
-        g = (long) (g + 0.5);
+        g = (double) (long) (g + 0.5);
       }
       if ( add ) g += hs->arr[r*nm + i*m + j];
       hs->arr[r*nm + i*m + j] = g;
