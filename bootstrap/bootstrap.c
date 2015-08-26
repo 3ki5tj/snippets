@@ -80,18 +80,16 @@ static double gettcorr(const double *x, int n, double cutoff)
 static double bootstrap(const double *x, int n,
     double tau, double (*f)(double))
 {
-  int i, j;
+  int i, j = 0;
   double xi, s = 0;
   double gam = tau > 0 ? exp(-1/tau) : 0;
 
-  i = (int) (rand01() * n);
-  xi = x[i];
   for ( i = 0; i < n; i++ ) {
     /* replace the current trajectory frame with probability `gam` */
-    if ( rand01() >= gam ) {
+    if ( rand01() >= gam || i == 0 ) {
       j = (int) (rand01() * n);
-      xi = x[j];
     }
+    xi = x[j];
     s += (*f)(xi);
   }
   return s / n;
@@ -158,7 +156,7 @@ int main(int argc, char **argv)
   ave = getave(x, N, fx);
   /* use bootstrapping to estimate the error of f(x) */
   err = getbserr(x, N, M, tau, fx);
-  printf("1. <2*x> %g (should be 0), err %g\n\n", ave, err);
+  printf("1. <2*x> %g (should be 0), err %g (should be %g)\n\n", ave, err, 2*sqrt((1+tcorr*2)/N));
 
 
   /* try the same for the exponetial function */
