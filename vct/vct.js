@@ -12,13 +12,9 @@ var D = 3;
 
 function vzero(x)
 {
-try{
   for ( var d = 0; d < D; d++ ) {
     x[d] = 0.0;
   }
-} catch(err) {
-  console.log(err);
-}
   return x;
 }
 

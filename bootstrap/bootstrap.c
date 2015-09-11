@@ -97,22 +97,76 @@ static double bootstrap(const double *x, int n,
 
 
 
+/* generate a bootstrap sample and compute the average of f(x)
+ * using the Hub 2010 method
+ * `arr` should be sorted */
+static double bootstrap_hub(const double *arr, int n,
+    double tau, double (*f)(double))
+{
+  int i, j = 0;
+  double xi, s = 0;
+  double gam = tau > 0 ? exp(-1/tau) : 0;
+  double mag = sqrt(1 - gam * gam);
+  double x, y;
+
+  x = randgaus();
+  for ( i = 0; i < n; i++ ) {
+    /* update `x` with autocorrelation time `tau` */
+    x = x * gam + mag * randgaus();
+    /* map the normally distributed function to (0, 1) */
+    y = (erf(x/sqrt(2)) + 1) / 2;
+    /* compute the frame corresponding to y */
+    j = (int) (y * n);
+
+    xi = arr[j];
+    s += (*f)(xi);
+  }
+  return s / n;
+}
+
+
+
+static int dblcmp(const void *pa, const void *pb)
+{
+  double a = *((double *) pa);
+  double b = *((double *) pb);
+  if ( a > b ) {
+    return 1;
+  } else if ( a < b ) {
+    return -1;
+  } else {
+    return 0;
+  }
+}
+
+
+
 /* use bootstrapping to estimate the error of f(x) */
 static double getbserr(const double *x, int n, int m,
-    double tau, double (*f)(double))
+    double tau, double (*f)(double), int hub)
 {
   int i;
   double y, ave = 0, sig = 0;
+  double *xs; /* sorted array to facilitate binary search */
+
+  xs = calloc(n, sizeof(*xs));
+  for ( i = 0; i < n; i++ ) xs[i] = x[i];
+  qsort(xs, n, sizeof(*xs), &dblcmp);
 
   /* generate M samples */
   for ( i = 0; i < m; i++ ) {
-    y = bootstrap(x, n, tau, f);
+    if ( hub ) {
+      y = bootstrap_hub(xs, n, tau, f);
+    } else {
+      y = bootstrap(x, n, tau, f);
+    }
     if ( verbose ) printf("bootstrap %d: %g\n", i, y);
     ave += y;
     sig += y * y;
   }
   ave /= m;
   sig = sqrt((sig - m * ave * ave) / (m - 1));
+  free(xs);
   return sig;
 }
 
@@ -134,7 +188,7 @@ static double fexp(double x)
 
 int main(int argc, char **argv)
 {
-  double *x, ave, err, tau;
+  double *x, ave, err, errhub, tau;
 
   if ( argc >= 2 ) N = atoi(argv[1]);
   if ( argc >= 3 ) M = atoi(argv[2]);
@@ -155,15 +209,20 @@ int main(int argc, char **argv)
   /* compute the average of f(x) */
   ave = getave(x, N, fx);
   /* use bootstrapping to estimate the error of f(x) */
-  err = getbserr(x, N, M, tau, fx);
-  printf("1. <2*x> %g (should be 0), err %g (should be %g)\n\n", ave, err, 2*sqrt((1+tcorr*2)/N));
+  err = getbserr(x, N, M, tau, fx, 0);
+  errhub = getbserr(x, N, M, tau, fx, 1);
+  printf("1. <2*x> %g (should be 0), err %g (simple) / %g (Hub) (should be %g)\n\n",
+      ave, err, errhub, 2*sqrt((1+tcorr*2)/N));
 
 
   /* try the same for the exponetial function */
   ave = getave(x, N, fexp);
-  err = getbserr(x, N, M, tau, fexp);
-  printf("2. <exp(2*x)> %g (should be %g), err %g\n", ave, exp(2), err);
-  printf("  log<exp(2*x)> %g (should be 2), err %g, cf. case 1\n\n", log(ave), err/ave);
+  err = getbserr(x, N, M, tau, fexp, 0);
+  errhub = getbserr(x, N, M, tau, fexp, 1);
+  printf("2. <exp(2*x)> %g (should be %g), err %g (simple) / %g (Hub)\n",
+      ave, exp(2), err, errhub);
+  printf("  log<exp(2*x)> %g (should be 2), err %g (simple) / %g (Hub), cf. case 1\n\n",
+      log(ave), err/ave, errhub/ave);
 
 
   free(x);
