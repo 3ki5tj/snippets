@@ -2,7 +2,7 @@
 
 
 
-int N = 200000; /* sample size */
+int N = 800000; /* sample size */
 int M = 100; /* number of bootstrap samples */
 double tcorr = 9.5; /* autocorrelation time */
 int verbose = 0;
@@ -196,6 +196,8 @@ int main(int argc, char **argv)
   printf("N %d, M %d, tcorr %g\n", N, M, tcorr);
 
 
+  mtscramble(time(NULL) + 312341);
+
   /* generate a test sample */
   x = calloc(N, sizeof(double));
   gensample(x, N, tcorr);
@@ -219,8 +221,11 @@ int main(int argc, char **argv)
   ave = getave(x, N, fexp);
   err = getbserr(x, N, M, tau, fexp, 0);
   errhub = getbserr(x, N, M, tau, fexp, 1);
-  printf("2. <exp(2*x)> %g (should be %g), err %g (simple) / %g (Hub)\n",
-      ave, exp(2), err, errhub);
+  /* <exp(2*x)> = Int exp(-x^2/2 + 2*x) dx / sqrt(2*pi) = exp(2)
+   * <exp(4*x)> = Int exp(-x^2/2 + 4*x) dx / sqrt(2*pi) = exp(8)
+   * < Delta exp(2*x)^2 > = exp(8) - exp(4) */
+  printf("2. <exp(2*x)> %g (should be %g), err %g (simple) / %g (Hub) (should be %g)\n",
+      ave, exp(2), err, errhub, sqrt(exp(8)-exp(4))*sqrt((1+tcorr*2)/N));
   printf("  log<exp(2*x)> %g (should be 2), err %g (simple) / %g (Hub), cf. case 1\n\n",
       log(ave), err/ave, errhub/ave);
 
