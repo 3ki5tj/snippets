@@ -1,0 +1,248 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[usenames,dvipsnames]{xcolor}
+\usepackage{tikz}
+\begin{document}
+
+
+\newcommand{\vct}[1]{\mathbf{#1}}
+\newcommand{\vx}{\vct{x}}
+\newcommand{\vxref}{\vct{x}^\mathrm{ref}}
+\newcommand{\vy}{\vct{y}}
+\newcommand{\vu}{\vct{u}}
+
+
+
+\section{Problem}
+
+
+
+Our problem is compute the Jacobian from a minimal deviation fitting.
+%
+Consider a reference structure $\vxref$ and a test structure $\vx_0$.
+%
+We can fit $\vxref$ to $\vx_0$ by rotation and translation.
+%
+The best fit structure is denoted as $\vy_0$.
+%
+Thus,
+\[
+  \vy_0 = \vct R \, \vxref + \vct T,
+\]
+where $\vct R$ and $\vct T$
+are the rotation matrix and translation vector
+that minimize $\| \vy_0 - \vx_0 \|$.
+
+
+Since $\vct R$ and $\vct T$, and hence $\vy_0$,
+depend on $\vx_0$,
+we wish to compute the Jacobian
+\[
+J =
+\left| \frac{\partial \vy_0 } { \partial \vx_0 } \right|,
+\]
+from the above best fitting procedure.
+%
+We wish to show that $J$ depends non-trivially on $\vx_0$.
+
+
+
+
+\section{Numerical calculation}
+
+
+
+The Jacobian can be numerically computed as follows.
+%
+First, we perturb the test structure a bit
+as $\vx = \vx_0 + \delta \vx$,
+%
+We then rotate and translate $\vxref$ to get $\vy$
+that best fit $\vx$.
+%
+The deviation of the fit structure is $\delta \vy = \vy - \vy_0$.
+%
+The idea is to compute the Jacobian $|\partial \vy/\partial \vx|$
+from $\| \delta \vy \|$ and $\| \delta \vx \|$
+after some averaging.
+
+
+
+To implement this idea,
+we use principal component analysis (PCA).
+%
+First,
+we try different $\vx_i = \vx_0 + \delta \vx_i$, for $i = 1, \dots, M$,
+where $\delta \vx_i$ is a zero-mean normal random vector
+with the standard deviation of each component being $\sigma$.
+%
+For each $\vx_i$,
+we can compute a $\vy_i$, hence $\delta \vy_i$ from fitting.
+%
+This allows us to compute the averaged covariance matrix, $\vct A$,
+\begin{equation}
+  \vct A = \frac{1}{M} \sum_{i = 1}^M \delta \vy_i \cdot \delta \vy_i^T.
+\end{equation}
+%
+The dimension of the matrix is $3N \times 3N$
+for a system of $N$ atoms.
+%
+The matrix $\vct A$ has only six nonzero eigenvalues,
+$\lambda_1, \dots, \lambda_6$,
+corresponding to the three translation and three rotation degrees of freedom.
+%
+The Jacobian is
+\begin{equation}
+J \equiv
+\frac { 1 } { \sigma^{3N} }
+\sqrt{ \prod_{i = 1}^6 \lambda_i }.
+\end{equation}
+
+
+
+\section{Results}
+
+
+
+The above algorithm is implemented and for a dimer system,
+with two equally-weighted atoms.
+%
+In the reference structure, $\vxref$,
+the two atoms are separated by $2 \, l = 2$.
+%
+Our first test structure, $\vx_0^A$,
+is identical to the reference structure
+(but the perturbed structure $\vx^A$
+won't be identical to $\vxref$ in general).
+%
+In the second test structure, $\vx_0^B$,
+the two atoms are separated by $2 \, l = 4$.
+
+
+From our calculations with $\sigma = 0.1$,
+we get $\ln J^A = -2.304$, and $\ln J^B = -5.075$.
+%
+This clearly shows that the Jacobian depends on $\vx_0$.
+But more important, we have
+$J^B/J^A = 1/2^4$.
+%
+Can we explain this?
+
+
+
+
+\section{Explanation}
+
+
+
+We wish to show that $J$ depends non-trivially on $\vx_0$.
+%
+It is really shown that after a best fitting,
+the translation vector $\vct T$
+is precise the displacement between
+the centers of mass of $\vx_0$ and $\vxref$.
+%
+Thus, we shall assume that the center of mass motion
+is removed and consider only the rotation.
+%
+We wish to show $\vct R$ depends nontrivial on $\vct x_0$.
+
+
+
+We shall place the two atoms on the $x$-axis,
+with the center of mass fixed at the origin.
+%
+We observe that no matter how $\vx$ changes,
+$\vy$ will be aligned along the axis of $\vx$
+after the best fitting.
+%
+Thus, the ratio of $\delta \vy$ to $\delta \vx$
+should be equal to the ratio of
+the corresponding relative scales
+of $\vy_0$ and $\vx_0$.
+%
+In our case,
+it means
+%
+\[
+  \frac { \delta \vy } { \delta \vx }
+  = \frac { 1 } { l }.
+\]
+%
+Now since $\vx_0^B$ is twice as large as $\vx_0^A$.
+If $\delta \vx^B$ is of the same magnitude of $\delta \vx^A$,
+then $\delta \vy^B$ would be only half as large as $\delta \vy^A$.
+%
+This is why we get a factor of $1/2$.
+
+
+
+But $J_2/ J_1 = 1/2^4$.
+%
+How about the rest factor, $1/2^3$?
+%
+Well, we have three other $1/2$ factors
+due to the translational degrees of freedom,
+which follow a similar scaling argument.
+
+
+
+\begin{figure}[h]
+\begin{center}
+  \newcommand{\sz}{1.5cm}
+  \tikzstyle{ball} = [circle, minimum size=0.5*\sz]
+
+  \begin{tikzpicture}
+    \draw [black!30, thin] (-2.5*\sz, 0) -- (2.5*\sz, 0);
+    \draw [black!50, thin, dashed] (-2.5*\sz, -0.75*\sz) -- (2.5*\sz, 0.75*\sz);
+
+    \node[ball, fill=black!10!white] (xref1) at (-1.0*\sz, 0.0) [] {};
+    \node[ball, fill=black!10!white] (xref2) at ( 1.0*\sz, 0.0) [] {};
+
+    \node[ball, fill=black!20!white] (x01) at (-2.0*\sz, 0.0) [] {};
+    \node[ball, fill=black!20!white] (x02) at ( 2.0*\sz, 0.0) [] {};
+
+    \node[ball, draw=black!50, dashed] (y1) at (-1.0*\sz, -0.3*\sz) [] {};
+    \node[ball, draw=black!50, dashed] (y2) at ( 1.0*\sz,  0.3*\sz) [] {};
+
+    \node[ball, draw=black, dashed] (x1) at (-2.0*\sz, -0.6*\sz) [] {};
+    \node[ball, draw=black, dashed] (x2) at ( 2.0*\sz,  0.6*\sz) [] {};
+
+    %\path [draw] (x01) -- (x02);
+
+    \path [draw] (xref1) -- (xref2);
+    \draw [->, thick] (2.0*\sz, 0.0) -- (2.0*\sz, 0.6*\sz);
+    \draw [->, thick] (1.0*\sz, 0.0) -- (1.0*\sz, 0.3*\sz);
+    \draw [->, thick] (-2.0*\sz, 0.0) -- (-2.0*\sz, -0.6*\sz);
+    \draw [->, thick] (-1.0*\sz, 0.0) -- (-1.0*\sz, -0.3*\sz);
+  \end{tikzpicture}
+\end{center}
+\label{fig:dimer}
+\end{figure}
+
+
+
+\section{Discussion}
+
+
+The above cases shows that the Jacobian is not a constant
+because the difficult of adjusting the reference structure
+in the minimal deviation fitting changes with configuration $\vx_0$.
+%
+If we go through the mathematics of computing $\vct R$,
+this would be more easily understood.
+%
+We recall that in computing the best fitting,
+each row $\vct R$ is a left eigenvector of the following $3\times 3$ matrix
+%
+\begin{equation}
+\sum_{i = 1}^N \vx_{0i} \cdot (\vx_\mathrm{ref})^T + \vxref_i \cdot \vx_{0i}^T,
+\end{equation}
+where $i$ denotes the atom index.
+%
+Because the eigenvalue problem is quite complex and nonlinear,
+it is unlikely that $\vct R$ depends linearly on $\vx_0$.
+
+
+\end{document}
