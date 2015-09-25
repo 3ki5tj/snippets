@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title> Random number generator </title>
+  <link rel="stylesheet" type="text/css" href="./css/default.css" />
+  <script type="text/javascript" src="./js/util.js"></script>
+  <script type="text/javascript" src="./js/mtrand.js"></script>
+  <script type="text/javascript" src="./js/tausrand.js"></script>
+  <script type="text/javascript" src="./js/rand_main.js"></script>
+  <script type="text/javascript" src="./js/dygraph-combined.js"></script>
+</head>
+<body onload="init_gauss()">
+
+<h2 class="center">
+  Random number generator
+</h2>
+
+<form>
+  <div class="panel">
+    <h4 class="panel-title">Sample generation</h4>
+
+    Number of Gaussian distributions:
+    <input type="range" min="0" max="10" step="1" value="0" id="slider_ngaus"
+      class="slider" onchange="mapchange('slider_ngaus', 'ngaus');change_ngaus()">
+    <input type="text" size="3" value="0" id="ngaus"
+      class="slider_num" onchange="mapchange('ngaus', 'slider_ngaus');change_ngaus()">.
+    <br>
+
+    <table id="gausTable">
+      <tr>
+        <th>
+          Mean
+          <span class="math"><i>&mu;</i></span>
+        </th>
+        <th>
+          Width
+          <span class="math"><i>&sigma;</i></span>
+        </th>
+        <th>
+          Relative fraction
+          <span class="math"><i>w</i></span>
+        </th>
+      </tr>
+    </table>
+
+  </div>
+
+  <div class="panel">
+    <h4 class="panel-title">Parameters</h4>
+
+    Random number generator:
+    <select id="RNG" onchange="stop()">
+      <option value="MT">Mersenne-Twister</option>
+      <option value="taus">Tausworthe</option>
+    </select>
+    <br>
+
+    Number of random numbers per second:
+    <input type="range" min="1" max="10000" step="1"
+      value="1000" id="slider_nptps"
+      class="slider" onchange="mapchange('slider_nptps', 'nptps')">
+    <input type="text" size="6" value="1000" id="nptps"
+      class="slider_num" onchange="mapchange('nptps', 'slider_nptps');">.
+    <br>
+
+    Histogram range:
+    <span class="math"><i>x</i><sub>min</sub></span>:
+      <input type="text" size="6" value="0.0"
+        id="hist_xmin" onchange="stop()">;
+      &nbsp;
+
+    <span class="math"><i>x</i><sub>max</sub></span>:
+      <input type="text" size="6" value="20.0"
+        id="hist_xmax" onchange="stop()">;
+      &nbsp;
+
+    <span class="math"><i>&Delta;x</i></span>:
+      <input type="text" size="6" value="0.1"
+        id="hist_dx" onchange="stop()">.
+  </div>
+
+  <div class="center">
+    <input type="button" value="Start" id="startbtn"
+      class="largebtn" onclick="start();">
+
+    <input type="button" value="Stop" id="stopbtn"
+      class="largebtn" onclick="stop();">
+
+    <input type="button" value="Reset" id="resetbtn"
+      class="largebtn" onclick="reset();">
+
+  </div>
+
+  <br>
+
+  <div id="histplot" class="plot"></div>
+</form>
+
+</body>
+</html>

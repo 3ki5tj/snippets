@@ -204,8 +204,8 @@ function is2_exact(lx, ly, beta)
   lxh = .5 * lx;
   n = lx * ly;
   log2 = Math.log(2.0);
-  bet2 = 2.*beta;
-  bsqr = beta*beta;
+  bet2 = 2. * beta;
+  bsqr = beta * beta;
   xn2b = Math.exp(-bet2);
   if (lx == 2 && ly == 2) { // 2x2 system
     var lnc, lnd;
@@ -241,8 +241,8 @@ function is2_exact(lx, ly, beta)
   lnddcl = lnaddn(lncc2b, 2.0/(x * sh2b)) + 2.*log2; // log(cl'')
 
   for (r = 0; r < ly; r++) { // for odd number
-    lncl = lnaddn(lncc2b, -Math.cos((2.*r + 1.)*Math.PI/ly));
-    lnsl = lncl + 0.5*log(1. - exp(-2.*lncl));
+    lncl = lnaddn(lncc2b, -Math.cos((2.*r + 1.) * Math.PI / ly));
+    lnsl = lncl + 0.5 * Math.log(1. - Math.exp(-2.*lncl));
     g = lnadd(lncl, lnsl);
     f = lxh*g;
     lnz1 += lnadd(f, -f);
@@ -256,8 +256,8 @@ function is2_exact(lx, ly, beta)
     dr2 += x/th;
 
     /* g''=cl''/sl - cl' ^2 *cl/sl^3; */
-    ddg = exp(lnddcl - lnsl);
-    ddg -= exp(lnch2b*2. + lncl - 3.*lnsl)*cdsqr;
+    ddg = Math.exp(lnddcl - lnsl);
+    ddg -= Math.exp(lnch2b*2. + lncl - 3.*lnsl)*cdsqr;
     sech = 2.0*dg/(ex + 1.0/ex); // g' * sech(0.5*lx*g)
     ddr1 += lxh*(ddg*th + lxh*(sech*sech));
     sech = 2.0*dg/(ex - 1.0/ex); // g' * sech(0.5*lx*g)
@@ -266,7 +266,7 @@ function is2_exact(lx, ly, beta)
     if (r == 0) {
       g = g0;
     } else {
-      lncl = lnaddn(lncc2b, -Math.cos(2.0*M_PI*r/ly));
+      lncl = lnaddn(lncc2b, -Math.cos(2.0 * Math.PI * r / ly));
       lnsl = lncl + 0.5 * Math.log(1- Math.exp(-2*lncl));
       g = lnadd(lncl, lnsl);
     }
@@ -276,7 +276,7 @@ function is2_exact(lx, ly, beta)
 
     ex = Math.exp(-f);
     th = 2./(1. + ex*ex) - 1.;
-    dg = (r == 0) ? dg0 : exp(lnch2b - lnsl)*cd;
+    dg = (r == 0) ? dg0 : Math.exp(lnch2b - lnsl)*cd;
     dr3 += lxh*dg*th;
     dr4 += lxh*dg/th;
 
@@ -296,7 +296,7 @@ function is2_exact(lx, ly, beta)
   z31 = Math.exp(lnz3 - lnz1);
   z41 = sgn4 * Math.exp(lnz4 - lnz1);
   za1 = 1.0 + z21 + z31 + z41;
-  lnz = lnz1 + log(za1);
+  lnz = lnz1 + Math.log(za1);
   lnz += .5 * n * Math.log(2.*sh2b) - log2;
   dz = (dr1 + z21*dr2 + z31*dr3 + z41*dr4)/za1;
   eav = - n*coth2b - dz;
@@ -306,7 +306,7 @@ function is2_exact(lx, ly, beta)
   ddr4 += dr4*dr4;
   ddz = (ddr1 + z21*ddr2 + z31*ddr3 + z41*ddr4)/za1;
   cv = bsqr * (-2.*n/(sh2b*sh2b) + ddz - dz*dz);
-  return lnz;
+  return [lnz, eav, cv];
 }
 
 

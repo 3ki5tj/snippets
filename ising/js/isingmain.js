@@ -22,12 +22,19 @@ var mcacc = 0.0;
 var sum1 = 1e-300;
 var sumU = 0;
 
+var lnzref, eavref, cvref;
+
 
 
 function getparams()
 {
   l = get_int("L", 32);
   tp = get_float("temperature", 2.3);
+
+  var arr = is2_exact(l, l, 1/tp);
+  lnzref = arr[0];
+  eavref = arr[1];
+  cvref = arr[2];
 
   mc_algorithm = grab("mc_algorithm").value;
 
@@ -67,7 +74,9 @@ function dometropolis()
     }
   }
   sinfo += "acc: " + roundto(100.0 * mcacc / mctot, 2) + "%, ";
-  sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1/ising.E, 3) + ", ";
+  sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: '
+         + roundto(sumU/sum1/ising.n, 3) + " (Ref.: "
+         + roundto(eavref/ising.n, 3) + ").";
   return sinfo;
 }
 
