@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title> Ising model </title>
+  <link rel="stylesheet" type="text/css" href="./css/default.css" />
+  <script type="text/javascript" src="./js/util.js"></script>
+  <script type="text/javascript" src="./js/mtrand.js"></script>
+  <script type="text/javascript" src="./js/draw.js"></script>
+  <script type="text/javascript" src="./js/mouse3d.js"></script>
+  <script type="text/javascript" src="./js/ising.js"></script>
+  <script type="text/javascript" src="./js/isingdraw.js"></script>
+  <script type="text/javascript" src="./js/isingmain.js"></script>
+</head>
+<body>
+
+<h2 class="center">
+  Monte Carlo of Ising model
+</h2>
+
+
+
+<form>
+  <div class="panel">
+  <div class="panel-title">System</div>
+
+  Number of spins per side,
+  <span class="math"><i>L</i></span>:
+  <input type="text" size="6" value="32" id="L"
+    onchange="changeparams()">.
+  <br>
+
+  Temperature,
+  <span class="math"><i>T</i></span>:
+  <input type="text" size="6" value="2.3" id="temperature"
+    onchange="changeparams()">.
+  &nbsp;
+  <br>
+
+  </div>
+
+
+
+  <div class="panel">
+  <div class="panel-title">Monte Carlo (MC)</div>
+
+  Algorithm
+  <select id="mc_algorithm" onchange="changeparams()">
+    <option value="Metropolis">Metropolis algorithm</option>
+    <option value="Wolff">Wolff clustering algorithm</option>
+  </select>
+  <br>
+
+  Number of MC sweeps/steps per second:
+  <input type="text" size="10" value="1000"
+    id="nstepspersecmc" onchange="changeparams()">.
+  <br>
+
+  </div>
+
+
+  <div class="center">
+    <input type="button" value="Start simulation"
+      id="start" class="largebtn" onclick="startsimul()">
+
+    <input type="button" value="Pause"
+      id="pause" class="largebtn" onclick="pausesimul()">
+
+    <input type="button" value="Stop"
+      id="stop" class="largebtn" onclick="stopsimul()">
+
+    <input type="reset" value="Reset"
+      id="reset" class="largebtn">
+  </div>
+
+  <hr>
+
+  <div class="center">
+    <canvas id="isingbox" width="480" height="480"></canvas>
+    <br>
+    Zoom: <input id="isingscale" type="range" value="1.0"
+      min="0.05" max="3.0" step="0.01" style="width: 480px"
+      onchange="changescale()">
+    <br>
+    <span id="sinfo" style="width: 480px"></span>
+  </div>
+</form>
+
+</body>
+</html>

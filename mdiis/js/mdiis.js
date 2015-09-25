@@ -422,5 +422,3 @@ function iter_mdiis(f, npt, getres, normalize, obj,
 
 
 
-#endif /* MDIIS_H__ */
-

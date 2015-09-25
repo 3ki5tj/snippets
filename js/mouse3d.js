@@ -108,7 +108,7 @@ function installwheel(target, handler)
 function installmouse( box, scaler )
 {
   var target = grab( box );
-  mousescaler = scaler
+  mousescaler = scaler;
   target.onmousedown = mousedown3d;
   target.onmouseup = mouseup3d;
   target.onmousemove = mousemove3d;

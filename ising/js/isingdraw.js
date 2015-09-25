@@ -1,0 +1,45 @@
+
+
+
+"use strict";
+
+
+
+/* draw all atoms in the box */
+function isingdraw(ising, target, userscale)
+{
+  var c = grab(target);
+  var ctx = c.getContext("2d");
+  var width = c.width;
+  var height = c.height;
+
+  // the system dimension is L + 1
+  var dx = 1.0 * width / (ising.l + 1);
+  var dy = 1.0 * height / (ising.l + 1);
+
+  // draw the background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
+
+  // draw each spin
+  var l = ising.l, id = 0;
+  for ( var i = 0; i < l; i++ ) {
+    for ( var j = 0; j < l; j++, id++ ) {
+      var x = (i + 0.5) * dx;
+      var y = (j + 0.5) * dy;
+      var radius = dx * 0.5;
+      var spotcolor, color;
+      if ( ising.s[id] > 0 ) {
+        color = "#202020";
+        spotcolor = "#808080";
+      } else {
+        color = "#aaaaaa";
+        spotcolor = "#ffffff";
+      }
+      paintBall(ctx, x, y, radius, color, spotcolor);
+    }
+  }
+}
+
+
+

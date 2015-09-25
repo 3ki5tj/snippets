@@ -1,1 +1,1 @@
-../linalge/lu.js
+../../linalge/lu.js
