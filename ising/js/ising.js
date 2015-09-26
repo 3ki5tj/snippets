@@ -30,7 +30,7 @@ function Ising(l)
 Ising.prototype.setproba = function(bet)
 {
   var x = Math.exp(-4 * bet);
-  this.proba[0] = 1;
+  this.proba[0] = 1.0;
   this.proba[2] = x;
   this.proba[4] = x * x;
 };
@@ -40,20 +40,20 @@ Ising.prototype.setproba = function(bet)
 /* pick a random site, count neighbors with different spins */
 Ising.prototype.pick = function()
 {
-  var id, ix, iy, l, lm, n, nm, ssn;
+  var id, ix, iy, l, n, ixp, ixm, iyp, iym;
 
   l = this.l;
   n = this.n;
-  lm = l - 1;
-  nm = n - l;
   id = Math.floor( rand01() * n );
   ix = id % l;
-  iy = id / l;
-  ssn = ((ix != 0 ) ? this.s[id - 1] : this.s[id + lm])   // left
-      + ((ix != lm) ? this.s[id + 1] : this.s[id - lm])   // right
-      + ((iy != 0 ) ? this.s[id - l] : this.s[id + nm])   // down
-      + ((iy != lm) ? this.s[id + l] : this.s[id - nm]);  // up
-  this.h = this.s[id] * ssn; // -h is the energy before the flip
+  iy = id - ix;
+  ixp = ( ix + 1 ) % l;
+  ixm = ( ix + l - 1 ) % l;
+  iyp = ( iy + l ) % n;
+  iym = ( iy + n - l ) % n;
+  this.h = this.s[id] * (
+        this.s[iy + ixp] + this.s[iy + ixm]
+      + this.s[iyp + ix] + this.s[iym + ix] );
   return id;
 }
 

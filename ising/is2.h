@@ -77,17 +77,20 @@ __inline static void is2_close(is2_t *is)
 /* pick a random site, count neighbors with different spins */
 __inline static int is2_pick(const is2_t *is, int *h)
 {
-  int id, ix, iy, l, lm, n, nm, ssn;
+  int ix, ixp, ixm, iy, iyp, iym, id, ssn;
+  int l = is->l, n = is->n;
 
-  lm = (l = is->l) - 1;
-  nm = (n = is->n) - l;
-  id = (int) (rand01() * n);
+  id = (int) ( rand01() * n );
   ix = id % l;
-  iy = id / l;
-  ssn = ((ix != 0 ) ? is->s[id - 1] : is->s[id + lm])   /* left  */
-      + ((ix != lm) ? is->s[id + 1] : is->s[id - lm])   /* right */
-      + ((iy != 0 ) ? is->s[id - l] : is->s[id + nm])   /* down  */
-      + ((iy != lm) ? is->s[id + l] : is->s[id - nm]);  /* up    */
+  iy = id - ix;
+  ixp = ( ix + 1 ) % l;
+  ixm = ( ix + l - 1 ) % l;
+  iyp = ( iy + l ) % n;
+  iym = ( iy + n - l ) % n;
+  ssn = is->s[iy  + ixp]
+      + is->s[iy  + ixm]
+      + is->s[iyp +  ix]
+      + is->s[iym +  ix];
   *h = is->s[id] * ssn; /* -(*h) is the energy before the flip */
   return id;
 }

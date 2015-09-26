@@ -60,12 +60,12 @@ function dometropolis()
   var i, id, n = ising.n;
 
   ising.setproba(1.0/tp);
+  //ising.em();
   for ( istep = 0; istep < nstepspfmc; istep++ ) {
     for ( i = 0; i < n; i++ ) {
       mctot += 1.0;
       id = ising.pick();
-      if ( ising.h < 0
-        || rand01() < ising.proba[ising.h] ) {
+      if ( ising.h <= 0 || rand01() < ising.proba[ising.h] ) {
         mcacc += 1;
         ising.flip(id);
       }
@@ -75,8 +75,8 @@ function dometropolis()
   }
   sinfo += "acc: " + roundto(100.0 * mcacc / mctot, 2) + "%, ";
   sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: '
-         + roundto(sumU/sum1/ising.n, 3) + " (Ref.: "
-         + roundto(eavref/ising.n, 3) + ").";
+         + roundto(sumU/sum1/n, 3) + " (Ref.: "
+         + roundto(eavref/n, 3) + ").";
   return sinfo;
 }
 
@@ -94,7 +94,9 @@ function dowolff()
     sum1 += 1.0;
     sumU += ising.E;
   }
-  sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1/ising.E, 3) + ", ";
+  sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: '
+         + roundto(sumU/sum1/n, 3) + " (Ref.: "
+         + roundto(eavref/n, 3) + ").";
   return sinfo;
 }
 

@@ -12,8 +12,10 @@ static void runmetro(is2_t *is, double tp)
 
   IS2_SETPROBA(is, beta);
   for ( t = 0; t < nsteps; t++ ) {
+    //id = is2_pick(is, &h);
     IS2_PICK(is, id, h);
-    if ( h < 0 || mtrand() <= is->uproba[h] ) {
+    if ( h <= 0 || mtrand() <= is->uproba[h] ) {
+      //is2_flip(is, id, h);
       IS2_FLIP(is, id, h);
     }
     sE += is->E;
