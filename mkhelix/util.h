@@ -25,7 +25,7 @@ __inline static char *strstrip(char *s)
   char *p, *q;
 
   /* remove trailing spaces */
-  for ( p = s + strlen(s) - 1; isspace(*p); p-- )
+  for ( p = s + strlen(s) - 1; p >= s && isspace(*p); p-- )
     *p = '\0';
 
   /* remove leading spaces */

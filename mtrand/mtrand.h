@@ -161,7 +161,7 @@ __inline static double *randdir(double *v)
 
 
 /* save the current state to file */
-__inline int mtsave(const char *fn)
+__inline static int mtsave(const char *fn)
 {
   FILE *fp;
   int k;
@@ -180,7 +180,7 @@ __inline int mtsave(const char *fn)
 
 
 /* load state from `fn' */
-__inline int mtload(const char *fn, uint32_t seed)
+__inline static int mtload(const char *fn, uint32_t seed)
 {
   char s[64];
   int k, z, err = 1;
