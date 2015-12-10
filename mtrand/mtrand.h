@@ -1,6 +1,8 @@
 #ifndef MTRAND_H__
 #define MTRAND_H__
 
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -179,8 +181,9 @@ __inline static int mtsave(const char *fn)
 }
 
 
+
 /* load state from `fn' */
-__inline static int mtload(const char *fn, uint32_t seed)
+__inline static int mtload(const char *fn, unsigned long seed)
 {
   char s[64];
   int k, z, err = 1;
