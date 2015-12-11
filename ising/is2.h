@@ -67,10 +67,12 @@ __inline static void is2_close(is2_t *is)
 
 
 /* set transition probability */
-#define IS2_SETPROBA(is, bet) { \
-  double x_ = exp(-4 * bet); \
-  is->uproba[2] = (unsigned) ((double)(0xffffffff) * x_); \
-  is->uproba[4] = (unsigned) ((double)(0xffffffff) * x_*x_); }
+__inline static void is2_setuproba(double bet, unsigned *p)
+{
+  double x = exp(-4 * bet);
+  p[2] = (unsigned) ((double)(0xffffffff) * x);
+  p[4] = (unsigned) ((double)(0xffffffff) * x*x);
+}
 
 
 

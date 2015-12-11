@@ -4,6 +4,7 @@
 
 
 #include "mtrand.h"
+#include "util.h"
 
 
 /* determine the case ID for
@@ -187,7 +188,8 @@ int heatbath_select(int n, const double *p, double *cp)
 
 
 /* select a state according to
- * the type I convective transition matrix */
+ * the type I convective transition matrix
+ * p has been sorted in ascending order */
 __inline static
 int tc1_select(int n, int c, const double *p, double *cp)
 {
@@ -228,8 +230,9 @@ int tc1_select(int n, int c, const double *p, double *cp)
 
 
 
-/* return the transition probability
- * for type II convective transition matrix */
+/* choose an item according to the
+ * type II convective transition matrix
+ * p has been sorted in ascending order */
 __inline static
 double tc2_select(int n, int c, const double *p, double *cp)
 {
@@ -244,7 +247,7 @@ double tc2_select(int n, int c, const double *p, double *cp)
   }
   //printf("case %d, %g, %g vs %g\n", i, p[i], cp[i], p[n-1]); getchar();
 
-  if ( c < n - 1 ) { 
+  if ( c < n - 1 ) {
     if ( i < n - 1 ) {
       if ( c < i ) {
 
@@ -277,6 +280,62 @@ double tc2_select(int n, int c, const double *p, double *cp)
 
 
 
+/* select for unsorted array */
+__inline static
+int tc_select(int type, int n, int c, const double *p,
+    int *id, double *ps, double *cp)
+{
+  int i, j, ic = c, jm;
+  double x, y;
+
+  if ( type == 0 ) {
+    return heatbath_select(n, p, cp);
+  }
+
+  /* 1. sort the probabilities p in ascending order */
+
+  for ( i = 0; i < n; i++ ) id[i] = i;
+
+  /* bubble sort */
+  for ( i = 0; i < n; i++ ) {
+    /* find the ith smallest item */
+    jm = i;
+    x = p[ id[jm] ];
+    for ( j = i + 1; j < n; j++ ) {
+      y = p[ id[j] ];
+      if ( y < x ) {
+        x = y;
+        jm = j;
+      }
+    }
+    /* handling index
+     * id[i] is the index of the ith smallest item */
+    if ( jm != i ) {
+      /* swap id[i] and id[jm] */
+      j = id[i];
+      id[i] = id[jm];
+      id[jm] = j;
+    }
+    ps[i] = p[ id[i] ];
+    if ( id[i] == c ) {
+      ic = i;
+    }
+  }
+
+  //for ( i = 0; i < n; i++ ) printf("%d: %8.5f  %d %8.5f\n", i, p[i], id[i], ps[i]); getchar();
+
+  /* 2. select from the sorted probability */
+  if ( type == 1 ) {
+    i = tc1_select(n, ic, ps, cp);
+  } else {
+    i = tc2_select(n, ic, ps, cp);
+  }
+
+  /* 3. map back to the original index */
+  return id[i];
+}
+
+
 /* print a transition matrix */
 __inline static
 void tc_pmat(int n, const double *tmat, const double *p,
@@ -307,15 +366,13 @@ void tc_pmat(int n, const double *tmat, const double *p,
 }
 
 
-#define NMAX 10
-#define N2MAX (NMAX * NMAX)
-
 __inline static
 void tc_printmat(int type, int n, const double *p, const char *name)
 {
   int r, c, casenum = 0;
-  double tmat[N2MAX];
+  double *tmat;
 
+  xnew(tmat, n * n);
   if ( type == 1 ) {
     casenum = tc1_getcase(n, p);
   } else {
@@ -333,34 +390,9 @@ void tc_printmat(int type, int n, const double *p, const char *name)
   }
 
   tc_pmat(n, tmat, p, name, casenum);
+  free(tmat);
 }
 
-
-
-/* conduct sampling */
-static void tc_sample(int type, const double *p,
-    const char *name, int nsamp)
-{
-  int r, c, t;
-  int n = 4;
-  double cp[NMAX+1], mat[NMAX*NMAX] = {0};
-
-  for ( c = 0; c < n; c++ ) {
-    for ( t = 0; t < nsamp; t++ ) {
-      if ( type == 1 ) {
-        r = tc1_select(n, c, p, cp);
-      } else {
-        r = tc2_select(n, c, p, cp);
-      }
-      mat[r*n + c] += 1;
-    }
-    for ( r = 0; r < n; r++ )
-      mat[r*n + c] /= nsamp;
-  }
-
-  tc_pmat(n, mat, p, name, 0);
-  tc_printmat(type, n, p, name);
-}
 
 
 #endif /* TCONV_H__ */

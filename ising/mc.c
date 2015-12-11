@@ -10,7 +10,7 @@ static void runmetro(is2_t *is, double tp)
   unsigned long t, nsteps = 100000000L;
   double sE = 0, sEE = 0, eavref, cvref;
 
-  IS2_SETPROBA(is, beta);
+  is2_setuproba(beta, is->uproba);
   for ( t = 0; t < nsteps; t++ ) {
     //id = is2_pick(is, &h);
     IS2_PICK(is, id, h);
