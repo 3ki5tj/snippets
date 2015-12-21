@@ -11,9 +11,9 @@
 
 #define TC_HEATBATH     0x00000000
 #define TC_MATRIX1      0x00000001
-#define TC_MATRIX2      0x00000010
-#define TC_METROPOLIS   0x00000011
-#define TC_MATRIXMASK   0x00000011
+#define TC_MATRIX2      0x00000002
+#define TC_METROPOLIS   0x00000003
+#define TC_MATRIXMASK   0x000000ff
 
 /* sampling using frequency instead of probability */
 #define TC_FREQ         0x00010000
@@ -66,7 +66,7 @@ double tc_getprob0(int n, int r, int c, const double *p)
   if ( c < n - 1 ) {
     return r == n - 1;
   } else if ( r < n - 1 ) {
-    return p[r]/p[n-1];
+    return p[r] / p[n - 1];
   } else {
     for ( cp = 0, i = 0; i < n-1; i++ )
       cp += p[i];
@@ -177,7 +177,8 @@ void tc1_getprobarr(int n, int c, const double *p, double *tp)
 
     } else if ( c < n - 1 ) {
 
-      for ( cp = 0, j = n - i - 1; j < n - 1; j++ )
+      cp = 0;
+      for ( j = n - i - 1; j < n - 1; j++ )
         cp += p[j];
       cp = ( p[n - 1] - p[n - i - 2] ) / cp;
 
@@ -186,6 +187,7 @@ void tc1_getprobarr(int n, int c, const double *p, double *tp)
 
     } else {
 
+      cp = 0;
       for ( j = n - i - 1; j < n - 1; j++ ) {
         tp[j] = p[j] / p[n - 1];
         cp += tp[j];
@@ -284,9 +286,9 @@ void tc2_getprobarr(int n, int c, const double *p, double *tp)
       cp = 0;
       for ( j = 0; j < i; j++ ) {
         tp[j] = p[j] / p[n - 1];
-        cp -= tp[j];
+        cp += tp[j];
       }
-      tp[n - 1] = 1 - cp;
+      tp[i] = 1 - cp;
 
     }
   } else {
@@ -332,7 +334,7 @@ int metropolis_select(int n, int c, const double *p)
 {
   int r, acc = 0;
 
-  r = c + 1 + (int) ( (n - 1) * rand01() );
+  r = ( c + 1 + (int) ( (n - 1) * rand01() ) ) % n;
   if ( p[r] >= p[c] ) {
     acc = 1;
   } else if ( rand01() < p[r] / p[c] ) {
@@ -443,39 +445,39 @@ double tc2_select(int n, int c, const double *p, double *cp)
  * return the index of `c` */
 __inline static
 int tc_sort(int n, int c, const double *p,
-    int *id, double *ps,
+    int *idmap, double *ps,
     double *cnt, double *scnt)
 {
   int i, j, jm, ic = c;
   double x, y;
 
-  for ( i = 0; i < n; i++ ) id[i] = i;
+  for ( i = 0; i < n; i++ ) idmap[i] = i;
 
   /* bubble sort */
   for ( i = 0; i < n; i++ ) {
     /* find the ith smallest item */
     jm = i;
-    x = p[ id[jm] ];
+    x = p[ idmap[jm] ];
     for ( j = i + 1; j < n; j++ ) {
-      y = p[ id[j] ];
+      y = p[ idmap[j] ];
       if ( y < x ) {
         x = y;
         jm = j;
       }
     }
     /* handling index
-     * id[i] is the index of the ith smallest item */
+     * idmap[i] is the index of the ith smallest item */
     if ( jm != i ) {
-      /* swap id[i] and id[jm] */
-      j = id[i];
-      id[i] = id[jm];
-      id[jm] = j;
+      /* swap idmap[i] and idmap[jm] */
+      j = idmap[i];
+      idmap[i] = idmap[jm];
+      idmap[jm] = j;
     }
-    ps[i] = p[ id[i] ];
+    ps[i] = p[ idmap[i] ];
     if ( cnt != NULL ) {
-      scnt[i] = cnt[ id[i] ];
+      scnt[i] = cnt[ idmap[i] ];
     }
-    if ( id[i] == c ) {
+    if ( idmap[i] == c ) {
       ic = i;
     }
   }
@@ -488,7 +490,7 @@ int tc_sort(int n, int c, const double *p,
 /* randomly select an item from an unsorted array */
 __inline static
 int tc_select(int type, int n, int c, const double *p,
-    int *id, double *ps, double *cp)
+    int *idmap, double *ps, double *cp)
 {
   int i, ic = c;
 
@@ -505,28 +507,27 @@ int tc_select(int type, int n, int c, const double *p,
   }
 
   /* 1. sort the probabilities p in ascending order */
-  ic = tc_sort(n, c, p, id, ps, NULL, NULL);
+  ic = tc_sort(n, c, p, idmap, ps, NULL, NULL);
 
-  //for ( i = 0; i < n; i++ ) printf("%d: %8.5f  %d %8.5f\n", i, p[i], id[i], ps[i]); getchar();
+  //for ( i = 0; i < n; i++ ) printf("%d: %8.5f  %d %8.5f\n", i, p[i], idmap[i], ps[i]); getchar();
 
   /* 2. select from the sorted probability */
-  if ( type == 1 ) {
+  if ( type == TC_MATRIX1 ) {
     i = tc1_select(n, ic, ps, cp);
-  } else {
+  } else if ( type == TC_MATRIX2 ) {
     i = tc2_select(n, ic, ps, cp);
   }
 
   /* 3. map back to the original index */
-  return id[i];
+  return idmap[i];
 }
 
 
 
-/* deterministically select an item from an unsorted array
- * */
+/* deterministically select an item from an unsorted array */
 __inline static
 int tc_next(int type, int n, int c, const double *p,
-    int *id, double *ps, double *tp,
+    int *idmap, double *ps, double *tp,
     double *cnt, double *scnt)
 {
   int i, ii, j, ic;
@@ -541,23 +542,27 @@ int tc_next(int type, int n, int c, const double *p,
   }
 
   /* 1. sort the probabilities p in ascending order */
-  ic = tc_sort(n, c, p, id, ps, cnt, scnt);
+  ic = tc_sort(n, c, p, idmap, ps, cnt, scnt);
 
   /* 2. get the array of transition probabilities */
-  if ( type == 1 ) {
+  if ( type == TC_MATRIX1 ) {
     tc1_getprobarr(n, ic, ps, tp);
-  } else {
+  } else if ( type == TC_MATRIX2 ) {
     tc2_getprobarr(n, ic, ps, tp);
+  } else if ( type == TC_METROPOLIS ) {
+    for ( j = 0; j < n; j++ ) {
+      tp[j] = ps[j];
+    }
   }
 
   /* 3. select deterministically */
   i = fsamp_select(n, tp, scnt);
-  ii = id[i];
+  ii = idmap[i];
   fsamp_truncate(n, tp, scnt);
 
   /* 4. convert the counts back to the index */
   for ( j = 0; j < n; j++ ) {
-    cnt[ id[j] ] = scnt[j];
+    cnt[ idmap[j] ] = scnt[j];
   }
 
   cnt[ ii ] += 1;
@@ -602,29 +607,45 @@ __inline static
 void tc_printmat(int type, int n, const double *p, const char *name)
 {
   int r, c, casenum = 0;
-  double *tmat;
+  double *tmat, *tcol;
 
   xnew(tmat, n * n);
-  if ( type == 1 ) {
+  xnew(tcol, n);
+
+  if ( type == TC_MATRIX1 ) {
     casenum = tc1_getcase(n, p);
-  } else {
+  } else if ( type == TC_MATRIX2 ) {
     casenum = tc2_getcase(n, p);
   }
 
+  for ( c = 0; c < n; c++ ) {
+    if ( type == TC_MATRIX1 ) {
+      tc1_getprobarr(n, c, p, tcol);
+    } else if ( type == TC_MATRIX2 ) {
+      tc2_getprobarr(n, c, p, tcol);
+    }
+    for ( r = 0; r < n; r++ ) {
+      tmat[r*n + c] = tcol[r];
+    }
+  }
+/*
   for ( r = 0; r < n; r++ ) {
     for ( c = 0; c < n; c++ ) {
-      if ( type == 1 ) {
+      if ( type == TC_MATRIX1 ) {
         tmat[r*n+c] = tc1_getprob(n, r, c, p);
-      } else {
+      } else if ( type == TC_MATRIX2 ) {
         tmat[r*n+c] = tc2_getprob(n, r, c, p);
       }
     }
   }
+*/
 
   tc_pmat(n, tmat, p, name, casenum);
   free(tmat);
+  free(tcol);
 }
 
 
 
 #endif /* TCONV_H__ */
+

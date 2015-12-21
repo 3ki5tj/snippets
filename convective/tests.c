@@ -29,9 +29,9 @@ __inline static void tc_select_wrap(int type, int n, const double *p,
   xnew(mat, n * n);
   for ( c = 0; c < n; c++ ) {
     for ( t = 0; t < nsamp; t++ ) {
-      if ( type == 1 ) {
+      if ( type == TC_MATRIX1 ) {
         r = tc1_select(n, c, p, cp);
-      } else {
+      } else if ( type == TC_MATRIX2 ) {
         r = tc2_select(n, c, p, cp);
       }
       mat[r*n + c] += 1;

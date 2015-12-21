@@ -1,5 +1,7 @@
-/* simulated tempering */
-#include "tconv.h"
+/* simulated tempering for Ising model */
+#include "simtemp.h"
+
+
 
 #ifndef IS2_LB
 #define IS2_LB 5
@@ -8,139 +10,88 @@
 #define N ((L) * (L))
 #include "is2.h"
 
+
+
+/* Ising model parameters */
+typedef struct {
+  int n;
+  double *beta;
+  unsigned (*uproba)[5];
+  double *lnzref;
+  double *eref;
+  double *cvref;
+} is2param_t;
+
+
+
+static is2param_t *is2param_open(int l, simtemp_t *st)
+{
+  is2param_t *isp;
+  int i;
+
+  xnew(isp, 1);
+  isp->n = st->nbeta;
+  /* link the temperature array */
+  isp->beta = st->beta;
+  xnew(isp->uproba, isp->n);
+  xnew(isp->lnzref, isp->n);
+  xnew(isp->eref,   isp->n);
+  xnew(isp->cvref,  isp->n);
+  for ( i = 0; i <  isp->n; i++ ) {
+    isp->lnzref[i] = is2_exact(l, l, st->beta[i],
+        &isp->eref[i], &isp->cvref[i]);
+    is2_setuproba(isp->beta[i], isp->uproba[i]);
+    printf("tp %7.4f, lnz %8.3f, eav %8.3f, cv %8.3f\n",
+        1/isp->beta[i], isp->lnzref[i], isp->eref[i], isp->cvref[i]);
+  }
+
+  return isp;
+}
+
+
+
+static void is2param_close(is2param_t *isp)
+{
+  free(isp->uproba);
+  free(isp->lnzref);
+  free(isp->eref);
+  free(isp->cvref);
+  free(isp);
+}
+
+
+
 #define BATCHSIZE N
 
 
-typedef struct {
-  int type;
 
-  int nbeta;
-  double *beta;
-  double *hist;
-  double *esum;
-  double *eesum;
-
-  /* Ising model parameters */
-  double *lnz;
-  unsigned (*uproba)[5];
-  double *eref;
-  double *cvref;
-
-  double *p;
-  int *idmap;
-  double *ps;
-  double *cp;
-
-  /* pseudo-counts for frequency-based sampling */
-  double *cnt;
-} simtemp_t;
-
-
-static simtemp_t *simtemp_open(int type,
-    double tp0, double dtp, int ntp)
-{
-  simtemp_t *st;
-  int i;
-  double tp;
-
-  xnew(st, 1);
-
-  st->type = type;
-
-  st->nbeta = ntp;
-
-  xnew(st->beta, st->nbeta);
-  xnew(st->hist, st->nbeta);
-  xnew(st->esum, st->nbeta);
-  xnew(st->eesum, st->nbeta);
-
-  xnew(st->lnz, st->nbeta);
-  xnew(st->uproba, st->nbeta);
-  xnew(st->eref, st->nbeta);
-  xnew(st->cvref, st->nbeta);
-  for ( i = 0; i < st->nbeta; i++ ) {
-    tp = tp0 + dtp * i;
-    st->beta[i] = 1 / tp;
-    st->lnz[i] = is2_exact(L, L, st->beta[i],
-        &st->eref[i], &st->cvref[i]);
-    is2_setuproba(st->beta[i], st->uproba[i]);
-    printf("tp %7.4f, lnz %8.3f, eav %8.3f, cv %8.3f\n",
-        tp, st->lnz[i], st->eref[i], st->cvref[i]);
-  }
-
-  for ( i = 0; i < st->nbeta; i++ )
-    st->hist[i] = 0;
-
-  xnew(st->p, st->nbeta);
-  xnew(st->idmap, st->nbeta);
-  xnew(st->ps, st->nbeta);
-  xnew(st->cp, st->nbeta + 1);
-  return st;
-}
-
-
-
-static void simtemp_close(simtemp_t *st)
-{
-  free(st->beta);
-  free(st->hist);
-  free(st->esum);
-  free(st->eesum);
-
-  free(st->lnz);
-  free(st->uproba);
-  free(st->eref);
-  free(st->cvref);
-
-  free(st->p);
-  free(st->idmap);
-  free(st->ps);
-  free(st->cp);
-  free(st);
-}
-
-
-
-/* choose a temperature according the current energy */
-static int simtemp_choose(simtemp_t *st, double E, int ibet)
-{
-  int i;
-  double max = -DBL_MAX;
-
-  /* compute the probabilities */
-  for ( i = 0; i < st->nbeta; i++ ) {
-    st->p[i] = -st->beta[i] * E - st->lnz[i];
-    if ( st->p[i] > max ) max = st->p[i];
-  }
-  /* no need to normalize to sum 1 */
-  for ( i = 0; i < st->nbeta; i++ ) {
-    st->p[i] = exp( st->p[i] - max );
-  }
-
-  return tc_select(st->type, st->nbeta, ibet, st->p,
-      st->idmap, st->ps, st->cp);
-}
-
-
-
-static void simtemp(int type)
+static void simtemp_is2(int type)
 {
   simtemp_t *st;
   is2_t *is;
+  is2param_t *isp;
   int id, h, it, ibet;
   unsigned long t, nsteps = 1000000000L;
   double flatness, htot;
 
-  printf("L %d, type %d, %s\n", L, type & TC_MATRIXMASK, (type & TC_FREQ ? "prob" : "freq"));
-  is = is2_open(L);
   st = simtemp_open(type, 4.0, 0.1, 5);
+  is = is2_open(L);
+  isp = is2param_open(L, st);
+
+  /* set the exact partition function array
+   * for the weights of simulated tempering */
+  simtemp_setlnz(st, isp->lnzref);
+
+  printf("L %d, type %d, %s\n", L,
+      (type & TC_MATRIXMASK),
+      ((type & TC_FREQ) ? "freq" : "prob"));
 
   ibet = 0;
   for ( t = 0; t < nsteps; t+= BATCHSIZE ) {
     /* run a batch of MC steps */
     for ( it = 0; it < BATCHSIZE; it++ ) {
       IS2_PICK(is, id, h);
-      if ( h <= 0 || mtrand() <= st->uproba[ibet][h] ) {
+      if ( h <= 0 || mtrand() <= isp->uproba[ibet][h] ) {
         IS2_FLIP(is, id, h);
       }
     }
@@ -165,10 +116,13 @@ static void simtemp(int type)
     flatness -= log(st->hist[ibet]*st->nbeta/htot)/st->nbeta;
 
     printf("H %8.5f, eav %8.3f/%8.3f, cv %8.3f/%8.3f\n",
-        st->hist[ibet]/htot, eav, st->eref[ibet],
-        cv, st->cvref[ibet]);
+        st->hist[ibet]/htot,
+        eav, isp->eref[ibet],
+        cv, isp->cvref[ibet]);
   }
   printf("flatness %g\n", flatness);
+
+  is2param_close(isp);
   is2_close(is);
   simtemp_close(st);
 }
@@ -181,12 +135,16 @@ int main(int argc, char **argv)
 
   if ( argc > 1 ) {
     type = atoi( argv[1] );
-  } else if ( argc > 2 ) { /* frequency-based sampling */
-    type |= TC_FREQ;
+  }
+
+  if ( argc > 2 ) { /* frequency-based sampling */
+    if ( atoi( argv[2] ) > 0 ) {
+      type |= TC_FREQ;
+    }
   }
 
   mtscramble( time(NULL) );
 
-  simtemp(type);
+  simtemp_is2(type);
   return 0;
 }
