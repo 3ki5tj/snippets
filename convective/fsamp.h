@@ -32,9 +32,9 @@ int fsamp_select(int n, double *cnt, const double *p)
 
 
 
-/* normalize the counts based on the */
+/* truncate the counts based on the given probability p */
 __inline static
-void fsamp_normalize(int n, double *cnt, const double *p)
+void fsamp_truncate(int n, double *cnt, const double *p)
 {
   int i;
   double ptot = 0, ctot = 0, have;
