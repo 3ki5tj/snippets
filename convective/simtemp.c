@@ -30,6 +30,9 @@ typedef struct {
   int *idmap;
   double *ps;
   double *cp;
+
+  /* pseudo-counts for frequency-based sampling */
+  double *cnt;
 } simtemp_t;
 
 
@@ -76,6 +79,7 @@ static simtemp_t *simtemp_open(int type,
 }
 
 
+
 static void simtemp_close(simtemp_t *st)
 {
   free(st->beta);
@@ -94,6 +98,7 @@ static void simtemp_close(simtemp_t *st)
   free(st->cp);
   free(st);
 }
+
 
 
 /* choose a temperature according the current energy */
@@ -116,6 +121,8 @@ static int simtemp_choose(simtemp_t *st, double E, int ibet)
       st->idmap, st->ps, st->cp);
 }
 
+
+
 static void simtemp(int type)
 {
   simtemp_t *st;
@@ -124,7 +131,7 @@ static void simtemp(int type)
   unsigned long t, nsteps = 1000000000L;
   double flatness, htot;
 
-  printf("L %d\n", L);
+  printf("L %d, type %d, %s\n", L, type & TC_MATRIXMASK, (type & TC_FREQ ? "prob" : "freq"));
   is = is2_open(L);
   st = simtemp_open(type, 4.0, 0.1, 5);
 
@@ -167,12 +174,15 @@ static void simtemp(int type)
 }
 
 
+
 int main(int argc, char **argv)
 {
   int type = 1;
 
   if ( argc > 1 ) {
     type = atoi( argv[1] );
+  } else if ( argc > 2 ) { /* frequency-based sampling */
+    type |= TC_FREQ;
   }
 
   mtscramble( time(NULL) );

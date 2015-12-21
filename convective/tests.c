@@ -8,13 +8,13 @@ double p3[] = {0.05, 0.1, 0.15, 0.7};
 
 static void test_printmat(void)
 {
-  tc_printmat(1, 4, p1, "Type 1, smooth 1");
-  tc_printmat(1, 4, p2, "Type 1, smooth 2");
-  tc_printmat(1, 4, p3, "Type 1, peak");
+  tc_printmat(TC_MATRIX1, 4, p1, "Type 1, smooth 1");
+  tc_printmat(TC_MATRIX1, 4, p2, "Type 1, smooth 2");
+  tc_printmat(TC_MATRIX1, 4, p3, "Type 1, peak");
 
-  tc_printmat(2, 4, p1, "Type 2, smooth 1");
-  tc_printmat(2, 4, p2, "Type 2, smooth 2");
-  tc_printmat(2, 4, p3, "Type 2, peak");
+  tc_printmat(TC_MATRIX2, 4, p1, "Type 2, smooth 1");
+  tc_printmat(TC_MATRIX2, 4, p2, "Type 2, smooth 2");
+  tc_printmat(TC_MATRIX2, 4, p3, "Type 2, peak");
 }
 
 
@@ -53,14 +53,15 @@ static void test_select(void)
 {
   int nsamp = 1000000;
 
-  tc_select_wrap(1, 4, p1, "Type 1, smooth 1", nsamp);
-  tc_select_wrap(1, 4, p2, "Type 1, smooth 2", nsamp);
-  tc_select_wrap(1, 4, p3, "Type 1, dominant", nsamp);
+  tc_select_wrap(TC_MATRIX1, 4, p1, "Type 1, smooth 1", nsamp);
+  tc_select_wrap(TC_MATRIX1, 4, p2, "Type 1, smooth 2", nsamp);
+  tc_select_wrap(TC_MATRIX1, 4, p3, "Type 1, dominant", nsamp);
 
-  tc_select_wrap(2, 4, p1, "Type 2, smooth 1", nsamp);
-  tc_select_wrap(2, 4, p2, "Type 2, smooth 2", nsamp);
-  tc_select_wrap(2, 4, p3, "Type 2, dominant", nsamp);
+  tc_select_wrap(TC_MATRIX2, 4, p1, "Type 2, smooth 1", nsamp);
+  tc_select_wrap(TC_MATRIX2, 4, p2, "Type 2, smooth 2", nsamp);
+  tc_select_wrap(TC_MATRIX2, 4, p3, "Type 2, dominant", nsamp);
 }
+
 
 
 double p1_us[] = {0.26, 0.24, 0.15, 0.35};
@@ -101,14 +102,15 @@ static void test_select_us(void)
 {
   int nsamp = 1000000;
 
-  tc_select_us_wrap(1, 4, p1_us, "Type 1, smooth 1", nsamp);
-  tc_select_us_wrap(1, 4, p2_us, "Type 1, smooth 2", nsamp);
-  tc_select_us_wrap(1, 4, p3_us, "Type 1, dominant", nsamp);
+  tc_select_us_wrap(TC_MATRIX1, 4, p1_us, "Type 1, smooth 1", nsamp);
+  tc_select_us_wrap(TC_MATRIX1, 4, p2_us, "Type 1, smooth 2", nsamp);
+  tc_select_us_wrap(TC_MATRIX1, 4, p3_us, "Type 1, dominant", nsamp);
 
-  tc_select_us_wrap(2, 4, p1_us, "Type 2, smooth 1", nsamp);
-  tc_select_us_wrap(2, 4, p2_us, "Type 2, smooth 2", nsamp);
-  tc_select_us_wrap(2, 4, p3_us, "Type 2, dominant", nsamp);
+  tc_select_us_wrap(TC_MATRIX2, 4, p1_us, "Type 2, smooth 1", nsamp);
+  tc_select_us_wrap(TC_MATRIX2, 4, p2_us, "Type 2, smooth 2", nsamp);
+  tc_select_us_wrap(TC_MATRIX2, 4, p3_us, "Type 2, dominant", nsamp);
 }
+
 
 
 int main(int argc, char **argv)

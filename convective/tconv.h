@@ -5,6 +5,19 @@
 
 #include "mtrand.h"
 #include "util.h"
+#include "fsamp.h"
+
+
+
+#define TC_HEATBATH     0x00000000
+#define TC_MATRIX1      0x00000001
+#define TC_MATRIX2      0x00000010
+#define TC_METROPOLIS   0x00000011
+#define TC_MATRIXMASK   0x00000011
+
+/* sampling using frequency instead of probability */
+#define TC_FREQ         0x00010000
+
 
 
 /* determine the case ID for
@@ -13,14 +26,15 @@ __inline static
 int tc1_getcase(int n, const double *p)
 {
   int i;
-  double cp = p[n-2];
+  double cp = p[n - 2];
 
   for ( i = 1; i <= n - 2; i++ ) {
-    cp += p[n-2-i];
-    if ( p[n-1] <= cp ) return i;
+    cp += p[n - 2 - i];
+    if ( p[n - 1] <= cp ) return i;
   }
   return n - 1;
 }
+
 
 
 /* determine the case ID for
@@ -33,10 +47,11 @@ int tc2_getcase(int n, const double *p)
 
   for ( i = 1; i <= n - 2; i++ ) {
     cp += p[i];
-    if ( p[n-1] <= cp ) return i;
+    if ( p[n - 1] <= cp ) return i;
   }
   return n - 1;
 }
+
 
 
 /* return the transition probability
@@ -58,6 +73,33 @@ double tc_getprob0(int n, int r, int c, const double *p)
     return 1 - cp/p[n-1];
   }
 }
+
+
+
+/* return the transition probability of all destinations
+ * for convective transition matrix
+ * for the dominant case */
+__inline static
+void tc_getprobarr0(int n, int c, const double *p, double *tp)
+{
+  int i;
+  double cp;
+
+  if ( c < n - 1 ) {
+    for ( i = 0; i < n - 1; i++ ) {
+      tp[i] = 0;
+    }
+    tp[n - 1] = 1;
+  } else {
+    cp = 0;
+    for ( i = 0; i < n - 1; i++ ) {
+      tp[i] = p[i] / p[n-1];
+      cp += p[i];
+    }
+    tp[n - 1] = cp / p[n-1];
+  }
+}
+
 
 
 /* return the transition probability
@@ -103,6 +145,56 @@ double tc1_getprob(int n, int r, int c, const double *p)
     }
   } else {
     return tc_getprob0(n, r, c, p);
+  }
+}
+
+
+
+/* return the transition probability of all destinations
+ * for type I convective transition matrix */
+__inline static
+void tc1_getprobarr(int n, int c, const double *p, double *tp)
+{
+  int i, j;
+  double cp;
+
+  i = tc1_getcase(n, p);
+
+  if ( i < n - 1 ) {
+    for ( j = 0; j < n; j++ ) {
+      tp[j] = 0;
+    }
+
+    if ( c == 0 ) {
+
+      tp[n - 1] = 1;
+
+    } else if ( c < n - i - 1 ) {
+
+      cp = p[c - 1] / p[c];
+      tp[c - 1] = cp;
+      tp[n - 1] = 1 - cp;
+
+    } else if ( c < n - 1 ) {
+
+      for ( cp = 0, j = n - i - 1; j < n - 1; j++ )
+        cp += p[j];
+      cp = ( p[n - 1] - p[n - i - 2] ) / cp;
+
+      tp[n - 1] = cp;
+      tp[n - i - 2] = 1 - cp;
+
+    } else {
+
+      for ( j = n - i - 1; j < n - 1; j++ ) {
+        tp[j] = p[j] / p[n - 1];
+        cp += tp[j];
+      }
+      tp[n - i - 2] = 1 - cp;
+
+    }
+  } else {
+    tc_getprobarr0(n, c, p, tp);
   }
 }
 
@@ -157,6 +249,53 @@ double tc2_getprob(int n, int r, int c, const double *p)
 
 
 
+/* return the transition probability of all destinations
+ * for type II convective transition matrix */
+__inline static
+void tc2_getprobarr(int n, int c, const double *p, double *tp)
+{
+  int i, j;
+  double cp;
+
+  i = tc2_getcase(n, p);
+
+  if ( i < n - 1 ) {
+
+    for ( j = 0; j < n; j++ ) {
+      tp[j] = 0;
+    }
+
+    if ( c < i ) {
+
+      for ( cp = 0, j = 0; j < i; j++ )
+        cp += p[j];
+
+      tp[i] = 1 - (p[n - 1] - p[i]) / cp;
+      for ( j = i + 1; j < n; j++ ) {
+        tp[j] = (p[j] - p[j - 1]) / cp;
+      }
+
+    } else if ( c < n - 1 ) {
+
+      tp[c + 1] = 1;
+
+    } else { /* c == n - 1 */
+
+      cp = 0;
+      for ( j = 0; j < i; j++ ) {
+        tp[j] = p[j] / p[n - 1];
+        cp -= tp[j];
+      }
+      tp[n - 1] = 1 - cp;
+
+    }
+  } else {
+    tc_getprobarr0(n, c, p, tp);
+  }
+}
+
+
+
 /* select an item of an array of n items according to
  * probabilites p[0..n-1],
  * cp[0..n] are space for the cumulative probabilities
@@ -183,6 +322,24 @@ int heatbath_select(int n, const double *p, double *cp)
     }
   }
   return i;
+}
+
+
+
+/* select using the metropolis way */
+__inline static
+int metropolis_select(int n, int c, const double *p)
+{
+  int r, acc = 0;
+
+  r = c + 1 + (int) ( (n - 1) * rand01() );
+  if ( p[r] >= p[c] ) {
+    acc = 1;
+  } else if ( rand01() < p[r] / p[c] ) {
+    acc = 1;
+  }
+
+  return acc ? r : c;
 }
 
 
@@ -280,19 +437,17 @@ double tc2_select(int n, int c, const double *p, double *cp)
 
 
 
-/* select for unsorted array */
+/* sort the probabilities `p` in ascending order
+ * save the sorted array in `ps`
+ * if `cnt` exists, the sorted version is saved in `scnt`
+ * return the index of `c` */
 __inline static
-int tc_select(int type, int n, int c, const double *p,
-    int *id, double *ps, double *cp)
+int tc_sort(int n, int c, const double *p,
+    int *id, double *ps,
+    double *cnt, double *scnt)
 {
-  int i, j, ic = c, jm;
+  int i, j, jm, ic = c;
   double x, y;
-
-  if ( type == 0 ) {
-    return heatbath_select(n, p, cp);
-  }
-
-  /* 1. sort the probabilities p in ascending order */
 
   for ( i = 0; i < n; i++ ) id[i] = i;
 
@@ -317,10 +472,40 @@ int tc_select(int type, int n, int c, const double *p,
       id[jm] = j;
     }
     ps[i] = p[ id[i] ];
+    if ( cnt != NULL ) {
+      scnt[i] = cnt[ id[i] ];
+    }
     if ( id[i] == c ) {
       ic = i;
     }
   }
+
+  return ic;
+}
+
+
+
+/* randomly select an item from an unsorted array */
+__inline static
+int tc_select(int type, int n, int c, const double *p,
+    int *id, double *ps, double *cp)
+{
+  int i, ic = c;
+
+  type &= TC_MATRIXMASK;
+
+  if ( type == TC_HEATBATH ) {
+
+    return heatbath_select(n, p, cp);
+
+  } else if ( type == TC_METROPOLIS ) {
+
+    return metropolis_select(n, c, p);
+
+  }
+
+  /* 1. sort the probabilities p in ascending order */
+  ic = tc_sort(n, c, p, id, ps, NULL, NULL);
 
   //for ( i = 0; i < n; i++ ) printf("%d: %8.5f  %d %8.5f\n", i, p[i], id[i], ps[i]); getchar();
 
@@ -334,6 +519,52 @@ int tc_select(int type, int n, int c, const double *p,
   /* 3. map back to the original index */
   return id[i];
 }
+
+
+
+/* deterministically select an item from an unsorted array
+ * */
+__inline static
+int tc_next(int type, int n, int c, const double *p,
+    int *id, double *ps, double *tp,
+    double *cnt, double *scnt)
+{
+  int i, ii, j, ic;
+
+  type &= TC_MATRIXMASK;
+
+  if ( type == TC_HEATBATH ) {
+    ii = fsamp_select(n, p, cnt);
+    cnt[ii] += 1;
+    fsamp_truncate(n, p, cnt);
+    return ii;
+  }
+
+  /* 1. sort the probabilities p in ascending order */
+  ic = tc_sort(n, c, p, id, ps, cnt, scnt);
+
+  /* 2. get the array of transition probabilities */
+  if ( type == 1 ) {
+    tc1_getprobarr(n, ic, ps, tp);
+  } else {
+    tc2_getprobarr(n, ic, ps, tp);
+  }
+
+  /* 3. select deterministically */
+  i = fsamp_select(n, tp, scnt);
+  ii = id[i];
+  fsamp_truncate(n, tp, scnt);
+
+  /* 4. convert the counts back to the index */
+  for ( j = 0; j < n; j++ ) {
+    cnt[ id[j] ] = scnt[j];
+  }
+
+  cnt[ ii ] += 1;
+
+  return ii;
+}
+
 
 
 /* print a transition matrix */
@@ -364,6 +595,7 @@ void tc_pmat(int n, const double *tmat, const double *p,
   }
   printf("\n");
 }
+
 
 
 __inline static

@@ -12,7 +12,7 @@
 
 /* select an item with the minimal height */
 __inline static
-int fsamp_select(int n, double *cnt, const double *p)
+int fsamp_select(int n, const double *p, double *cnt)
 {
   int i, im = 0;
   double y, ym = DBL_MAX;
@@ -34,7 +34,7 @@ int fsamp_select(int n, double *cnt, const double *p)
 
 /* truncate the counts based on the given probability p */
 __inline static
-void fsamp_truncate(int n, double *cnt, const double *p)
+void fsamp_truncate(int n, const double *p, double *cnt)
 {
   int i;
   double ptot = 0, ctot = 0, have;

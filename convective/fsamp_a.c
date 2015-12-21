@@ -16,12 +16,12 @@ static void test1(int n, double *pa, double *pb,
   id = 0;
   p = pa;
   for ( t = 0; t < ntrial; t++ ) {
-    i = fsamp_select(n, cnt, p);
+    i = fsamp_select(n, p, cnt);
     cnt[i] += 1;
     his[i] += 1;
 
     if ( t % 200 == 100 ) {
-      fsamp_truncate(n, cnt, p);
+      fsamp_truncate(n, p, cnt);
       id = !id;
       p = ( id == 0 ) ? pa : pb;
     }
