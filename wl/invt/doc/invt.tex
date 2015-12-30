@@ -1,0 +1,713 @@
+\documentclass[reprint]{revtex4-1}
+\usepackage{amsmath}
+\begin{document}
+
+
+\section{Background}
+
+
+
+\subsection{Entropic sampling}
+
+Consider the problem of sampling a system
+using the method of Markov chain Monte Carlo (MC).
+%
+We are interested in the distribution $p^*_i$
+along a discrete state $i$,
+or equivalently, the potential of mean force (PMF),
+%
+\begin{equation}
+\phi^*_i = -\log p^*_i.
+\label{eq:pmf_def}
+\end{equation}
+%
+An example of the discrete variable $i$
+is the energy $E$ of the Ising model
+in the canonical ensemble,
+in which $p^*_E \propto g_E \, e^{-\beta \, E}$
+with $g_E$ and $\beta$ being the density of states,
+and reciprocal temperature, respectively.
+
+
+For a large system,
+the distribution $p^*_i$ is often
+narrowly peaked at a certain $i_0$.
+%
+Thus to find out the global property,
+it is often desirable to carry out
+a biased sampling that targets
+a wider distribution $p_i$.
+%
+Here, we refer to simulations that target
+a flat or nearly flat distribution
+as entropic or multicanonical sampling.
+
+
+
+To do so, we need to introduce a bias potential $\phi_i$,
+such that the target distribution is changed to
+%
+\begin{equation}
+  \pi_i \propto p^*_i \, e^{-\phi_i}.
+  \label{eq:pi_p_phi1}
+\end{equation}
+%
+Upon normalization $\sum_{i = 1}^n \pi_i = 1$,
+we get
+%
+\begin{equation}
+  \pi_i =
+  \frac{ p^*_i \, e^{-\phi_i} }
+  { \sum_{j = 1}^n p^*_j \, e^{-\phi_j} }.
+  \label{eq:pi_p_phi}
+\end{equation}
+
+
+
+From Eq. \eqref{eq:pi_p_phi1},
+it is clear that achieving the target distribution
+$\pi_i = p_i$ requires
+%
+\begin{equation}
+\phi_i = \ln p^*_i - \ln p_i + c
+=\phi^*_i - \ln p_i + c
+\label{eq:bias_pmf}
+\end{equation}
+Particularly,
+to achieve a flat distribution $p_i$,
+the bias potential $\phi_i$
+must coincide with the PMF $\phi^*_i$,
+up to an additive constant.
+%
+Since the target distribution
+can be estimated from the histogram
+accumulated from the trajectory,
+Eq. \eqref{eq:pi_p_phi1}
+allows us to adjust the bias potential
+inversely according to the observed histogram.
+%
+Once the observed histogram matches
+the target distribution,
+the PMF can be computed from Eq. \eqref{eq:bias_pmf}.
+
+The above inversion process can be difficult
+in practice,
+for it depends on the precision of the histogram,
+which requires some estimation
+of the autocorrelation time.
+
+\subsection{Wang-Landau algorithm}
+
+
+The Wang-Landau (WL) algorithm is a convenient technique
+of guessing the optimal bias potential $\phi_i$
+on the fly.
+%
+To simplify the notation, we introduce
+a shifted bias potential
+%
+\begin{equation}
+  v_i \equiv \phi_i - \ln p^*_i + \ln p_i.
+  \label{eq:vi_def}
+\end{equation}
+%
+%
+and in $v_i$, Eq. \eqref{eq:pi_p_phi}
+becomes
+%
+\begin{equation}
+  \pi_i = \frac{ p_i e^{-v_i} }
+  { \sum_{j = 1}^n p_j e^{-v_j} }
+  \propto p_i \, e^{-v_i}.
+  \label{eq:pi_p_v}
+\end{equation}
+%
+According to Eq. \eqref{eq:bias_pmf},
+$v_i$ should approach a constant of $i$
+upon convergence,
+
+
+In the WL algorithm, $v_i$ are updated
+in each MC step $t$,
+and they may be written as $v_i(t)$.
+%
+The updating formula is
+%
+\begin{equation}
+  v_{i(t)}(t+1)
+  =
+  v_{i(t)}(t)
+  +
+  \frac{ \alpha(t) } { p_{i(t)} }.
+  \label{eq:wl_update}
+\end{equation}
+%
+where $i(t)$ is the state at step $t$,
+and $\alpha(t)$ is the updating magnitude.
+%
+The values of $v_j(t)$ at $j \ne i(t)$
+are kept unchanged.
+%
+One can show that with a constant $\alpha(t) = \alpha > 0$,
+the distribution collected from
+the trajectory is identical to $p^*_i$.
+%
+However, it turns out that
+even upon convergence,
+$v_i(t)$ only approximately approach a constant,
+with the deviations dependent on $\alpha$.
+
+
+
+The source of the deviation is two-fold.
+%
+First, since $v_i(t)$ is updated continuously,
+there is a random noise that is proportional
+to $\sqrt \alpha$.
+%
+Second, there is a systematic error
+that comes from the updating dynamics itself,
+as it breaks the Markovian nature
+that underlies Eq. \eqref{eq:pi_p_v}.
+%
+Thus, one has to decrease $\alpha$ over time
+in order to improve the resolution of $v_i$.
+
+
+
+In the original WL scheme,
+the updating magnitude $\alpha$ (or $\ln f$
+in the original paper) is kept as a constant
+for a period of time,
+which is referred to as a stage below.
+%
+The histogram collected in the stage is monitored.
+%
+Once the histogram is sufficiently flat,
+we are allowed to enter a new stage
+with a reduced $\alpha$
+(usually half as large as
+that in the previous stage).
+%
+This scheme works well for early stages.
+%
+However, in later stages, it tends to reduce $\alpha$
+too quickly, making the asymptotic error
+saturate.
+%
+
+
+\subsection{$1/t$ formula}
+
+
+
+A more effective way
+of updating the $\alpha(t)$
+is to discard the stage-wise setup,
+and to follow the formula
+%
+\begin{equation}
+  \alpha(t) = \frac{1}{t},
+  \label{eq:alpha_invt}
+\end{equation}
+%
+where $t$ is the number of steps
+from the beginning of the MC simulation,
+which shall be referred to as the ``time'' below.
+%
+This surprisingly simple formula has attracted
+several studies, notably the one by Zhou.
+%
+There are, however, some reservations about
+the constant of proportionality:
+the optimal formula for $\alpha(t)$
+might be $C/t$ with a constant $C$
+different from $1.0$.
+
+
+
+\section{Inverse time formula}
+
+
+
+Here we attempt to give a somewhat different derivation
+of Eq. \eqref{eq:alpha_invt}.
+%
+We shall show that the optimality of Eq. \eqref{eq:alpha_invt}
+holds even if we take into account
+correlation among successive MC steps.
+%
+Particularly, the coefficient of proportionality, $1.0$,
+is optimal in a large class of cases;
+%
+the only variable permissible by the optimal condition
+is the origin of time,
+i.e., $t$ in Eq. \eqref{eq:alpha_invt}
+may be replaced by $t - t_0$ for some $t_0$,
+which may be interpreted as the equilibration time.
+
+Further, our derivation is applicable
+to more elaborate updating schemes used in metadynamics,
+in which a visit to state $i$ would affect
+the bias potential at a few neighboring states).
+
+
+\subsection{Overview}
+
+
+We shall first express the error of $v(t)$
+as a functional of the protocol $\alpha(t)$.
+Then by variating the error with respect to $\alpha(t)$,
+we can find the optimal choice.
+
+
+
+\subsection{Differential equation}
+
+
+
+Our first step is to approximate Eq. \eqref{eq:wl_update}
+by a differential equation
+%
+\begin{equation}
+  \dot v_i(t)
+  =
+  h_i(t) \frac{ \alpha(t) } { p_i },
+  \label{eq:vt_diffeq}
+\end{equation}
+%
+where
+$\dot v_i = dv_i/dt$,
+%
+and $h_i(t) = \delta_{i, i(t)}$
+is the instantaneous histogram,
+which is equal to $1.0$
+for the current state
+or zero otherwise.
+
+
+
+Next, we split $h_i(t)$ into a deterministic part
+and a noise
+%
+\begin{equation}
+  h_i(t) = \langle h_i(t) \rangle + \zeta_i(t).
+  \label{eq:h_split}
+\end{equation}
+%
+Here, the deterministic part is defined
+as the ``ensemble average'' of $h_i$.
+%
+The ensemble consists of many similar simulation copies
+that share the same protocol $\alpha(t)$
+and have reached the same $v_i(t)$
+at time $t$.
+%
+The initial states and random numbers of the copies
+may, however, be different.
+
+
+
+For sufficiently small $\alpha(t)$,
+the sampling process is approximately
+Markovian of a finite order,
+and we may assume Eq. \eqref{eq:pi_p_v}
+for the deterministic part
+%
+\begin{equation}
+  \langle h_i(t) \rangle
+  \approx
+  \frac{ p_i \, e^{-v_i} }
+  { \sum_{j = 1}^n p_j \, e^{-v_j} }.
+  \label{eq:h_ave}
+\end{equation}
+
+
+
+For the noise part, we have
+%
+\begin{equation}
+  \langle \zeta_i(t) \rangle = 0.
+  \label{eq:zeta_zeromean}
+\end{equation}
+%
+The noise is not necessarily white.
+However, we require that the correlation
+function depends only on the time difference:
+%
+\begin{equation}
+  \langle \zeta_i(t) \, \zeta_j(t') \rangle
+  =
+  \sigma_{ij}(t - t'),
+  \label{eq:zeta_zeta_correlation}
+\end{equation}
+%
+with $\sigma_{ij}(t)$ being an even function of $t$.
+
+
+
+\subsection{Linear approximation}
+
+
+
+To proceed, we first observe that
+the average $\bar v = \sum_{i = 1}^n p_i \, v_i$
+increases steadily over time:
+%
+\begin{equation}
+\frac{ d \bar v } { d t }
+=
+\sum_{i = 1}^n p_i \dot v_i
+=
+\alpha(t) \sum_{i = 1}^n h_i(t) = \alpha(t).
+\label{eq:dvbardt}
+\end{equation}
+%
+However, the difference between $v_i$ and $\bar v$,
+%
+\begin{equation}
+  x_i \equiv v_i - \bar v = v_i - \sum_{j = 1}^n p_j \, v_j,
+  \label{eq:x_def}
+\end{equation}
+%
+is expected to be small in the asymptotic regime,
+and we can expand Eq. \eqref{eq:h_ave} as
+$$
+\begin{aligned}
+\langle h_i(t) \rangle
+&\approx
+\frac{ p_i \, e^{- x_i} }
+{ \sum_{ j = 1}^n p_j \, e^{- x_j} }
+\approx
+\frac{ p_i ( 1 - x_i ) }
+{ \sum_{ j = 1}^n p_j (1 - x_j) }
+\\
+&\approx
+p_i \, \left(
+  1 - x_i + \sum_{j=1}^n p_j \, x_j
+\right),
+\end{aligned}
+$$
+where we have used $\sum_{j=1}^n p_j = 1$.
+%
+Using this in Eqs. \eqref{eq:vt_diffeq}
+and \eqref{eq:h_split} yields
+a set of decoupled equations
+%
+\begin{equation}
+  \dot x_i(t)
+  =
+  -\alpha(t) \, \left[ x_i(t) - \xi_i(t) \right].
+  \label{eq:dxdt_WL}
+\end{equation}
+%
+where
+%
+\begin{equation}
+  \xi_i \equiv \frac{ \zeta_i } { p_i },
+  \label{eq:xi_def}
+\end{equation}
+and we have used Eq. \eqref{eq:dvbardt}.
+
+The error of the bias potentials can be written in $x_i$
+\begin{equation}
+\sum_{i = 1}^n p_i \, \langle x_i^2 \rangle
+=
+\sum_{i = 1}^n p_i \, \left\langle (v_i - \bar v)^2 \right\rangle,
+\label{eq:error_sum}
+\end{equation}
+where
+$\bar v = \sum_{i = 1}^n p_i v_i$.
+%
+Our aim is to find the $\alpha(t)$
+that minimizes Eq. \eqref{eq:error_sum}.
+%
+Owing to decoupled nature of Eq. \eqref{eq:dxdt_WL},
+we shall first find the $\alpha(t)$ that
+minimizes each individual
+$\left\langle x_i^2(t) \right\rangle$.
+
+
+
+\subsection{One-variable problem}
+
+
+
+Consider the following one-variable equation,
+%
+\begin{equation}
+\dot x(t) = -\alpha(t) \, A \left[ x(t) - \xi(t) \right],
+\label{eq:dxdt_alpha}
+\end{equation}
+%
+where $\xi(t)$ is a generalized noise
+that is invariant under time translation:
+%
+\begin{equation}
+\left\langle \xi(t) \, \xi(t') \right\rangle
+=
+\kappa(t - t').
+\label{eq:noise_correlation}
+\end{equation}
+%
+Additionally, we require
+\begin{equation}
+  \lim_{t \rightarrow \pm\infty} \kappa(t) = 0.
+  \label{eq:kappat_limit}
+\end{equation}
+%
+For example, for a white noise,
+$\kappa(t) \propto \delta(t)$
+is proportional to Dirac's $\delta$-function.
+%
+We wish to show that the optimal $\alpha(t)$
+of minimizing $\langle x^2(t) \rangle$ at long times
+is given by
+%
+\begin{equation}
+  \alpha(t) = \frac{1}{A \, (t - t_0)}.
+\label{eq:alpha_opt}
+\end{equation}
+%
+
+
+
+
+
+To do so, we first recall
+the formal solution of Eq. \eqref{eq:dxdt_alpha}:
+%
+\begin{equation}
+x(t) = x(0) \, e^{-A \, q(t)}
++ \int_0^t u(t') \, \xi(t') \, dt',
+\label{eq:xt_solution}
+\end{equation}
+%
+where,
+%
+\begin{equation}
+q(t) \equiv \int_0^t \alpha(t') \, dt',
+\label{eq:qt_definition}
+\end{equation}
+%
+and
+%
+\begin{align}
+u_t(t')
+&\equiv
+e^{-A \, q(t) + A \, q(t') } \, A \, \alpha(t')
+\notag
+\\
+&=
+\frac{d}{dt'} e^{-A \, q(t) + A \, q(t')}.
+\label{eq:ut_definition}
+\end{align}
+
+
+We shall further demand that
+%
+\begin{equation}
+  \lim_{t \to \infty} q(t) \to \infty.
+  \label{eq:qt_limit}
+\end{equation}
+%
+Then, for a large time $t$,
+the first term on the right-hand side
+of Eq. \eqref{eq:xt_solution} can be neglected, and
+%
+\begin{align}
+\left\langle x^2(t) \right\rangle
+&=
+\int_0^t \int_0^t u(t') \, u(t'')
+    \left\langle \xi(t') \xi(t'') \right\rangle dt'' \, dt'
+\notag
+\\
+&=
+\int_0^t \int_0^t u(t') \, u(t'') \kappa(t' - t'') \, dt'' \, dt'.
+\label{eq:x2t_average}
+\end{align}
+
+
+
+We shall minimize Eq. \eqref{eq:x2t_average} under a fixed $q(t)$.
+%
+By Eq. \eqref{eq:ut_definition},
+this is equivalent to fixing
+%
+$$
+\int_0^t u_t(t') \, dt'
+=
+1 - e^{-A \, q(t)}.
+$$
+%
+Thus, via a Lagrange multiplier $\lambda$,
+the minimization can be done on
+%
+$$
+%S[u_t(\tau)]
+%\equiv
+\langle x^2(t) \rangle - \lambda \int_0^t u_t(t') \, dt'.
+$$
+%
+Variating the above expression with respect to $u_t(t')$ yields
+$$
+2 \int_0^t u_t(t') \, \kappa(t' - \tau) \, dt'
+= \lambda.
+$$
+Differentiating this expression with respect to $\tau$
+and integrating by parts,
+$$
+\int_0^t u'_t(t') \, \kappa(t' - \tau) \, dt' = 0,
+$$
+where we have dropped the boundary terms
+by using Eq. \eqref{eq:kappat_limit}.
+%
+In fact, we can repeat the process $n$ times, and
+$$
+\int_0^t u_t^{(n)}(t') \, \kappa(t' - \tau) \, dt' = 0,
+\qquad (n \ge 1)
+$$
+%
+In order for this to hold for any $\tau$,
+we must have
+$$
+u'_t(t') = 0,
+\qquad
+\mathrm{or}
+\;\;
+u_t(t') = c,
+$$
+where $c$ is a constant of $t'$.
+%
+Using Eq. \eqref{eq:ut_definition}
+we get
+$$
+e^{-A \, q(t) + A \, q(t')}
+=
+c \, (t' - t_0),
+$$
+where $t_0$ is a constant.
+%
+Taking the logarithm, and differentiating this with respect to $t'$
+yields Eq. \eqref{eq:alpha_opt}.
+
+
+
+\subsection{Generalization to metadynamics}
+
+
+
+We can readily extend the above analysis to metadynamics.
+In this case,
+upon a visit to state $j$,
+we update not only $v_j$,
+but also $v_i$ for a few nearby states $i$.
+%
+The update magnitudes are given by a matrix $\mathbf w$
+with elements $w_{ij}$.
+%
+Then, Eq. \eqref{eq:vt_diffeq} is generalized to
+\begin{equation}
+  \dot v_i(t) =
+  \sum_{j=1}^n \alpha(t) \, h_j(t) \frac{ w_{ij} } { p_j }.
+  \label{eq:vt_diffeq_metadynamics}
+\end{equation}
+
+
+
+The matrix $\mathbf w$ is not arbitrary.
+%
+To sample a desired distribution $\mathbf p = (p_1, \dots, p_n)$,
+the matrix $\mathbf w$ must have $(1, \dots, 1)^T$
+as a right eigenvector.
+%
+This condition is required by
+Eq. \eqref{eq:vt_diffeq_metadynamics}
+to ensure that
+when the average histograms $h_j(t)$
+coincide with $p_j$,
+the rates of change $\dot v_i(t)$
+are independent of $i$,
+i.e., $v_i(t)$ approach a constant.
+%
+By a proper scaling of $\alpha(t)$,
+we can set this eigenvalue to be $1.0$, and
+\begin{equation}
+  \sum_{j = 1}^n w_{ij} = 1.
+  \label{eq:w_sumj}
+\end{equation}
+%
+This properties shows that the transpose
+of $\mathbf w$ resembles a transition matrix.
+%
+To simplify the following discussion,
+we shall further require detailed balance
+%
+\begin{equation}
+  p_i \, w_{ij} = p_j \, w_{ji}.
+  \label{eq:w_detailedbalance}
+\end{equation}
+%
+It follows that
+\begin{equation}
+  \sum_{i = 1}^n p_i \, w_{ij}
+  =
+  \sum_{i = 1}^n p_j \, w_{ji}
+  = p_j,
+  \label{eq:w_balance}
+\end{equation}
+i.e., $\mathbf p$ is a left eigenvector of $\mathbf w$.
+
+
+
+
+Under these conditions,
+we can apply Eqs. \eqref{eq:x_def} and \eqref{eq:xi_def}
+and write
+$$
+\dot x_i(t)
+=
+-\alpha(t) \sum_{j = 1}^n
+w_{ij} \left[ x_j(t) - \xi_j (t) \right].
+$$
+Now by diagonalizing the matrix $\mathbf w$
+(assuming this can be done), we again have
+a set of decoupled equations
+in terms of the eigenmodes $y_i = \sum_{j=1}^n c_{ij} \, x_j$.
+%
+\begin{equation}
+\dot y_i(t)
+=
+-\alpha(t) \, A_i \left[ y_i(t) - \eta_i (t) \right].
+\label{eq:yt_diffeq}
+\end{equation}
+%
+Here we have ordered the modes, such that $A_1 \ge \cdots \ge A_n$
+the magnitudes $A_i$.
+%
+For example, the mode $y_1 = \sum_{j=1}^n p_j \, x_j$
+corresponds to $A_1 = 1$,
+this mode however vanishes by definition
+\eqref{eq:x_def}.
+
+
+Each mode $y_i$ with $i \ge 2$ decays at a rate of $e^{-A_i \, q(t)}$.
+%
+At long times, the error defined in Eq. \eqref{eq:error_sum}
+is dominated by the slowest-decaying mode.
+%
+This mode is associated with $A_n$,
+or the smallest eigenvalue of $\mathbf w$.
+%
+Since Eq. \eqref{eq:yt_diffeq}
+is of the form of Eq. \eqref{eq:dxdt_alpha},
+%
+the optimal $\alpha(t)$
+is given by Eq. \eqref{eq:alpha_opt},
+with $A$ there interpreted as $A_n$.
+
+
+% argument that the WL is the best updating scheme
+
+
+\end{document}
