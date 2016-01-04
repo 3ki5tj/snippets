@@ -8,14 +8,14 @@
  * tmax is the number of trials
  * */
 static double comperr(double c, double amax,
-    int n, double tau, long tmax)
+    int n, double tau, long tmax, double frac)
 {
   double *v, a, dv, err;
   int i, j, t;
 
   xnew(v, n);
   for ( i = 0; i < n; i++ ) {
-    v[i] = amax * randgaus();
+    v[i] = 0. * amax * randgaus();
   }
 
   for ( t = 0; t < tmax; t++ ) {
@@ -29,7 +29,23 @@ static double comperr(double c, double amax,
 
     a = c * n / (t + 1);
     if ( a > amax ) a = amax;
-    v[i] += a;
+
+    if ( frac > 0 ) {
+      double rem = 1;
+
+      if ( i > 0 ) {
+        v[i-1] += a * frac;
+        rem -= frac;
+      }
+      if ( i < n - 1 ) {
+        v[i+1] += a * frac;
+        rem -= frac;
+      }
+      v[i] += a * rem;
+        
+    } else {
+      v[i] += a;
+    }
   }
 
   /* normalize */
@@ -50,14 +66,15 @@ static double comperr(double c, double amax,
 }
 
 
-static double invt_test(int n, double c)
+
+static double invt_test(int n, double c, double frac)
 {
   double err, se = 0;
   int i;
 
   mtscramble( time(NULL) );
   for ( i = 0; i < n; i++ ) {
-    err = comperr(c, 0.001, 10, 1000.0, 1000000000L);
+    err = comperr(c, 0.001, 3, 10.0, 1000000000L, frac);
     se += err;
     printf("%d: err %10.8f, ave %10.8f\n", i, err, se/(i+1));
   }
@@ -71,7 +88,7 @@ static double invt_test(int n, double c)
 int main(int argc, char **argv)
 {
   int n = 10;
-  double c = 1.0;
+  double c = 1.0, frac = 0.0;
 
   if ( argc > 1 ) {
     n = atoi( argv[1] );
@@ -79,8 +96,11 @@ int main(int argc, char **argv)
   if ( argc > 2 ) {
     c = atof( argv[2] );
   }
+  if ( argc > 3 ) {
+    frac = atof( argv[3] );
+  }
 
-  printf("n %d, c %g\n", n, c);
-  invt_test(n, c);
+  printf("n %d, c %g, frac %g\n", n, c, frac);
+  invt_test(n, c, frac);
   return 0;
 }
