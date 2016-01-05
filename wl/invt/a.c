@@ -2,23 +2,32 @@
 #include "util.h"
 
 
-/* the updating magnitude is c/t
- * n in the number bins
- * tau is the correlation time
- * tmax is the number of trials
+
+/* return the root squared error of the inverse time scheme
+ *
+ * the updating magnitude is `c/t` for t > `nequil`, or `a0` otherwise
+ * `n` is the number of bins
+ * `tau` is the correlation time
+ * `nsteps` is the number of steps
  * */
-static double comperr(double c, double amax,
-    int n, double tau, long tmax, double frac)
+static double comperr(double c, double alpha0, double nequil,
+    int n, double tau, long nsteps,
+    double frac,
+    int verbose)
 {
-  double *v, a, dv, err;
+  double *v, a, dv, err, t0;
   int i, j, t;
 
   xnew(v, n);
   for ( i = 0; i < n; i++ ) {
-    v[i] = 0. * amax * randgaus();
+    v[i] = 0;
   }
 
-  for ( t = 0; t < tmax; t++ ) {
+  /* constant */
+  t0 = c / alpha0;
+
+  for ( t = 0; t < nsteps + nequil; t++ ) {
+    /* MCMC sampling */
     if ( i < 0 || rand01() * tau < 1 ) {
       j = (int) ( n * rand01() );
       dv = v[j] - v[i];
@@ -27,18 +36,26 @@ static double comperr(double c, double amax,
       }
     }
 
-    a = c * n / (t + 1);
-    if ( a > amax ) a = amax;
+    /* compute the updating magnitude
+     * the distribution density is p = 1/n
+     * this is why we have to multiply by n */
+    if ( t >= nequil ) {
+      /* the constant t0 makes the transition
+       * of alpha at t = t0 smooth */
+      a = c * n / (t - nequil + t0);
+    } else {
+      a = alpha0 * n;
+    }
 
     if ( frac > 0 ) {
       double rem = 1;
 
       if ( i > 0 ) {
-        v[i-1] += a * frac;
+        v[i - 1] += a * frac;
         rem -= frac;
       }
       if ( i < n - 1 ) {
-        v[i+1] += a * frac;
+        v[i + 1] += a * frac;
         rem -= frac;
       }
       v[i] += a * rem;
@@ -62,45 +79,59 @@ static double comperr(double c, double amax,
   for ( i = 0; i < n; i++ ) {
     err += v[i] * v[i];
   }
+
+  /* print out the error */
+  if ( verbose ) {
+    for ( i = 0; i < n; i++ ) {
+      printf("  %+11.8f", v[i]);
+    }
+    printf("\n");
+  }
+
   return sqrt(err / n);
 }
 
 
 
-static double invt_test(int n, double c, double frac)
+static double invt_test(int ntrials, int n, double c, double frac)
 {
   double err, se = 0;
   int i;
 
   mtscramble( time(NULL) );
-  for ( i = 0; i < n; i++ ) {
-    err = comperr(c, 0.001, 3, 10.0, 1000000000L, frac);
+  for ( i = 0; i < ntrials; i++ ) {
+    err = comperr(c, 0.01, n*10000,
+        n, 1.0, 1000000000L, frac, 1);
     se += err;
-    printf("%d: err %10.8f, ave %10.8f\n", i, err, se/(i+1));
+    printf("%4d: err %10.8f, ave %10.8f\n", i, err, se/(i+1));
   }
 
-  err = se / n;
+  err = se / ntrials;
   printf("average error: %g\n", err);
   return err;
 }
 
 
+
 int main(int argc, char **argv)
 {
-  int n = 10;
+  int ntrials = 10, n = 10;
   double c = 1.0, frac = 0.0;
 
   if ( argc > 1 ) {
-    n = atoi( argv[1] );
+    ntrials = atoi( argv[1] );
   }
   if ( argc > 2 ) {
-    c = atof( argv[2] );
+    n = atoi( argv[2] );
   }
   if ( argc > 3 ) {
-    frac = atof( argv[3] );
+    c = atof( argv[3] );
+  }
+  if ( argc > 4 ) {
+    frac = atof( argv[4] );
   }
 
-  printf("n %d, c %g, frac %g\n", n, c, frac);
-  invt_test(n, c, frac);
+  printf("ntrials %d, n %d, c %g, frac %g\n", ntrials, n, c, frac);
+  invt_test(ntrials, n, c, frac);
   return 0;
 }
