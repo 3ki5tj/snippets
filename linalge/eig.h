@@ -3,6 +3,10 @@
 
 
 
+/* diagonalization of a symmetric real matrix */
+
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -103,8 +107,8 @@ static void tridiag(double *m, double d[], double e[], int n)
 
 
 /* diagonalize the tridiagonal matrix by QR algorithm,
-   whose diagonal is d[0..n-1], off-diagonal is e[0..n-2];
- * reduce from the left-top to right-left */
+ * whose diagonal is d[0..n-1], off-diagonal is e[0..n-2];
+ * the eigenvalues are saved in d[0..n-1] on return */
 static void eigtriqr(double d[], double e[], int n, double *mat)
 {
   const int itermax = 1000;
@@ -113,9 +117,10 @@ static void eigtriqr(double d[], double e[], int n, double *mat)
 
   e[n - 1] = 0;
   tol = 1e-12f;
-  for (i = 0; i < n; i++) {
+  /* reduction starts from the left-top corner to the right-bottom corner */
+  for ( i = 0; i < n; i++ ) {
     /* for each eigenvalue */
-    for (iter = 0; iter < itermax; iter++) {
+    for ( iter = 0; iter < itermax; iter++ ) {
       /* Look for a single small subdiagonal element to split the matrix */
       for (m = i; m < n - 1; m++) {
         double d1 = fabs(d[m + 1]), d2 = fabs(d[m]);
@@ -135,7 +140,7 @@ static void eigtriqr(double d[], double e[], int n, double *mat)
       r = dblhypot(delta, 1);
       ks = d[m] + sgn*e[m - 1]/(r + fabs(delta));
 
-      /* Rotations */
+      /* rotations */
       for (j = i; j <= m - 1; j++) {
         /* calculate c and s */
         if (j == i) {
@@ -202,8 +207,12 @@ static int eigsym(double *mat, double *d, double *v, int n)
   double *e;
   int i;
 
-  if ( (e = calloc(n, sizeof(*e))) == NULL ) exit(1);
-  for (i = 0; i < n*n; i++) v[i] = mat[i];
+  if ( (e = calloc(n, sizeof(*e))) == NULL ) {
+    exit(1);
+  }
+  for ( i = 0; i < n * n; i++ ) {
+    v[i] = mat[i];
+  }
   tridiag(v, d, e, n);
   eigtriqr(d, e, n, v);
   eigsort(d, v, n);

@@ -11,10 +11,14 @@
 #include <ctype.h>
 #include <limits.h>
 #include <float.h>
+#include <math.h>
 #include <time.h>
 
 
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 
 
