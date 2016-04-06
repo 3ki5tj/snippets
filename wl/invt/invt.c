@@ -59,7 +59,7 @@ static double comperr(double c, double alpha0, double nequil,
         rem -= frac;
       }
       v[i] += a * rem;
-        
+
     } else {
       v[i] += a;
     }
