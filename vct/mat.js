@@ -530,7 +530,7 @@ function meigsys(v, vecs, mat, nt, reltol)
   meigval(v, mat);
 
   for ( i = 0; i < 3; i++ ) {
-    n = meigvecs_(vs, mat, v[vs.length], reltol);
+    n = meigvecs_low(vs, mat, v[vs.length], reltol);
     if ( n === 0 ) {
       console.log("meigsys failed: increase msolvezero_reltol", i, vs.length);
       return -1;

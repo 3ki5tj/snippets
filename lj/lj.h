@@ -370,6 +370,19 @@ __inline static void lj_vv(lj_t *lj, double dt)
 
 
 
+__inline static double lj_langevin(lj_t *lj, double tp, double dt)
+{
+  int n = lj->n;
+
+  md_langevin(lj->v, NULL, n, tp, dt);
+  rmcom(lj->v, NULL, n);
+  shiftang(lj->x, lj->v, NULL, n);
+  return md_ekin(lj->v, NULL, n);
+}
+
+
+
+
 /* position Langevin barostat, with coordinates only
  * set cutoff to half of the box */
 __inline static void lj_langp0(lj_t *lj, double dt,
