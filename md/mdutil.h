@@ -52,7 +52,7 @@ static void shiftang(double (*x)[D], double (*v)[D],
     wt = ( m != NULL ) ? m[i] : 1.0;
     vdiff(xi, x[i], xc);
     am += wt * vcross(xi, v[i]);
-    r2 += wt * vsqr(x[i]);
+    r2 += wt * vsqr(xi);
   }
 
   am = -am / r2;

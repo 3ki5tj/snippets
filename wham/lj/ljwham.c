@@ -67,7 +67,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "simulation ended, doing WHAM\n");
   }
 
-  whamx(hs, beta, lnz, 1.0, nbases, 0, 10.0,
+  whamx(hs, beta, lnz, 0, NULL, 1.0, nbases, 0, 10.0,
       0, itmax, tol, verbose, fnlndos, fneav, method);
 
   hist_close(hs);

@@ -91,7 +91,7 @@ int main(int argc, char **argv)
   }
 
   /* do WHAM */
-  wham2x(hs, beta, bp, lnz, 1.0, nbases, 0, 10.0,
+  wham2x(hs, beta, bp, lnz, 0, 1.0, nbases, 0, 10.0,
       0, itmax, tol, verbose, fnlndos, fneav, method);
 
   /* clean up */

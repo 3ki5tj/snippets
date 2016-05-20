@@ -28,6 +28,7 @@ int main(int argc, char **argv)
 {
   hist_t *hs;
   double *beta, *lnz, *epot;
+  unsigned (*uproba)[5];
   is2_t **is;
   int itp, istep;
 
@@ -38,11 +39,12 @@ int main(int argc, char **argv)
   xnew(is, ntp);
   xnew(beta, ntp);
   xnew(lnz, ntp);
+  xnew(uproba, ntp);
   xnew(epot, ntp);
   for ( itp = 0; itp < ntp; itp++ ) {
     is[itp] = is2_open(IS2_L);
     beta[itp] = 1./(1.5 + 0.02 * itp);
-    IS2_SETPROBA(is[itp], beta[itp]);
+    is2_setuproba(beta[itp], uproba[itp]);
     lnz[itp] = epot[itp] = 0;
   }
 
@@ -57,7 +59,7 @@ int main(int argc, char **argv)
     for ( istep = 1; istep <= nequil + nsteps; istep++ ) {
       for ( itp = 0; itp < ntp; itp++ ) {
         IS2_PICK(is[itp], id, h);
-        if ( h < 0 || mtrand() <= is[itp]->uproba[h] ) {
+        if ( h < 0 || mtrand() <= uproba[itp][h] ) {
           IS2_FLIP(is[itp], id, h);
         }
         epot[itp] = is[itp]->E;
@@ -72,7 +74,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "simulation ended, doing WHAM\n");
   }
 
-  whamx(hs, beta, lnz, 1.0, nbases, 0, 10.0,
+  whamx(hs, beta, lnz, 0, NULL, 1.0, nbases, 0, 10.0,
       0, itmax, tol, verbose, fnlndos, fneav, method);
 
   hist_close(hs);
@@ -80,6 +82,7 @@ int main(int argc, char **argv)
     is2_close( is[itp] );
   free(beta);
   free(lnz);
+  free(uproba);
   free(epot);
   return 0;
 }
