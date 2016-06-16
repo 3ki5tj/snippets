@@ -305,6 +305,14 @@ LJ.prototype.vrescale = function(tp, dt)
 
 
 
+/* exact velocity rescaling thermostat */
+LJ.prototype.vlang = function(tp, dt)
+{
+  return md_vlang(this.v, null, this.n, tp, dt);
+};
+
+
+
 /* position Langevin barostat, with coordinates only
  * NOTE: the first parameter is the degree of freedom
  * the scaling is r = r*s

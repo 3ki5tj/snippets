@@ -291,14 +291,3 @@ function lj_eos3dPVEhBH(rho, T)
 
 
 
-function setnum(who, num)
-{
-  var x = num.toPrecision(6);
-  if ( x < 0 ) x = "&minus;" + (-x);
-  document.getElementById(who).innerHTML = x;
-}
-
-
-
-
-

@@ -162,6 +162,23 @@ function md_vrescale(v, m, n, dof, tp, dt)
 
 
 
+/* Langevin-dynamics for the velocities */
+function md_vlang(v, m, n, tp, dt)
+{
+  var s = Math.exp(-dt);
+  var ek = 0;
+  for ( var i = 0; i < n; i++ ) {
+    var mass = ( m ? m[i] : 1.0 );
+    var r = Math.sqrt(tp/mass * (1 - s * s));
+    for ( var j = 0; j < D; j++ )
+      v[i][j] = v[i][j] * s + randgaus() * r;
+    ek += 0.5 * mass * vsqr(v[i]);
+  }
+  return ek;
+}
+
+
+
 /* randomly swap the velocities of k pairs of particles */
 function md_vscramble(v, m, n, k)
 {

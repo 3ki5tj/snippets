@@ -17,7 +17,8 @@ var ljtimer = null;
 var simulmethod = "MD";
 
 var mddt = 0.002;
-var thdt = 0.02;
+var thtype = "vrescale"; // thermostat type
+var thdamp = 5;  // thermostat damping factor
 var nstepspsmd = 200; // number of steps per second for MD
 var nstepspfmd = 20;  // number of steps per frame for MD
 
@@ -27,9 +28,14 @@ var nstepspfmc = 1000;  // number of steps per frame for MC
 var mctot = 0.0;
 var mcacc = 0.0;
 
+// reference values from the equation of state
+var Uref;
+var Pref;
+
 var sum1 = 1e-30;
 var sumU = 0.0;
 var sumP = 0.0;
+var sumK = 0.0;
 
 
 
@@ -45,9 +51,19 @@ function getparams()
   tp = get_float("temperature", 1.5);
   rcdef = get_float("rcutoff", 1000.0);
 
+  if ( dim === 3 ) {
+    var ref = lj_eos3dPVEhBH(rho, tp);
+    Uref = ref[0];
+    Pref = ref[1];
+  } else {
+    Uref = null;
+    Pref = null;
+  }
+
   simulmethod = grab("simulmethod").value;
   mddt = get_float("mddt", 0.002);
-  thdt = get_float("thermostatdt", 0.01);
+  thtype = grab("thermostattype").value;
+  thdamp = get_float("thdamp", 5);
   nstepspsmd = get_int("nstepspersecmd", 1000);
   nstepspfmd = nstepspsmd * timer_interval / 1000;
 
@@ -68,20 +84,47 @@ function changescale()
 
 
 
+function thermostat(dt)
+{
+  if ( thtype === "vrescale" ) {
+    return lj.vrescale(tp, dt * thdamp * 2);
+  } else {
+    return lj.vlang(tp, dt * thdamp);
+  }
+}
+
+
+
+function reportUP()
+{
+  var s;
+  s = '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3);
+  if ( Uref ) s += " (" + roundto(Uref, 3) + ")";
+  s += ", ";
+  s += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3);
+  if ( Pref ) s += " (" + roundto(Pref, 3) + ")";
+  s += ", " + sum1 + " samples.";
+  return s;
+}
+
+
+
 function domd()
 {
-  var istep, sinfo = "";
+  var dof = ( thtype === "Langevin" ) ? lj.dim * lj.n : lj.dof;
 
-  for ( istep = 0; istep < nstepspfmd; istep++ ) {
+  for ( var istep = 0; istep < nstepspfmd; istep++ ) {
+    thermostat(mddt * 0.5);
     lj.vv(mddt);
-    lj.vrescale(tp, thdt);
+    var ek = thermostat(mddt * 0.5);
     sum1 += 1.0;
     sumU += lj.epot / lj.n;
     sumP += lj.calcp(tp);
+    sumK += ek / dof;
   }
-  sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
-  sinfo += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3) + ".";
-  return sinfo;
+  var sinfo = '<span class="math"><i>E<sub>K</sub></i>/<i>N<sub>f</sub></i></span>: '
+        + roundto(sumK/sum1, 3) + "(" + roundto(tp/2, 3) + "), ";
+  return sinfo + reportUP();
 }
 
 
@@ -98,9 +141,7 @@ function domc()
     sumP += lj.calcp(tp);
   }
   sinfo += "acc: " + roundto(100.0 * mcacc / mctot, 2) + "%, ";
-  sinfo += '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3) + ", ";
-  sinfo += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3) + ".";
-  return sinfo;
+  return sinfo + reportUP();
 }
 
 
@@ -135,17 +176,25 @@ function pulse()
 
 
 
+function resetdata()
+{
+  mctot = 0.0;
+  mcacc = 0.0;
+  sum1 = 1e-30;
+  sumU = 0.0;
+  sumP = 0.0;
+  sumK = 0.0;
+}
+
+
+
 function stopsimul()
 {
   if ( ljtimer !== null ) {
     clearInterval(ljtimer);
     ljtimer = null;
   }
-  mctot = 0.0;
-  mcacc = 0.0;
-  sum1 = 1e-30;
-  sumU = 0.0;
-  sumP = 0.0;
+  resetdata();
   munit(viewmat);
 }
 

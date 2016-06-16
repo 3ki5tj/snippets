@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <meta charset="UTF-8">
   <title> Lennard-Jones fluid </title>
   <link rel="stylesheet" type="text/css" href="./css/default.css" />
   <script type="text/javascript" src="./js/util.js"></script>
@@ -11,6 +11,7 @@
   <script type="text/javascript" src="./js/vct.js"></script>
   <script type="text/javascript" src="./js/mat.js"></script>
   <script type="text/javascript" src="./js/mdutil.js"></script>
+  <script type="text/javascript" src="./js/ljeos.js"></script>
   <script type="text/javascript" src="./js/ljcore.js"></script>
   <script type="text/javascript" src="./js/ljdraw.js"></script>
   <script type="text/javascript" src="./js/ljmain.js"></script>
@@ -51,7 +52,6 @@
   <input type="text" size="6" value="1.5" id="temperature"
     onchange="changeparams()">.
   &nbsp;
-  <br>
 
   Cutoff,
   <span class="math"><i>r<sub>c</sub></i></span>:
@@ -64,7 +64,7 @@
   <select id="simulmethod" onchange="changeparams()">
     <option value="MD">molecular dynamics (MD)</option>
     <option value="MC">Monte Carlo (MC)</option>
-  </select>
+  </select>.
   </div>
 
 
@@ -82,11 +82,17 @@
     onchange="changeparams()">.
   <br>
 
-  Thermostat time step:
-  <input type="text" size="6" value="0.02" id="thermostatdt"
+  Thermostat damping:
+  <input type="text" size="6" value="5" id="thdamp"
     onchange="changeparams()">.
   <br>
 
+  Thermostat type
+  <select id="thermostattype" onchange="changeparams()">
+    <option value="vrescale">(Langevin) velocity-rescaling</option>
+    <option value="Langevin">Langevin dynamics</option>
+    <option value="Nose-Hoover">Nos&eacute;-Hoover</option>
+  </select>.
   </div>
 
 
@@ -118,7 +124,7 @@
       id="stop" class="largebtn" onclick="stopsimul()">
 
     <input type="reset" value="Reset"
-      id="reset" class="largebtn">
+      id="reset" class="largebtn" onclick="resetdata()">
   </div>
 
   <hr>
