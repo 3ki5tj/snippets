@@ -15,6 +15,7 @@
   <script type="text/javascript" src="./js/ljcore.js"></script>
   <script type="text/javascript" src="./js/ljdraw.js"></script>
   <script type="text/javascript" src="./js/ljmain.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
 </head>
 <body>
 
@@ -25,6 +26,9 @@
 
 
 <form>
+  <div class="columncontainer">
+  <div class="column">
+
   <div class="panel">
   <div class="panel-title">System</div>
 
@@ -32,7 +36,7 @@
   <span class="math"><i>D</i></span>:
   <select id="dimension" onchange="changeparams()">
     <option value="2">2</option>
-    <option value="3">3</option>
+    <option value="3" selected>3</option>
   </select>.
   &nbsp;
   <br>
@@ -67,36 +71,6 @@
   </select>.
   </div>
 
-
-
-  <div class="panel">
-  <div class="panel-title">Molecular dynamics (MD)</div>
-
-  Number of MD steps per second:
-  <input type="text" size="10" value="200"
-    id="nstepspersecmd" onchange="changeparams()">.
-  <br>
-
-  MD time step:
-  <input type="text" size="6" value="0.002" id="mddt"
-    onchange="changeparams()">.
-  <br>
-
-  Thermostat damping:
-  <input type="text" size="6" value="5" id="thdamp"
-    onchange="changeparams()">.
-  <br>
-
-  Thermostat type
-  <select id="thermostattype" onchange="changeparams()">
-    <option value="vrescale">(Langevin) velocity-rescaling</option>
-    <option value="Langevin">Langevin dynamics</option>
-    <option value="Nose-Hoover">Nos&eacute;-Hoover</option>
-  </select>.
-  </div>
-
-
-
   <div class="panel">
   <div class="panel-title">Monte Carlo (MC)</div>
 
@@ -109,8 +83,61 @@
   <input type="text" size="6" value="0.2" id="mcamp"
     onchange="changeparams()">.
   <br>
-
   </div>
+
+  </div> <!-- column 1 -->
+
+
+  <div class="column">
+  
+  <div class="panel">
+  <div class="panel-title">Molecular dynamics (MD)</div>
+
+  Number of MD steps per second:
+  <input type="text" size="10" value="1000"
+    id="nstepspersecmd" onchange="changeparams()">.
+  <br>
+
+  MD time step:
+  <input type="text" size="6" value="0.002" id="mddt"
+    onchange="changeparams()">.
+  <br>
+
+  Thermostat type
+  <select id="thermostattype" onchange="changeparams()">
+    <option value="v-rescale">(Langevin) velocity-rescaling</option>
+    <option value="Nose-Hoover">Nos&eacute;-Hoover chain</option>
+    <option value="Langevin">Langevin dynamics</option>
+  </select>.
+  <br>
+
+  Velocity-rescaling damping:
+  <input type="text" size="6" value="20.0" id="vresdamp"
+    onchange="changeparams()">.
+  <br>
+
+  Langevin-dynamics damping:
+  <input type="text" size="6" value="1.0" id="langdamp"
+    onchange="changeparams()">.
+  <br>
+
+  Nos&eacute;-Hoover chain length:
+  <input type="text" size="6" value="5" id="nhclen"
+    onchange="changeparams()">.
+  <br>
+
+  Nos&eacute;-Hoover chain masses:<br>
+  first
+  <input type="text" size="6" value="5.0" id="nhcmass1"
+    onchange="changeparams()">;
+  rest
+  <input type="text" size="6" value="1.0" id="nhcmass2"
+    onchange="changeparams()">.
+  &nbsp;
+  </div>
+
+  </div> <!-- column 2 -->
+  </div> <!-- column container -->
 
 
   <div class="center">
@@ -130,13 +157,19 @@
   <hr>
 
   <div class="center">
-    <canvas id="ljbox" width="480" height="480"></canvas>
-    <br>
-    Zoom: <input id="ljscale" type="range" value="1.0"
-      min="0.05" max="3.0" step="0.01" style="width: 480px"
-      onchange="changescale()">
-    <br>
-    <span id="sinfo" style="width: 480px"></span>
+    <div style="width:520px; display:inline-block; float:left;">
+      <canvas id="ljbox" width="480px" height="480"></canvas>
+      <br>
+      Zoom: <input id="ljscale" type="range" value="1.0"
+        min="0.05" max="3.0" step="0.01" style="width: 480px"
+        onchange="changescale()">
+      <br>
+    </div>
+    
+    <div style="width:400px; display:inline-block; float:left; margin:10px">
+      <div id="histplot"></div>
+      <div id="sinfo" style="margin-top:30px; text-align:left"></span>
+    </div>
   </div>
 </form>
 

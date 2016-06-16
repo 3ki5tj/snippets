@@ -370,13 +370,18 @@ __inline static void lj_vv(lj_t *lj, double dt)
 
 
 
+/* Nose-Hoover chain thermostat */
+#define lj_nhchain(lj, tp, dt, nhclen, zeta, zmass) \
+  md_nhchain(lj->v, NULL, lj->n, lj->dof, tp, dt, nhclen, zeta, zmass)
+
+
+
 __inline static double lj_langevin(lj_t *lj, double tp, double dt)
 {
   int n = lj->n;
 
+  lj->dof = n * D;
   md_langevin(lj->v, NULL, n, tp, dt);
-  rmcom(lj->v, NULL, n);
-  shiftang(lj->x, lj->v, NULL, n);
   return md_ekin(lj->v, NULL, n);
 }
 

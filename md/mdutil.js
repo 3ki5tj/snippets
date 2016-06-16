@@ -162,8 +162,38 @@ function md_vrescale(v, m, n, dof, tp, dt)
 
 
 
+/* Nose-Hoover chain thermostat */
+function md_nhchain(v, m, n, dof, tp, dt, zeta, zmass)
+{
+  var i, j, nnhc = zeta.length, s, GQ;
+
+  var mvv = md_ekin(v, m, n) * 2;
+
+  for ( j = nnhc - 1; j >= 0; j-- ) {
+    s = ( j == nnhc - 1 ) ? 1 : Math.exp(-zeta[j+1]*dt*0.25);
+    GQ = ( j == 0 ) ? (mvv - dof * tp) : (zmass[j-1] * zeta[j-1] * zeta[j-1] - tp);
+    zeta[j] = (zeta[j] * s + GQ /zmass[j] * dt*0.5) * s;
+  }
+
+  s = Math.exp( -zeta[0] * dt );
+  for ( i = 0; i < n; i++ ) {
+    vsmul(v[i], s);
+  }
+  mvv *= s * s;
+
+  for ( j = 0; j < nnhc; j++ ) {
+    s = ( j == nnhc - 1 ) ? 1 : Math.exp(-zeta[j+1]*dt*0.25);
+    GQ = ( j == 0 ) ? (mvv - dof * tp) : (zmass[j-1] * zeta[j-1] * zeta[j-1] - tp);
+    zeta[j] = (zeta[j] * s + GQ /zmass[j] * dt*0.5) * s;
+  }
+
+  return mvv * 0.5;
+}
+
+
+
 /* Langevin-dynamics for the velocities */
-function md_vlang(v, m, n, tp, dt)
+function md_langevin(v, m, n, tp, dt)
 {
   var s = Math.exp(-dt);
   var ek = 0;

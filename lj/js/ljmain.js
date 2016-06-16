@@ -11,14 +11,20 @@ var n = 55;
 var rho = 0.7;
 var tp = 1.5;
 var rcdef = 1000.0;
+var dof;
 
 var timer_interval = 100; // in milliseconds
 var ljtimer = null;
 var simulmethod = "MD";
 
 var mddt = 0.002;
-var thtype = "vrescale"; // thermostat type
-var thdamp = 5;  // thermostat damping factor
+var thtype = "v-rescale"; // thermostat type
+var vresdamp = 20.0;  // velocity-rescaling damping factor
+var langdamp = 1.0;  // Langevin-dynamics damping factor
+var nhclength = 1;
+var zeta = null;
+var zmass = null;
+
 var nstepspsmd = 200; // number of steps per second for MD
 var nstepspfmd = 20;  // number of steps per frame for MD
 
@@ -37,11 +43,17 @@ var sumU = 0.0;
 var sumP = 0.0;
 var sumK = 0.0;
 
+var dke = 1.0;
+var kehistn = 0;
+var kehist = null;
+var histplot = null;
 
 
 
 function getparams()
 {
+  stopsimul();
+
   n = get_int("n", 55);
   var dim = get_int("dimension", 2);
   if ( dim === 2 || dim === 3 ) {
@@ -63,13 +75,33 @@ function getparams()
   simulmethod = grab("simulmethod").value;
   mddt = get_float("mddt", 0.002);
   thtype = grab("thermostattype").value;
-  thdamp = get_float("thdamp", 5);
+  vresdamp = get_float("vresdamp", 20.0);
+  langdamp = get_float("langdamp", 1.0);
   nstepspsmd = get_int("nstepspersecmd", 1000);
   nstepspfmd = nstepspsmd * timer_interval / 1000;
 
   mcamp = get_float("mcamp", 0.2);
   nstepspsmc = get_int("nstepspersecmc", 10000);
   nstepspfmc = nstepspsmc * timer_interval / 1000;
+
+  var nhclen = get_int("nhclen", 5);
+  var nhcmass1 = get_float("nhcmass1", 1.0);
+  var nhcmass2 = get_float("nhcmass2", 1.0);
+  var i;
+  zeta = newarr(nhclen);
+  zmass = newarr(nhclen);
+  for ( i = 0; i < nhclen; i++ ) {
+    zeta[i] = 0.0;
+    zmass[i] = ( i === 0 ) ? nhcmass1 : nhcmass2;
+  }
+
+  lj = new LJ(n, D, rho, rcdef);
+  lj.force();
+  dof = ( thtype === "Langevin" ) ? lj.dim * lj.n : lj.dof;
+
+  kehistn = Math.floor(tp * dof / dke) + 5;
+  kehist = new Array(kehistn);
+  for ( i = 0; i < kehistn; i++ ) kehist[i] = 0;
 
   mousescale = get_float("ljscale");
 }
@@ -86,10 +118,12 @@ function changescale()
 
 function thermostat(dt)
 {
-  if ( thtype === "vrescale" ) {
-    return lj.vrescale(tp, dt * thdamp * 2);
-  } else {
-    return lj.vlang(tp, dt * thdamp);
+  if ( thtype === "v-rescale" ) {
+    return lj.vrescale(tp, dt * vresdamp);
+  } else if ( thtype === "Nose-Hoover" ) {
+    return lj.nhchain(tp, dt, zeta, zmass);
+  } else if (thtype === "Langevin" ) {
+    return lj.langevin(tp, dt * langdamp);
   }
 }
 
@@ -99,11 +133,11 @@ function reportUP()
 {
   var s;
   s = '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3);
-  if ( Uref ) s += " (" + roundto(Uref, 3) + ")";
-  s += ", ";
+  if ( Uref ) s += " (ref: " + roundto(Uref, 3) + ")";
+  s += ".<br>";
   s += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3);
-  if ( Pref ) s += " (" + roundto(Pref, 3) + ")";
-  s += ", " + sum1 + " samples.";
+  if ( Pref ) s += " (ref: " + roundto(Pref, 3) + ")";
+  s += ".<br>" + sum1 + " samples.";
   return s;
 }
 
@@ -111,19 +145,20 @@ function reportUP()
 
 function domd()
 {
-  var dof = ( thtype === "Langevin" ) ? lj.dim * lj.n : lj.dof;
 
   for ( var istep = 0; istep < nstepspfmd; istep++ ) {
     thermostat(mddt * 0.5);
     lj.vv(mddt);
-    var ek = thermostat(mddt * 0.5);
+    var ekin = thermostat(mddt * 0.5);
     sum1 += 1.0;
     sumU += lj.epot / lj.n;
     sumP += lj.calcp(tp);
-    sumK += ek / dof;
+    sumK += ekin / dof;
+    var ike = Math.floor(ekin / dke);
+    if ( ike < kehistn ) kehist[ike] += 1.0;
   }
   var sinfo = '<span class="math"><i>E<sub>K</sub></i>/<i>N<sub>f</sub></i></span>: '
-        + roundto(sumK/sum1, 3) + "(" + roundto(tp/2, 3) + "), ";
+        + roundto(sumK/sum1, 3) + " (" + roundto(tp/2, 3) + ").<br>";
   return sinfo + reportUP();
 }
 
@@ -131,17 +166,65 @@ function domd()
 
 function domc()
 {
-  var istep, sinfo = "";
-
-  for ( istep = 0; istep < nstepspfmc; istep++ ) {
+  for ( var istep = 0; istep < nstepspfmc; istep++ ) {
     mctot += 1.0;
     mcacc += lj.metro(mcamp, 1.0 / tp);
     sum1 += 1.0;
     sumU += lj.epot / lj.n;
     sumP += lj.calcp(tp);
   }
-  sinfo += "acc: " + roundto(100.0 * mcacc / mctot, 2) + "%, ";
+  var sinfo = "acc: " + roundto(100.0 * mcacc / mctot, 2) + "%.<br>";
   return sinfo + reportUP();
+}
+
+
+
+// return ln Gamma(dof/2)
+function getnorm(dof)
+{
+  var i = 2 - (dof % 2);
+  var s = (dof % 2 ) ? 0.5 * Math.log( Math.PI ) : 0;
+  for ( i = 2 - dof % 2; i < dof; i+=2 )
+    s += Math.log(i*0.5);
+  return s;
+}
+
+/* update the histogram plot */
+function updatehistplot()
+{
+  if ( simulmethod === "MC" ) {
+    histplot = null;
+    return;
+  }
+
+  var i, htot = 0, norm = getnorm(dof);
+  var dat = "Kinetic energy,Histogram,Reference\n";
+  for ( i = 0; i < kehistn; i++ )
+    htot += kehist[i];
+  for ( i = 0; i < kehistn; i++ ) {
+    if ( kehist[i] <= 0 ) continue;
+    var ke = (i + 0.5) * dke;
+    var hval = kehist[i] / htot / dke;
+    var ref = Math.exp(Math.log(ke/tp) * (dof*0.5-1) -ke/tp - norm) / tp;
+    dat += "" + ke + "," + hval + "," + ref + "\n";
+  }
+
+  if ( histplot === null ) {
+    var options = {
+      xlabel: '<small>Kinetic energy</small>',
+      ylabel: '<small>Histogram',
+      includeZero: true,
+      drawPoints: true,
+      axisLabelFontSize: 10,
+      pointSize: 2,
+      width: 360,
+      height: 300,
+      xRangePad: 2,
+    };
+    histplot = new Dygraph(document.getElementById("histplot"), dat, options);
+  } else {
+    histplot.updateOptions({ file: dat });
+  }
 }
 
 
@@ -156,8 +239,8 @@ function paint()
   } else if ( lj.dim === 3 ) {
     ljdraw3d(lj, "ljbox", mousescale);
   }
+  updatehistplot();
 }
-
 
 
 function pulse()
@@ -184,6 +267,7 @@ function resetdata()
   sumU = 0.0;
   sumP = 0.0;
   sumK = 0.0;
+  for ( var i = 0; i < kehistn; i++ ) kehist[i] = 0;
 }
 
 
@@ -196,6 +280,7 @@ function stopsimul()
   }
   resetdata();
   munit(viewmat);
+  grab("pause").value = "Pause";
 }
 
 
@@ -221,10 +306,7 @@ function pausesimul()
 
 function startsimul()
 {
-  stopsimul();
   getparams();
-  lj = new LJ(n, D, rho, rcdef);
-  lj.force();
   installmouse("ljbox", "ljscale");
   ljtimer = setInterval(
     function(){ pulse(); },

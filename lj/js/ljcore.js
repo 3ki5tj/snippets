@@ -305,10 +305,19 @@ LJ.prototype.vrescale = function(tp, dt)
 
 
 
-/* exact velocity rescaling thermostat */
-LJ.prototype.vlang = function(tp, dt)
+/* Nose-Hoover rescaling thermostat */
+LJ.prototype.nhchain = function(tp, dt, zeta, zmass)
 {
-  return md_vlang(this.v, null, this.n, tp, dt);
+  return md_nhchain(this.v, null, this.n, this.dof, tp, dt,
+      zeta, zmass);
+};
+
+
+
+/* exact velocity rescaling thermostat */
+LJ.prototype.langevin = function(tp, dt)
+{
+  return md_langevin(this.v, null, this.n, tp, dt);
 };
 
 
