@@ -48,6 +48,11 @@ var kehistn = 0;
 var kehist = null;
 var histplot = null;
 
+var keseq = null;
+var corrplot = null;
+var keseqmax = 10000;
+
+var paintcnt = 0;
 
 
 function getparams()
@@ -103,7 +108,11 @@ function getparams()
   kehist = new Array(kehistn);
   for ( i = 0; i < kehistn; i++ ) kehist[i] = 0;
 
+  keseq = [];
+
   mousescale = get_float("ljscale");
+
+  paintcnt = 0;
 }
 
 
@@ -134,7 +143,7 @@ function reportUP()
   var s;
   s = '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3);
   if ( Uref ) s += " (ref: " + roundto(Uref, 3) + ")";
-  s += ".<br>";
+  s += ". ";
   s += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3);
   if ( Pref ) s += " (ref: " + roundto(Pref, 3) + ")";
   s += ".<br>" + sum1 + " samples.";
@@ -145,7 +154,6 @@ function reportUP()
 
 function domd()
 {
-
   for ( var istep = 0; istep < nstepspfmd; istep++ ) {
     thermostat(mddt * 0.5);
     lj.vv(mddt);
@@ -156,6 +164,8 @@ function domd()
     sumK += ekin / dof;
     var ike = Math.floor(ekin / dke);
     if ( ike < kehistn ) kehist[ike] += 1.0;
+    keseq.push( 2 * ekin / (dof * tp) - 1 );
+    if ( keseq.length > keseqmax ) keseq.shift();
   }
   var sinfo = '<span class="math"><i>E<sub>K</sub></i>/<i>N<sub>f</sub></i></span>: '
         + roundto(sumK/sum1, 3) + " (" + roundto(tp/2, 3) + ").<br>";
@@ -218,12 +228,54 @@ function updatehistplot()
       axisLabelFontSize: 10,
       pointSize: 2,
       width: 360,
-      height: 300,
+      height: 240,
       xRangePad: 2,
     };
     histplot = new Dygraph(document.getElementById("histplot"), dat, options);
   } else {
     histplot.updateOptions({ file: dat });
+  }
+}
+
+
+
+/* update the correlation plot */
+function updatecorrplot()
+{
+  if ( simulmethod === "MC" ) {
+    corrplot = null;
+    return;
+  }
+
+  var dat = "Time,Correlation\n";
+  var i, j, t, len = keseq.length, corr0;
+  //console.log(keseq.length, len);
+  for ( i = 0; i <= 500; i++ ) {
+    if ( i >= len ) break;
+    var corr = 0;
+    for ( j = 0; j < len - i; j++ ) {
+      corr += keseq[j] * keseq[j+i];
+    }
+    corr /= len - i;
+    if ( i == 0 ) corr0 = corr;
+    dat += "" + roundto(i*mddt, 4) + "," + roundto(corr/corr0, 4) + "\n";
+  }
+
+  if ( corrplot === null ) {
+    var options = {
+      xlabel: '<small>Time</small>',
+      ylabel: '<small>Normalized autocorrelation function of the kinetic energy</small>',
+      includeZero: true,
+      drawPoints: true,
+      axisLabelFontSize: 10,
+      pointSize: 2,
+      width: 360,
+      height: 240,
+      xRangePad: 2,
+    };
+    corrplot = new Dygraph(document.getElementById("corrplot"), dat, options);
+  } else {
+    corrplot.updateOptions({ file: dat });
   }
 }
 
@@ -239,7 +291,10 @@ function paint()
   } else if ( lj.dim === 3 ) {
     ljdraw3d(lj, "ljbox", mousescale);
   }
-  updatehistplot();
+  if ( ++paintcnt % 10 == 0 ) {
+    updatehistplot();
+    updatecorrplot();
+  }
 }
 
 
@@ -268,6 +323,8 @@ function resetdata()
   sumP = 0.0;
   sumK = 0.0;
   for ( var i = 0; i < kehistn; i++ ) kehist[i] = 0;
+  keseq = [];
+  paintcnt = 0;
 }
 
 
