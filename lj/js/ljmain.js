@@ -49,8 +49,11 @@ var kehist = null;
 var histplot = null;
 
 var keseq = null;
-var corrplot = null;
 var keseqmax = 10000;
+var vsize = 5;
+var vseq = null
+var vseqmax = 10000;
+var corrplot = null;
 
 var paintcnt = 0;
 
@@ -100,6 +103,8 @@ function getparams()
     zmass[i] = ( i === 0 ) ? nhcmass1 : nhcmass2;
   }
 
+  vsize = get_int("vactsize", 1);
+
   lj = new LJ(n, D, rho, rcdef);
   lj.force();
   dof = ( thtype === "Langevin" ) ? lj.dim * lj.n : lj.dof;
@@ -109,6 +114,7 @@ function getparams()
   for ( i = 0; i < kehistn; i++ ) kehist[i] = 0;
 
   keseq = [];
+  vseq = [];
 
   mousescale = get_float("ljscale");
 
@@ -165,8 +171,16 @@ function domd()
     var ike = Math.floor(ekin / dke);
     if ( ike < kehistn ) kehist[ike] += 1.0;
     keseq.push( 2 * ekin / (dof * tp) - 1 );
-    if ( keseq.length > keseqmax ) keseq.shift();
+    for ( var j = 0; j < vsize; j++ ) {
+      vseq.push( lj.v[j][0] );
+      vseq.push( lj.v[j][1] );
+      vseq.push( lj.v[j][2] );
+    }
   }
+  if ( keseq.length > keseqmax )
+    keseq = keseq.slice( keseq.length - keseqmax );
+  if ( vseq.length > vseqmax * vsize * D )
+    vseq = vseq.slice( vseq.length - vseqmax * vsize * D );
   var sinfo = '<span class="math"><i>E<sub>K</sub></i>/<i>N<sub>f</sub></i></span>: '
         + roundto(sumK/sum1, 3) + " (" + roundto(tp/2, 3) + ").<br>";
   return sinfo + reportUP();
@@ -247,28 +261,42 @@ function updatecorrplot()
     return;
   }
 
-  var dat = "Time,Correlation\n";
-  var i, j, t, len = keseq.length, corr0;
-  //console.log(keseq.length, len);
+  var dat = "Time,Kinetic energy,Velocity\n";
+  var i, j, l, t;
+  var kelen = keseq.length, kecorr0, kecorr;
+  var vblk = vsize * D, vlen = vseq.length / vblk, vcorr0, vcorr;
+  //console.log(kelen, vlen);
   for ( i = 0; i <= 500; i++ ) {
-    if ( i >= len ) break;
-    var corr = 0;
-    for ( j = 0; j < len - i; j++ ) {
-      corr += keseq[j] * keseq[j+i];
+    if ( i >= kelen && i >= vlen ) break;
+    
+    for ( kecorr = 0, j = 0; j < kelen - i; j++ ) {
+      kecorr += keseq[j] * keseq[j+i];
     }
-    corr /= len - i;
-    if ( i == 0 ) corr0 = corr;
-    dat += "" + roundto(i*mddt, 4) + "," + roundto(corr/corr0, 4) + "\n";
+    kecorr /= kelen - i;
+
+    for ( vcorr = 0, j = 0; j < vlen - i; j++ ) {
+      for ( l = 0; l < vblk; l++ ) {
+        vcorr  += vseq[j * vblk + l]
+                * vseq[(j+i) * vblk + l];
+      }
+    }
+    vcorr /= (vlen - i) * vblk;
+    if ( i === 0 ) {
+      kecorr0 = kecorr;
+      vcorr0  = vcorr;
+    }
+    dat += "" + roundto(i*mddt, 4) + ","
+        + roundto(kecorr/kecorr0, 4) + ","
+        + roundto(vcorr/vcorr0, 4) + "\n";
   }
 
   if ( corrplot === null ) {
     var options = {
       xlabel: '<small>Time</small>',
-      ylabel: '<small>Normalized autocorrelation function of the kinetic energy</small>',
+      ylabel: '<small>Normalized autocorrelation function</small>',
       includeZero: true,
       drawPoints: true,
       axisLabelFontSize: 10,
-      pointSize: 2,
       width: 360,
       height: 240,
       xRangePad: 2,
@@ -324,6 +352,7 @@ function resetdata()
   sumK = 0.0;
   for ( var i = 0; i < kehistn; i++ ) kehist[i] = 0;
   keseq = [];
+  vseq = [];
   paintcnt = 0;
 }
 
