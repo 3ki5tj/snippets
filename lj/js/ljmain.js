@@ -206,9 +206,8 @@ function domc()
 // return ln Gamma(dof/2)
 function getnorm(dof)
 {
-  var i = 2 - (dof % 2);
-  var s = (dof % 2 ) ? 0.5 * Math.log( Math.PI ) : 0;
-  for ( i = 2 - dof % 2; i < dof; i+=2 )
+  var s = (dof % 2) ? 0.5 * Math.log( Math.PI ) : 0;
+  for ( var i = 2 - dof % 2; i < dof; i += 2 )
     s += Math.log(i*0.5);
   return s;
 }
@@ -228,6 +227,9 @@ function updatehistplot()
   for ( i = 0; i < kehistn; i++ ) {
     if ( kehist[i] <= 0 ) continue;
     var ke = (i + 0.5) * dke;
+    if ( ke > dof * 0.5 * tp * 2 ) {
+      break;
+    }
     var hval = kehist[i] / htot / dke;
     var ref = Math.exp(Math.log(ke/tp) * (dof*0.5-1) -ke/tp - norm) / tp;
     dat += "" + ke + "," + hval + "," + ref + "\n";
@@ -240,7 +242,6 @@ function updatehistplot()
       includeZero: true,
       drawPoints: true,
       axisLabelFontSize: 10,
-      pointSize: 2,
       width: 360,
       height: 240,
       xRangePad: 2,

@@ -133,7 +133,7 @@ function LJ(n, dim, rho, rcdef)
 
   this.n = n;
   this.dim = dim;
-  this.dof = n * dim - dim * (dim + 1) / 2;
+  this.dof = n * dim - dim; // * (dim + 1) / 2;
   this.rcdef = rcdef;
   this.x = newarr2d(n, dim);
   this.v = newarr2d(n, dim);
