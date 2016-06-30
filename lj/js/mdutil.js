@@ -1,1 +1,1 @@
-../../md/mdutil.js
+../../md/js/mdutil.js

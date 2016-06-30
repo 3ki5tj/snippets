@@ -1,1 +1,1 @@
-../../mtrand/mtrand.js
+../../mtrand/js/mtrand.js

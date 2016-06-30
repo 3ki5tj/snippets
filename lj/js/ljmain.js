@@ -21,7 +21,6 @@ var mddt = 0.002;
 var thtype = "v-rescale"; // thermostat type
 var vresdamp = 20.0;  // velocity-rescaling damping factor
 var langdamp = 1.0;  // Langevin-dynamics damping factor
-var nhclength = 1;
 var zeta = null;
 var zmass = null;
 

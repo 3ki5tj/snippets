@@ -1,1 +1,1 @@
-../../linalge/cholesky.js
+../../linalge/js/cholesky.js

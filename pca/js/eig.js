@@ -1,1 +1,1 @@
-../../linalge/eig.js
+../../linalge/js/eig.js

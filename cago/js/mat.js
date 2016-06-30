@@ -1,1 +1,1 @@
-../../vct/mat.js
+../../vct/js/mat.js

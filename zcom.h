@@ -1,1 +1,1 @@
-../common/zcom.h
+../zcom/zcom.h
