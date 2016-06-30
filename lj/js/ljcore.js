@@ -270,11 +270,11 @@ LJ.prototype.calcp = function(tp)
 
 
 
-/* velocity-verlet */
-LJ.prototype.vv = function(dt)
+/* velocity-Verlet with force scaling */
+LJ.prototype.vv_fs = function(dt, fs)
 {
   var i, n = this.n;
-  var dth = dt * 0.5, l = this.l;
+  var dth = dt * 0.5 * fs, l = this.l;
 
   for (i = 0; i < n; i++) { // VV part 1
     vsinc(this.v[i], this.f[i], dth);
@@ -285,6 +285,15 @@ LJ.prototype.vv = function(dt)
   for (i = 0; i < n; i++) { // VV part 2
     vsinc(this.v[i], this.f[i], dth);
   }
+};
+
+
+
+
+/* velocity-Verlet */
+LJ.prototype.vv = function(dt)
+{
+  this.vv_fs(dt, 1);
 };
 
 

@@ -48,10 +48,12 @@ var kehist = null;
 var histplot = null;
 
 var keseq = null;
-var keseqmax = 10000;
+var keseqmax = 50000;
+
 var vsize = 5;
 var vseq = null
-var vseqmax = 10000;
+var vseqmax = 50000;
+
 var corrplot = null;
 
 var paintcnt = 0;
@@ -108,7 +110,7 @@ function getparams()
   lj.force();
   dof = ( thtype === "Langevin" ) ? lj.dim * lj.n : lj.dof;
 
-  kehistn = Math.floor(tp * dof / dke) + 5;
+  kehistn = Math.floor(tp * dof / dke) * 2;
   kehist = new Array(kehistn);
   for ( i = 0; i < kehistn; i++ ) kehist[i] = 0;
 
@@ -223,13 +225,13 @@ function updatehistplot()
   var dat = "Kinetic energy,Histogram,Reference\n";
   for ( i = 0; i < kehistn; i++ )
     htot += kehist[i];
+  var kemin = Math.max(0, (dof - 5 * Math.sqrt(dof)) * tp * 0.5);
+  var kemax = (dof + 5 * Math.sqrt(dof)) * tp * 0.5;
   for ( i = 0; i < kehistn; i++ ) {
-    if ( kehist[i] <= 0 ) continue;
     var ke = (i + 0.5) * dke;
-    if ( ke > dof * 0.5 * tp * 2 ) {
-      break;
-    }
-    var hval = kehist[i] / htot / dke;
+    if ( ke < kemin ) continue;
+    if ( ke > kemax ) break;
+    var hval = kehist[i] / (htot * dke);
     var ref = Math.exp(Math.log(ke/tp) * (dof*0.5-1) -ke/tp - norm) / tp;
     dat += "" + ke + "," + hval + "," + ref + "\n";
   }
@@ -262,25 +264,26 @@ function updatecorrplot()
   }
 
   var dat = "Time,Kinetic energy,Velocity\n";
-  var i, j, l, t;
+  var i, j, jmax, iblk, l, t;
   var kelen = keseq.length, kecorr0, kecorr;
   var vblk = vsize * D, vlen = vseq.length / vblk, vcorr0, vcorr;
   //console.log(kelen, vlen);
-  for ( i = 0; i <= 500; i++ ) {
+  for ( i = 0; i <= 1000; i++ ) {
     if ( i >= kelen && i >= vlen ) break;
     
-    for ( kecorr = 0, j = 0; j < kelen - i; j++ ) {
+    jmax = kelen - i;
+    kecorr = 0;
+    for ( j = 0; j < jmax; j++ )
       kecorr += keseq[j] * keseq[j+i];
-    }
-    kecorr /= kelen - i;
+    kecorr /= jmax;
 
-    for ( vcorr = 0, j = 0; j < vlen - i; j++ ) {
-      for ( l = 0; l < vblk; l++ ) {
-        vcorr  += vseq[j * vblk + l]
-                * vseq[(j+i) * vblk + l];
-      }
-    }
-    vcorr /= (vlen - i) * vblk;
+    jmax = (vlen - i) * vblk;
+    iblk = i * vblk;
+    vcorr = 0;
+    for ( j = 0; j < jmax; j++ )
+      vcorr += vseq[j] * vseq[j + iblk];
+    vcorr /= jmax;
+
     if ( i === 0 ) {
       kecorr0 = kecorr;
       vcorr0  = vcorr;
@@ -295,7 +298,6 @@ function updatecorrplot()
       xlabel: '<small>Time</small>',
       ylabel: '<small>Normalized autocorrelation function</small>',
       includeZero: true,
-      drawPoints: true,
       axisLabelFontSize: 10,
       width: 360,
       height: 240,
@@ -319,10 +321,9 @@ function paint()
   } else if ( lj.dim === 3 ) {
     ljdraw3d(lj, "ljbox", mousescale);
   }
-  if ( ++paintcnt % 10 == 0 ) {
-    updatehistplot();
-    updatecorrplot();
-  }
+  ++paintcnt;
+  if ( paintcnt % 10 == 0 ) updatehistplot();
+  if ( paintcnt % 100 == 0 ) updatecorrplot();
 }
 
 
@@ -352,7 +353,9 @@ function resetdata()
   sumK = 0.0;
   for ( var i = 0; i < kehistn; i++ ) kehist[i] = 0;
   keseq = [];
-  vseq = [];
+  vseq = []; 
+  histplot = null;
+  corrplot = null;
   paintcnt = 0;
 }
 
