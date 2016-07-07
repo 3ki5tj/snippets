@@ -314,6 +314,14 @@ LJ.prototype.vrescale = function(tp, dt)
 
 
 
+/* adaptive velocity rescaling for an asymptotic microcanonical ensemble */
+LJ.prototype.adaptvrescale = function(tp, alpha)
+{
+  return md_adaptvrescale(this.v, null, this.n, this.dof, tp, alpha);
+};
+
+
+
 /* Nose-Hoover rescaling thermostat */
 LJ.prototype.nhchain = function(tp, dt, zeta, zmass)
 {

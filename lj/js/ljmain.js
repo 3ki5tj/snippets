@@ -132,14 +132,16 @@ function changescale()
 
 
 
-function thermostat(dt)
+function thermostat(dt, thalpha)
 {
   if ( thtype === "v-rescale" ) {
     return lj.vrescale(tp, dt * vresdamp);
   } else if ( thtype === "Nose-Hoover" ) {
     return lj.nhchain(tp, dt, zeta, zmass);
-  } else if (thtype === "Langevin" ) {
+  } else if ( thtype === "Langevin" ) {
     return lj.langevin(tp, dt * langdamp);
+  } else if ( thtype == "adapt-v-rescale" ) {
+    return lj.adaptvrescale(tp, thalpha);
   }
 }
 
@@ -161,10 +163,13 @@ function reportUP()
 
 function domd()
 {
+  //if ( sum1 > 10000 ) console.log("adaptive velocity rescaling is disabled");
   for ( var istep = 0; istep < nstepspfmd; istep++ ) {
-    thermostat(mddt * 0.5);
+    var thalpha = 0.5 / (sum1 + 1);
+    //if ( sum1 > 10000 ) thalpha = 0;
+    thermostat(mddt * 0.5, thalpha);
     lj.vv(mddt);
-    var ekin = thermostat(mddt * 0.5);
+    var ekin = thermostat(mddt * 0.5, thalpha);
     sum1 += 1.0;
     sumU += lj.epot / lj.n;
     sumP += lj.calcp(tp);
