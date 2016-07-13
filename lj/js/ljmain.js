@@ -41,6 +41,9 @@ var sum1 = 1e-30;
 var sumU = 0.0;
 var sumP = 0.0;
 var sumK = 0.0;
+var sumb = 0.0;
+var sumb2 = 0.0;
+var sumdbde = 0.0;
 
 var dke = 1.0;
 var kehistn = 0;
@@ -152,7 +155,7 @@ function reportUP()
   var s;
   s = '<span class="math"><i>U</i>/<i>N</i></span>: ' + roundto(sumU/sum1, 3);
   if ( Uref ) s += " (ref: " + roundto(Uref, 3) + ")";
-  s += ". ";
+  s += ".<br>";
   s += '<span class="math"><i>P</i></span>: ' + roundto(sumP/sum1, 3);
   if ( Pref ) s += " (ref: " + roundto(Pref, 3) + ")";
   s += ".<br>" + sum1 + " samples.";
@@ -161,19 +164,44 @@ function reportUP()
 
 
 
+// estimate beta'(E) for the microcanonical ensemble
+function getdbde(tp, dof)
+{
+  var bet, bet2, dbde1, dbde;
+  if ( sum1 < 3 ) {
+    dbde = -1.0 / (tp * tp * (0.5 * dof - 1));
+  } else { 
+    bet = sumb / sum1;
+    bet2 = sumb2 / sum1 - bet * bet;
+    dbde1 = sumdbde / sum1;
+    dbde = dbde1 + bet2;
+    if ( dbde > dbde1 * 0.05 ) dbde = dbde1 * 0.05;
+  }
+  return dbde;
+}
+
+
+
 function domd()
 {
-  //if ( sum1 > 10000 ) console.log("adaptive velocity rescaling is disabled");
+  var thalpha, ekin, bet, dbde;
+  var microcanon = (thtype === "adapt-v-rescale");
   for ( var istep = 0; istep < nstepspfmd; istep++ ) {
-    var thalpha = 0.5 / (sum1 + 1);
-    //if ( sum1 > 10000 ) thalpha = 0;
+    thalpha = 0.5 / (sum1 + 1); // 0.5 for half step
+    dbde = getdbde(tp, lj.dof);
     thermostat(mddt * 0.5, thalpha);
     lj.vv(mddt);
-    var ekin = thermostat(mddt * 0.5, thalpha);
+    ekin = thermostat(mddt * 0.5, thalpha);
     sum1 += 1.0;
     sumU += lj.epot / lj.n;
     sumP += lj.calcp(tp);
-    sumK += ekin / dof;
+    sumK += 2 * ekin / dof;
+    if ( microcanon ) { // accumulate beta
+      bet = (dof * 0.5 - 1) / ekin;
+      sumb += bet;
+      sumb2 += bet * bet;
+      sumdbde += -bet / ekin;
+    }
     var ike = Math.floor(ekin / dke);
     if ( ike < kehistn ) kehist[ike] += 1.0;
     keseq.push( 2 * ekin / (dof * tp) - 1 );
@@ -187,8 +215,14 @@ function domd()
     keseq = keseq.slice( keseq.length - keseqmax );
   if ( vseq.length > vseqmax * vsize * D )
     vseq = vseq.slice( vseq.length - vseqmax * vsize * D );
-  var sinfo = '<span class="math"><i>E<sub>K</sub></i>/<i>N<sub>f</sub></i></span>: '
-        + roundto(sumK/sum1, 3) + " (" + roundto(tp/2, 3) + ").<br>";
+  var tpmeas = sumK / sum1;
+  if ( microcanon ) tpmeas = sum1 / sumb;
+  var sinfo = '<span class="math"><i>T</i><sub>measure</sub></span>: '
+        + roundto(tpmeas, 3) + " (" + roundto(tp, 3) + ").<br>";
+  if ( microcanon ) {
+    sinfo += '<span class="math"><i>N d&beta;/dE</i>: </span>'
+      + roundto(n * getdbde(tp, lj.dof), 4) + ".<br>";
+  }
   return sinfo + reportUP();
 }
 
@@ -356,6 +390,9 @@ function resetdata()
   sumU = 0.0;
   sumP = 0.0;
   sumK = 0.0;
+  sumb = 0.0;
+  sumb2 = 0.0;
+  sumdbde = 0.0;
   for ( var i = 0; i < kehistn; i++ ) kehist[i] = 0;
   keseq = [];
   vseq = []; 

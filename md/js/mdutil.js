@@ -161,12 +161,15 @@ function md_vrescale(v, m, n, dof, tp, dt)
 
 
 
-/* adaptive velocity rescaling for an asymptotic microcanonical ensemble */
-function md_adaptvrescale(v, m, n, dof, tp, alpha, sm1max)
+/* adaptive velocity rescaling for an asymptotically
+ * exact microcanonical ensemble */
+function md_adaptvrescale(v, m, n, dof, tp, alpha, dbde, sm1max)
 {
   var ek = md_ekin(v, m, n);
-  var ekref = dof * tp * 0.5;
-  var sm1 = (ekref - ek)/ek * alpha;
+  var dbet = 1.0 / tp - (dof * 0.5 - 1) / ek;
+  if ( ! dbde ) dbde = -1.0 / tp / tp / (dof * 0.5 - 1);
+  var de = dbet / dbde;
+  var sm1 = de / ek * alpha;
   if ( !sm1max ) sm1max = 0.5;
   if ( sm1 > sm1max ) sm1 = sm1max;
   else if ( sm1 < -sm1max ) sm1 = -sm1max;
@@ -178,7 +181,6 @@ function md_adaptvrescale(v, m, n, dof, tp, alpha, sm1max)
   ek *= s * s;
   return ek;
 }
-
 
 
 

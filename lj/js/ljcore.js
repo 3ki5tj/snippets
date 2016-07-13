@@ -315,9 +315,9 @@ LJ.prototype.vrescale = function(tp, dt)
 
 
 /* adaptive velocity rescaling for an asymptotic microcanonical ensemble */
-LJ.prototype.adaptvrescale = function(tp, alpha)
+LJ.prototype.adaptvrescale = function(tp, alpha, dbde)
 {
-  return md_adaptvrescale(this.v, null, this.n, this.dof, tp, alpha);
+  return md_adaptvrescale(this.v, null, this.n, this.dof, tp, alpha, dbde);
 };
 
 
