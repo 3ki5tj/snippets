@@ -89,7 +89,7 @@ def htmlpack(fn, fntrans = None):
   n = len(s)
   for i in range(n):
     ln = s[i].strip()
-    if ln.startswith("<script") and ln.find('src="http') < 0:
+    if ln.startswith("<script") and not ln.startswith("<script>") and ln.find('src="http') < 0:
       p = ln.find('src="')
       p = ln.find('"', p)
       q = ln.find('"', p+1)
@@ -126,7 +126,9 @@ if __name__ == "__main__":
     fns = [ fn for fn in sys.argv[1:]
             if fn.find(".htm") >= 0 ]
   else:
-    fns = [ fn for fn in glob.glob("*.htm*")
-            if fn.find("_pack.htm") < 0 ]
+    fns  = [ fn for fn in glob.glob("*.htm")
+             if fn.find("_pack.htm") < 0 ]
+    fns += [ fn for fn in glob.glob("*.html")
+             if fn.find("_pack.html") < 0 ]
 
   for fn in fns: htmlpack(fn)
