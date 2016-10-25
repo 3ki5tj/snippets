@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title> Ionic energy in uniform background </title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+  <script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
+  <script>
+    "use strict";
+    function grab(id) {
+      var x = document.getElementById(id);
+      if ( x === null ) console.log("cannot grab element ", id);
+      return x;
+    }
+
+    function get_float(id, def) {
+      var x = parseFloat( grab(id).value );
+      return !isNaN(x) && isFinite(x) ? x : def;
+    }
+
+    function get_int(id, def) {
+      var x = parseInt( grab(id).value, 10 );
+      return !isNaN(x) && isFinite(x) ? x : def;
+    }
+
+    function erf(x) {
+      // Save the sign of x
+      var sign = (x >= 0) ? 1 : -1;
+      x = Math.abs(x);
+      // A&S formula 7.1.26
+      var t = 1.0/(1.0 + 0.3275911*x);
+      var y = 1.0 - (((((1.061405429*t -1.453152027)*t) + 1.421413741)*t -0.284496736)*t + 0.254829592)*t*Math.exp(-x*x);
+      return sign*y;
+    }
+    function erfc(x) { return 1 - erf(x); }
+
+    function ewald(sigma, nreal, nrecip) {
+      var i, j, l, r, k2, ereal = 0, erecip = 0;
+      // real-space sum
+      for ( i = -nreal; i <= nreal; i++ )
+        for ( j = -nreal; j <= nreal; j++ )
+          for ( l = -nreal; l <= nreal; l++ ) {
+            r = Math.sqrt(i*i + j*j + l*l);
+            if ( r > 0 )
+              ereal += erfc(r/sigma)/r;
+          }
+
+      // reciprocal-space sum
+      for ( i = -nrecip; i <= nrecip; i++ )
+        for ( j = -nrecip; j <= nrecip; j++ )
+          for ( l = -nrecip; l <= nrecip; l++ ) {
+            k2 = i*i + j*j + l*l;
+            if ( k2 > 0 )
+              erecip += Math.exp(-k2*sigma*sigma*Math.PI*Math.PI)/k2;
+          }
+      erecip /= Math.PI;
+
+      var eself = -2/Math.sqrt(Math.PI)/sigma;
+      var ebg = -sigma*sigma*Math.PI;
+      return {
+        "ereal": ereal,
+        "erecip": erecip,
+        "eself": eself,
+        "ebg": ebg,
+        "etot": ereal + erecip + eself + ebg
+      };
+    }
+
+    function mkplot() {
+      var xmin = get_float("sigmin", 0);
+      var xmax = get_float("sigmax", 2);
+      var dx = get_float("sigdel", 0.1);
+      var nreal = get_int("Nreal", 10);
+      var nrecip = get_int("Nrecip", 10);
+      var dat = "&sigma;,real,reciprocal,self,background,total\n", x, y, ene;
+      for ( x = xmin; x <= xmax + 0.5 * dx; x += dx ) {
+         y = ewald(x, nreal, nrecip);
+         dat += "" + x.toFixed(4) + "," + y["ereal"] + "," + y["erecip"] + ","
+              + y["eself"] + "," + y["ebg"] + "," + y["etot"] + "\n";
+      }
+      var eplot = new Dygraph( grab("eplot"), dat, {
+            xlabel: "<i>&sigma;</i>",
+            ylabel: "energy",
+            drawPoints: true,
+            pointSize: 2,
+            width: 700,
+            height: 420
+          });
+      //console.log(dat);
+    }
+  </script>
+</head>
+<body style="width:800px; margin:auto" onload="mkplot()">
+
+<h2 style="text-align:center">
+  Ionic energy in uniform background
+</h2>
+
+<div>
+  The formula is given by
+<div style="text-align:center">
+<a href="https://www.codecogs.com/eqnedit.php?latex=E&space;=&space;\frac12\frac{1}{4\pi\epsilon_0}\frac1L\left(&space;-\sigma^2&space;-\frac{2}{\sigma}&space;&plus;\sum_{\mathbf&space;p&space;\ne&space;0}&space;\frac{\mathrm{erfc}(\sqrt\pi&space;|\mathbf{p}|/\sigma)&space;}{&space;|\mathbf{p}|&space;}&space;&plus;\sum_{\mathbf&space;q&space;\ne&space;0}&space;\frac{1}{|\mathbf&space;q|^2}&space;\exp(-\pi\sigma^2\mathbf{q}^2)&space;\right)." target="_blank"><img src="https://latex.codecogs.com/gif.latex?E&space;=&space;\frac12\frac{1}{4\pi\epsilon_0}\frac1L\left(&space;-\sigma^2&space;-\frac{2}{\sigma}&space;&plus;\sum_{\mathbf&space;p&space;\ne&space;0}&space;\frac{\mathrm{erfc}(\sqrt\pi&space;|\mathbf{p}|/\sigma)&space;}{&space;|\mathbf{p}|&space;}&space;&plus;\sum_{\mathbf&space;q&space;\ne&space;0}&space;\frac{1}{|\mathbf&space;q|^2}&space;\exp(-\pi\sigma^2\mathbf{q}^2)&space;\right)." title="E = \frac12\frac{1}{4\pi\epsilon_0}\frac1L\left( -\sigma^2 -\frac{2}{\sigma} +\sum_{\mathbf p \ne 0} \frac{\mathrm{erfc}(\sqrt\pi |\mathbf{p}|/\sigma) }{ |\mathbf{p}| } +\sum_{\mathbf q \ne 0} \frac{1}{|\mathbf q|^2} \exp(-\pi\sigma^2\mathbf{q}^2) \right)." /></a>
+</div>
+Here, the four terms in the parentheses are
+the background energy, self energy, real-space sum, and the reciprocal-space sum, respectively.
+</div>
+
+
+<form style="width:800px; margin:auto;">
+  <div class="form-group">
+    <h4 style="text-align:center">Parameters</h4>
+
+    <div class="col-xs-2">
+      <label for="sigmin">&sigma;<sub>min</sub>:</label>
+      <input type="text" size="3" value="0.1" id="sigmin" class="form-control">
+    </div>
+
+    <div class="col-xs-2">
+      <label for="sigmax">&sigma;<sub>max</sub>:</label>
+      <input type="text" size="3" value="2.0" id="sigmax" class="form-control">
+    </div>
+
+    <div class="col-xs-2">
+      <label for="sigdel">&Delta;&sigma;:</label>
+      <input type="text" size="3" value="0.1" id="sigdel" class="form-control">
+    </div>
+
+    <div class="col-xs-3">
+      <label for="Nreal">Number of shells in the real space:</label>
+      <input type="text" size="3" value="10" id="Nreal" class="form-control">
+    </div>
+
+    <div class="col-xs-3">
+      <label for="Nrecip">Number of shells in the reciprocal space:</label>
+      <input type="text" size="3" value="10" id="Nrecip" class="form-control">
+    </div>
+  </div>
+
+  <div class="col-xs-3">
+    <input type="button" value="Compute"
+      class="btn btn-default" onclick="mkplot();">
+  </div>
+
+  <div class="col-xs-12">&nbsp;</div>
+
+  <div id="eplot" class="col-xs-12"></div>
+</form>
+
+</body>
+</html>
