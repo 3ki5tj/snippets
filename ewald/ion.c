@@ -18,7 +18,7 @@ static double ewald(double sigma, int xm, int km)
       for ( l = -xm; l <= xm; l++ ) {
         r = sqrt(i*i + j*j + l*l);
         if ( r <= 0 ) continue;
-        ereal += erfc(r/sigma)/r;
+        ereal += erfc(sqrt(M_PI)*r/sigma)/r;
       }
     }
   }
@@ -29,17 +29,17 @@ static double ewald(double sigma, int xm, int km)
       for ( l = -km; l <= km; l++ ) {
         k2 = i*i + j*j + l*l;
         if ( k2 <= 0 ) continue;
-        erecip += exp(-k2*sigma*sigma*M_PI*M_PI)/k2;
+        erecip += exp(-k2*sigma*sigma*M_PI)/k2;
       }
     }
   }
   erecip /= M_PI;
 
   /* self energy */
-  eself = -2/sqrt(M_PI)/sigma;
+  eself = -2/sigma;
 
   /* background energy */
-  ebg = -sigma*sigma*M_PI;
+  ebg = -sigma*sigma;
   //printf("real %g, recip %g, self %g, background %g\n", ereal, erecip, eself, ebg);
   return eself + ereal + erecip + ebg;
 }
@@ -48,7 +48,7 @@ static double ewald(double sigma, int xm, int km)
 int main(int argc, char **argv)
 {
   double ene, sigma = 1.0;
-  int nterms = 10, kterms = 10;
+  int nterms = 20, kterms = 20;
 
   if ( argc > 1 ) sigma = atof(argv[1]);
   if ( argc > 2 ) nterms = atoi(argv[2]);

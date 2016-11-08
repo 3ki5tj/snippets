@@ -91,6 +91,16 @@ function vadd(c, a, b)
 
 
 
+function vsadd(c, a, b, s)
+{
+  for ( var d = 0; d < D; d++ ) {
+    c[d] = a[d] + s * b[d];
+  }
+  return c;
+}
+
+
+
 function vdiff(c, a, b)
 {
   for ( var d = 0; d < D; d++ ) {
@@ -107,6 +117,16 @@ function vnadd(c, a, b)
     c[d] = - a[d] - b[d];
   }
   return c;
+}
+
+
+
+function vlincomb2(z, x, y, c, s)
+{
+  for ( var d = 0; d < D; d++ ) {
+    z[d] = x[d] * c + y[d] * s;
+  }
+  return z;
 }
 
 
@@ -167,8 +187,7 @@ function vcross3d(z, x, y)
 }
 
 
-
-/* bond angle interaction */
+// bond angle interaction
 function vang(xi, xj, xk, gi, gj, gk)
 {
   var xij= [0,0,0], xkj = [0,0,0], ri, rk, dot, ang;
@@ -226,7 +245,7 @@ function vdih(xi, xj, xk, xl, gi, gj, gk, gl)
     phi = -phi;
   }
 
-  /* optionally calculate the gradient */
+  // optionally calculate the gradient
   if ( gi && gj && gk && gl ) {
     if ( m2 > tol && n2 > tol ) {
       vsmul2(gi, m, nxkj/m2);
@@ -305,5 +324,11 @@ function vnormalize(v)
 }
 
 
+
+/* perpendicular component of `x' to `y', normalized */
+function vperpen(z, x, y)
+{
+  return vnormalize( vsadd(z, x, y, -vdot(x, y)/vsqr(y)) );
+}
 
 

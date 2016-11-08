@@ -38,13 +38,14 @@
 
     function ewald(sigma, nreal, nrecip) {
       var i, j, l, r, k2, ereal = 0, erecip = 0;
+      var sqrtpi = Math.sqrt(Math.PI);
       // real-space sum
       for ( i = -nreal; i <= nreal; i++ )
         for ( j = -nreal; j <= nreal; j++ )
           for ( l = -nreal; l <= nreal; l++ ) {
             r = Math.sqrt(i*i + j*j + l*l);
             if ( r > 0 )
-              ereal += erfc(r/sigma)/r;
+              ereal += erfc(sqrtpi*r/sigma)/r;
           }
 
       // reciprocal-space sum
@@ -53,12 +54,12 @@
           for ( l = -nrecip; l <= nrecip; l++ ) {
             k2 = i*i + j*j + l*l;
             if ( k2 > 0 )
-              erecip += Math.exp(-k2*sigma*sigma*Math.PI*Math.PI)/k2;
+              erecip += Math.exp(-k2*sigma*sigma*Math.PI)/k2;
           }
       erecip /= Math.PI;
 
-      var eself = -2/Math.sqrt(Math.PI)/sigma;
-      var ebg = -sigma*sigma*Math.PI;
+      var eself = -2/sigma;
+      var ebg = -sigma*sigma;
       return {
         "ereal": ereal,
         "erecip": erecip,
@@ -69,8 +70,8 @@
     }
 
     function mkplot() {
-      var xmin = get_float("sigmin", 0);
-      var xmax = get_float("sigmax", 2);
+      var xmin = get_float("sigmin", 0.2);
+      var xmax = get_float("sigmax", 3);
       var dx = get_float("sigdel", 0.1);
       var nreal = get_int("Nreal", 10);
       var nrecip = get_int("Nrecip", 10);
@@ -114,12 +115,12 @@ the background energy, self energy, real-space sum, and the reciprocal-space sum
 
     <div class="col-xs-2">
       <label for="sigmin">&sigma;<sub>min</sub>:</label>
-      <input type="text" size="3" value="0.1" id="sigmin" class="form-control">
+      <input type="text" size="3" value="0.2" id="sigmin" class="form-control">
     </div>
 
     <div class="col-xs-2">
       <label for="sigmax">&sigma;<sub>max</sub>:</label>
-      <input type="text" size="3" value="2.0" id="sigmax" class="form-control">
+      <input type="text" size="3" value="3.0" id="sigmax" class="form-control">
     </div>
 
     <div class="col-xs-2">
