@@ -1,5 +1,9 @@
 "use strict";
 
+var seq_g = [];
+var atomls_g = [];
+var xyz_g = [];
+var length_g = 30;
 
 function readseq(s)
 {
@@ -217,7 +221,7 @@ function mkpdb(seq)
     }
 
     if ( i > 0 || resnm !== "" ) {
-      console.log( i, resnm, xc, xo);
+      //console.log( i, resnm, xc, xo);
       pushatom(atomls, ["C", resid, xc.slice(0)] );
       if ( i === n - 1 && ter.search("C") < 0 ) {
         pushatom(atomls, ["OC1", resid, xo] );
@@ -332,7 +336,7 @@ function mkpdb(seq)
       var xz = [0, 0, 0], xh = [0, 0, 0];
       vsadd(xz, xg, v, 2 * B_CC_RING);
       vsadd(xh, xz, v, B_CO);
-      vlincomb2(dx, v, w, s30 * B_CC_RING, -c30 * B_CC_RING); 
+      vlincomb2(dx, v, w, s30 * B_CC_RING, -c30 * B_CC_RING);
       vadd(xd2, xg, dx);
       vsadd(xe2, xd2, v, B_CC_RING);
 
@@ -441,7 +445,7 @@ function mkpdb(seq)
   }
 
   if ( ter.search("C") >= 0 ) {
-    atomls.append( ["N", resid, xn] );
+    pushatom(atomls, ["N", resid, xn] );
     seq += [ "NH2" ];
     resid += 1;
   }
@@ -455,21 +459,58 @@ function mkpdb(seq)
   var offset = 0;
   if ( ter.search("N") >= 0 ) offset = 1;
   var nn = atomls.length;
+  var xyz = [];
   for ( var k = 0; k < nn; k++ ) {
     var trio = atomls[k];
     resid = trio[1];
     resnm = seq[resid];
     resid += offset;
     src += mkatom(k + 1, trio[0], resnm, resid, trio[2]);
+    xyz.push( trio[2] );
   }
   src += mkter(k + 1, resnm, resid + offset);
-  return src;
+  return [src, atomls, xyz];
 }
 
-function mkspx()
+function mkspx(refresh)
 {
-  var seq = readseq( document.getElementById("aainput").value );
-  var src = mkpdb(seq);
-  document.getElementById("pdboutput").value = src;
+  if ( refresh || xyz_g.length === 0 ) {
+    seq_g = readseq( document.getElementById("aainput").value );
+    var ret = mkpdb(seq_g);
+    var src = ret[0];
+    atomls_g = ret[1];
+    xyz_g = ret[2];
+    document.getElementById("pdboutput").value = src;
+    //var xmin = xyz_g[0], xmax = xyz_g[0];
+    var xmin=[0,0,0],xmax=[0,0,0];
+    for ( var i = 0; i < xyz_g.length; i++ ) {
+      for ( var j = 0; j < 3; j++ ) {
+        if ( xyz_g[i][j] < xmin[j] ) xmin[j] = xyz_g[i][j];
+        if ( xyz_g[i][j] > xmax[j] ) xmax[j] = xyz_g[i][j];
+      }
+    }
+    length_g = 0.5 * Math.max(xmax[0]-xmin[0], xmax[1]-xmin[1], xmax[2]-xmin[2]);
+  }
+  var ballscale = parseFloat( document.getElementById("ballScaleInput").value );
+  console.log(viewmat[0], viewmat[1], viewmat[2], "mouse", mousescale, "ball", ballscale, "length", length_g);
+  pdbdraw(seq_g, xyz_g, atomls_g, length_g,
+      "animationbox", mousescale, ballscale, false, false);
 }
 
+function paint()
+{
+  mkspx(false);
+}
+
+
+function mapchange(a, b)
+{
+  document.getElementById(b).value = document.getElementById(a).value;
+  mkspx(true);
+}
+
+function init()
+{
+  viewmat = [[1, 0, 0], [0, 0, 1], [0, -1, 0] ];
+  installmouse("animationbox");
+}

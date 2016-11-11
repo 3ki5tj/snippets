@@ -4,17 +4,24 @@
   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
   <title> Generate a PDB structure from an amino acid sequence </title>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<!--
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+-->
   <script src="js/vct.js"></script>
   <script src="js/mkspx.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/util.js"></script>
+  <script src="js/mat.js"></script>
+  <script src="js/mouse3d.js"></script>
+  <script src="js/pdbdraw.js"></script>
   <style>
     textarea {
       font-family: Courier;
     }
   </style>
 </head>
-<body style="width:800px; margin:auto">
+<body style="width:800px; margin:auto" onload="init()">
 
 <h2 style="text-align:center">
   Generate a PDB structure from an amino acid sequence
@@ -26,22 +33,37 @@
 
     <div class="col-xs-3">
       <label for="rotate">Rotation angle (&deg;):</label>
-      <input type="text" size="3" value="10.0" id="rotate" class="form-control">
+      <input type="range" size="3" value="15.0" id="rotate_slider"
+        min="0.1" max="30.0" step="0.1" class="form-control"
+        onchange="mapchange('rotate_slider', 'rotate')">
+      <input type="text" size="3" value="15.0" id="rotate"
+        class="form-control"
+        onchange="mapchange('rotate', 'rotate_slider')">
     </div>
 
     <div class="col-xs-3">
-      <label for="swing">Swinging angle (&deg;):</label>
-      <input type="text" size="3" value="50.0" id="swing" class="form-control">
+      <label for="swing">Crumpling angle (&deg;):</label>
+      <input type="range" size="3" value="50.0" id="swing_slider"
+        min="0.1" max="90.0" step="0.1" class="form-control"
+        onchange="mapchange('swing_slider', 'swing')">
+      <input type="text" size="3" value="50.0" id="swing"
+        class="form-control"
+        onchange="mapchange('swing', 'swing_slider')">
     </div>
 
     <div class="col-xs-3">
       <label for="rise">Rising angle (&deg;):</label>
-      <input type="text" size="3" value="9.0" id="rise" class="form-control">
+      <input type="range" size="3" value="12.0" id="rise_slider"
+        min="0.1" max="40.0" step="0.1" class="form-control"
+        onchange="mapchange('rise_slider', 'rise')">
+      <input type="text" size="3" value="12.0" id="rise"
+        class="form-control"
+        onchange="mapchange('rise', 'rise_slider')">
     </div>
 
     <div class="col-xs-3">
       <label for="caps">Terminal caps:</label>
-      <select id="caps" class="form-control">
+      <select id="caps" class="form-control" onchange="mkspx(true)">
         <option value="">None</option>
         <option value="N">N-terminal</option>
         <option value="C">C-terminal</option>
@@ -53,24 +75,46 @@
 
   <div class="col-xs-12">
     <label for="aainput">Amino acid sequence:</label>
-    <textarea id="aainput" rows="4" cols="80" class="form-control"
->MET LEU SER ASP GLU ASP PHE LYS ALA VAL
-PHE GLY MET THR ARG SER ALA PHE ALA ASN
-LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS
-LYS GLU LYS GLY LEU PHE</textarea>
+    <textarea id="aainput" rows="2" cols="80" class="form-control"
+>MET LEU SER ASP GLU ASP PHE LYS ALA VAL PHE GLY MET THR ARG SER ALA PHE ALA ASN
+LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
   </div>
 
   <div class="col-xs-12">
     <input type="button" value="Generate"
-      class="btn btn-default" onclick="mkspx();">
+      class="btn btn-default" onclick="mkspx(true);">
   </div>
+
+</form>
+
+<!-- container -->
+<div id="container">
+
+  <div id="simulbox" style="text-align:center">
+    <canvas id="animationbox" width="600" height="600"
+      style="border: 1px solid #cccccc;"
+      onclick="paint()"></canvas>
+  </div>
+
+  <div class="checkbox" class="col-xs-3">
+    <label><input type="checkbox" id="orthographic"
+      onchange="paint()">Orthographic.</label>
+  </div>
+
+  <div class="col-xs-6">
+  <label for="ballScaleInput">Ball scale:</label>
+  <input type="range" id="ballScaleInput" value="0.7"
+    min="0.01" step="0.01" max="2.0" style="width:400px" onchange="paint()">
+  </div>
+
+
+</div>
 
   <div class="col-xs-12">
     <label for="pdboutput">Output PDB:</label>
     <textarea id="pdboutput" rows="10" cols="80" class="form-control">
     </textarea>
   </div>
-</form>
 
 </body>
 </html>
