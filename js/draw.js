@@ -27,9 +27,9 @@ function drawLine(ctx, xi, yi, xj, yj, color, lineWidth)
 function drawLineGradient(ctx, xi, yi, xj, yj, grd)
 {
   if ( !grd ) {
-    grd = [ { color: '#aaaaaa', width:8 },
-            { color: '#bbbbbb', width:4 },
-            { color: '#cccccc', width:2 } ];
+    grd = [ { color: '#aaaaaa', width: 6 },
+            { color: '#bbbbbb', width: 4 },
+            { color: '#cccccc', width: 2 } ];
   }
 
   for ( var i = 0; i < grd.length; i++ ) {
@@ -92,9 +92,9 @@ function paintBall(ctx, x, y, r, color, spotcolor,
 /* compute the contact point to start a bond from i to j */
 function getContactPoint(xi, xj, radius)
 {
-  var rji, xji = newarr(D);
+  var rji, xji = new Array(D);
 
-  rji = vdistx(xji, xj, xi);
+  rji = vnorm( vdiff(xji, xj, xi) );
   vsmul(xji,  radius / rji);
   return vinc(xji, xi);
 }

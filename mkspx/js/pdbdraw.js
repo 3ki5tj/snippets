@@ -34,9 +34,9 @@ function transform3d(x)
 function sortbyz(x)
 {
   var i, j, k, l, n = x.length;
-  var xyz = newarr2d(n, 3), rt = newarr(D);
-  var idmap = newarr(n);
-  var invmap = newarr(n);
+  var xyz = newarr2d(n, 3), rt = new Array(D);
+  var idmap = new Array(n);
+  var invmap = new Array(n);
 
   for ( i = 0; i < n; i++ ) {
     idmap[i] = i;
@@ -101,9 +101,9 @@ function getzscale(r, zmin, zmax, ortho)
 
 function getContactPoint(xi, xj, radius)
 {
-  var rji, xji = newarr(D);
+  var rji, xji = new Array(D);
 
-  rji = vdistx(xji, xj, xi);
+  rji = vnorm( vdiff(xji, xj, xi) );
   vsmul(xji,  radius / rji);
   return vinc(xji, xi);
 }
@@ -147,7 +147,7 @@ function pdbdraw(seq, x, atomls, l,
   // xyz[ invmap[i] ] --> xt[ i ]
 
   var ortho = document.getElementById("orthographic").checked;
-  var scale = userscale * Math.min(width, height) / (l * 2.0);
+  var scale = userscale * Math.min(width, height) / (l * 2.5);
 
   // draw each particle
   var zmax = xyz[n - 1][2], zmin = xyz[0][2];
@@ -160,7 +160,7 @@ function pdbdraw(seq, x, atomls, l,
     var atom = atomls[i0];
     var elem = atom[0].slice(0, 1);
     //console.log(i0, elem, atom);
-    var fullColor = atom_dict[elem][1]; // TODO
+    var fullColor = atom_dict[elem][1];
     var color = darkenColor( fullColor, 0.8 + 0.2 * zf );
     if ( grey ) {
       color = lightenColor( greyColor( color ), 0.5 );
@@ -170,7 +170,7 @@ function pdbdraw(seq, x, atomls, l,
     var scli = scale * getzscale(xyz[i], zmin, zmax, ortho);
     var xi = Math.floor(  xyz[i][0] * scli + width  * 0.5 );
     var yi = Math.floor( -xyz[i][1] * scli + height * 0.5 );
-    var rad = atom_dict[elem][0] * ballscale; // TODO
+    var rad = atom_dict[elem][0] * ballscale;
     var rz = Math.floor( rad * scli );
     paintBall(ctx, xi, yi, rz, color, spotcolor);
 
@@ -187,7 +187,7 @@ function pdbdraw(seq, x, atomls, l,
         || (resj === resi + 1 && elem === "C" && elemj === "N")
         || (resj === resi - 1 && elem === "N" && elemj === "C") ) {
         var dis = vdist(x[jj], x[i0]);
-        if ( dis < 2.0 ) jarr.push( jj );
+        if ( dis < 1.9 ) jarr.push( jj );
       }
     }
 

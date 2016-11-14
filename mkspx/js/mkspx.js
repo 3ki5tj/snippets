@@ -5,14 +5,75 @@ var atomls_g = [];
 var xyz_g = [];
 var length_g = 30;
 
+// grab sequence
 function readseq(s)
 {
-  var arr = s.replace(/\s+/g, "\t").split("\t"), out = [];
-  for ( var i = 0; i < arr.length; i++ ) {
-    var ch = arr[i].slice(0, 1); // first letter
-    if ( arr[i].length === 4 && (ch === "N" || ch === "C") )
-      arr[i] = arr[i].slice(-3);
+  // to upper case
+  s = s.toUpperCase();
+  // remove leading and trailing spaces
+  s = s.replace(/^\s+|\s+$/g, '');
+  // convert spaces to tabs
+  s = s.replace(/\s+/g, "\t");
+  var arr = s.split("\t");
+  var i, out = [];
+  var aa_1to3 = {
+    "A": "ALA",
+    "C": "CYS",
+    "D": "ASP",
+    "E": "GLU",
+    "F": "PHE",
+    "G": "GLY",
+    "H": "HIS",
+    "I": "ILE",
+    "K": "LYS",
+    "L": "LEU",
+    "M": "MET",
+    "N": "ASN",
+    "P": "PRO",
+    "Q": "GLN",
+    "R": "ARG",
+    "S": "SER",
+    "T": "THR",
+    "V": "VAL",
+    "W": "TRP",
+    "Y": "TYR"
+  };
+  var aa_names = ["ALA", "CYS", "CYX", "CYS2", "ASP", "ASPP", "ASN", "ASH",
+    "GLU", "GLH", "GLUP", "PHE", "GLY",
+    "HIS", "HID", "HIE", "HIP", "HS2", "HSD", "HSE", "HSP",
+    "ILE", "LYS", "LYN", "LEU", "MET", "ASN",
+    "PRO", "GLN", "ARG", "SER", "THR", "VAL", "TRP", "TYR"];
+
+  // detect if the format is 1-letter or 3-letter
+  for ( i = 0; i < arr.length; i++ ) {
+    var tok = arr[i];
+    if ( tok.length === 4 ) {
+      if ( aa_names.indexOf(tok) >= 0 )
+        continue;
+      var ter = tok.slice(0, 1);
+      if ( ter === "C" || ter === "N" ) {
+        tok = tok.slice(-3);
+      }
+    }
+    if ( tok.length !== 3 || aa_names.indexOf(tok) < 0 )
+      break;
   }
+
+  if ( i === arr.length ) { // 3-letter sequence
+    for ( var i = 0; i < arr.length; i++ ) {
+      var ch = arr[i].slice(0, 1); // first letter
+      if ( arr[i].length === 4 && (ch === "N" || ch === "C") )
+        arr[i] = arr[i].slice(-3);
+    }
+  } else { // 1-letter sequence
+    s = s.replace(/\s+/g, "");
+    arr = [];
+    for ( i = 0; i < s.length; i++ ) {
+      arr.push( aa_1to3[ s[i] ] );
+    }
+    console.log( arr );
+  }
+
   return arr;
 }
 
@@ -51,12 +112,43 @@ function gchoose(gd, g1, g2, g3, rotamer)
   return arr[rotamer];
 }
 
+// shift the center of structure
+function shiftcenter(atomls)
+{
+  var n = atomls.length, xmin, xmax;
+
+  for ( var i = 0; i < n; i++ ) {
+    var x = atomls[i][2];
+    if ( i == 0 ) {
+      xmin = x.slice(0);
+      xmax = x.slice(0);
+      continue;
+    }
+    for ( var d = 0; d < 3; d++ ) {
+      if ( x[d] < xmin[d] ) xmin[d] = x[d];
+      if ( x[d] > xmax[d] ) xmax[d] = x[d];
+    }
+  }
+  var xc = [0, 0, 0], sz = [0, 0, 0];
+  for ( d = 0; d < 3; d++ ) {
+    xc[d] = (xmin[d] + xmax[d]) / 2;
+    sz[d] = xmax[d] - xmin[d];
+  }
+  document.getElementById("info").innerHTML = "Dimension: "
+    + "<i>x</i>: " + sz[0].toFixed(2) + "&#8491;, "
+    + "<i>y</i>: " + sz[1].toFixed(2) + "&#8491;, "
+    + "<i>z</i>: " + sz[2].toFixed(2) + "&#8491;.";
+}
+
 function mkpdb(seq)
 {
-  var ter = document.getElementById("caps").value;
+  var nter = document.getElementById("n-caps").value;
+  var cter = document.getElementById("c-caps").value;
+
+  var format = document.getElementById("format").value;
 
   var nres = seq.length;
-  if ( ter.search("N") >= 0 ) {
+  if ( nter === "ACE" ) {
     seq.unshift("ACE");
   } else {
     seq.unshift("");
@@ -141,7 +233,10 @@ function mkpdb(seq)
   var dir_cac = [0, 0, 0], dir_nca = [0, 0, 0], dx = [0, 0, 0];
   var u = [0, 0, 0], v = [0, 0, 0], w = [0, 0, 0], p = [0, 0, 0], q = [0, 0, 0];
 
-  for ( var i = 0; i < n; i++ ) {
+  var imax = n;
+  if ( cter === "NMET" ) imax += 1;
+
+  for ( var i = 0; i < imax; i++ ) {
     if ( i % 2 == 0 ) {
       sgn = 1;
       c1 = c1p, s1 = s1p, c2 = c2p, s2 = s2p;
@@ -157,13 +252,15 @@ function mkpdb(seq)
 
     xca = os.slice(0); // clone: xca = os
 
-    // position of C
+    // position of C from CA
     dir_cac = [c1 * cp, c1 * sp, s1];
     vsadd(xc, xca, dir_cac, B_CAC);
 
-    // position of O
+    // position of O from C
     dx = [-sr * cp, -sr * sp, cr];
     vsadd(xo, xc, dx, B_CO * sgn);
+
+    if ( i >= n ) break;
 
     if ( i > 0 ) {
       // add CB
@@ -200,6 +297,7 @@ function mkpdb(seq)
     }
 
     xnp = xn.slice(0);
+    // position of N from C
     dx = [c2 * cp, c2 * sp, s2];
     vsadd(xn, xc, dx, B_CN_PEP);
     dir_nca = dir_cac.slice(0);
@@ -217,23 +315,33 @@ function mkpdb(seq)
       pushatom(atomls, ["N", resid, xnp] );
       pushatom(atomls, ["CA", resid, xca] );
     } else if ( resnm !== "" ) { // ACE
-      pushatom(atomls, ["CH3", resid, xca] );
+      var atnm = (format === "CHARMM") ? "CAY" : "CH3";
+      pushatom(atomls, [atnm, resid, xca] );
     }
 
     if ( i > 0 || resnm !== "" ) {
       //console.log( i, resnm, xc, xo);
-      pushatom(atomls, ["C", resid, xc.slice(0)] );
-      if ( i === n - 1 && ter.search("C") < 0 ) {
-        pushatom(atomls, ["OC1", resid, xo] );
-        vdiff(u, xc, xo);
-        vnormalize(u);
-        vdiff(v, xc, xca);
-        vnormalize(v);
-        dx = [B_CO*(u[0]+v[0]), B_CO*(u[1]+v[1]), B_CO*(u[2]+v[2])];
-        vadd(p, xc, dx);
-        pushatom(atomls, ["OC2", resid, p] );
+      var cname = "C", oname = "O";
+      if (format === "CHARMM" && i === 0) {
+        cname = "CY";
+        oname = "OY";
+      }
+      pushatom(atomls, [cname, resid, xc.slice(0)] );
+      if ( i === n - 1 ) {
+        if ( cter === "" ) {
+          pushatom(atomls, ["OC1", resid, xo] );
+          vdiff(u, xc, xo);
+          vnormalize(u);
+          vdiff(v, xc, xca);
+          vnormalize(v);
+          dx = [B_CO*(u[0]+v[0]), B_CO*(u[1]+v[1]), B_CO*(u[2]+v[2])];
+          vadd(p, xc, dx);
+          pushatom(atomls, ["OC2", resid, p] );
+        } else {
+          pushatom(atomls, [oname, resid, xo] );
+        }
       } else {
-        pushatom(atomls, ["O", resid, xo] );
+        pushatom(atomls, [oname, resid, xo] );
       }
     }
 
@@ -247,6 +355,7 @@ function mkpdb(seq)
     var rotamer = 0;
     if ( resnm === "" || resnm === "ALA" ) {
       ;
+    console.log("residue", resnm);
     var xg = [0, 0, 0];
     } else if ( resnm === "SER" ) {
       xg = gchoose(xog2, xog1, xog2, xog3, rotamer);
@@ -444,26 +553,40 @@ function mkpdb(seq)
     resid += 1;
   }
 
-  if ( ter.search("C") >= 0 ) {
-    pushatom(atomls, ["N", resid, xn] );
-    seq += [ "NH2" ];
+  if ( format === "CHARMM" ) { // CHARMM
+    if ( cter === "NH2" || cter === "NMET" ) {
+      if ( cter === "NH2" ) {
+        pushatom(atomls, ["NT", resid, xn] );
+      } else {
+        pushatom(atomls, ["NT", resid, xn] );
+        pushatom(atomls, ["CAT", resid, xca] );
+      }
+      seq.push( resnm );
+      resid += 1;
+    }
+  } else { // AMBER
+    pushatom(atomls, ["NT", resid, xn] );
+    seq.push( "NH2" );
     resid += 1;
   }
 
   // shift the coordinates to make them nonnegative
-  // TODO:
+  shiftcenter(atomls);
 
   // write PDB
   var src = "";
   resid = 0;
   var offset = 0;
-  if ( ter.search("N") >= 0 ) offset = 1;
+  if ( nter !== "" ) offset = 1;
   var nn = atomls.length;
   var xyz = [];
   for ( var k = 0; k < nn; k++ ) {
     var trio = atomls[k];
     resid = trio[1];
     resnm = seq[resid];
+    if ( resid === 0 && nter !== "" && format === "CHARMM" ) {
+      resnm = seq[1];
+    }
     resid += offset;
     src += mkatom(k + 1, trio[0], resnm, resid, trio[2]);
     xyz.push( trio[2] );
@@ -491,8 +614,9 @@ function mkspx(refresh)
     }
     length_g = 0.5 * Math.max(xmax[0]-xmin[0], xmax[1]-xmin[1], xmax[2]-xmin[2]);
   }
+  mousescale = parseFloat( document.getElementById("scaleinput").value );
   var ballscale = parseFloat( document.getElementById("ballScaleInput").value );
-  console.log(viewmat[0], viewmat[1], viewmat[2], "mouse", mousescale, "ball", ballscale, "length", length_g);
+  console.log(mprint(viewmat), "scale", mousescale, "ball scale", ballscale, "length", length_g);
   pdbdraw(seq_g, xyz_g, atomls_g, length_g,
       "animationbox", mousescale, ballscale, false, false);
 }
@@ -502,7 +626,6 @@ function paint()
   mkspx(false);
 }
 
-
 function mapchange(a, b)
 {
   document.getElementById(b).value = document.getElementById(a).value;
@@ -511,6 +634,7 @@ function mapchange(a, b)
 
 function init()
 {
-  viewmat = [[1, 0, 0], [0, 0, 1], [0, -1, 0] ];
-  installmouse("animationbox");
+  //viewmat = [ [1, 0, 0], [0, 1, 0], [0, 0, 1] ];
+  viewmat = [ [0, 1, 0], [0, 0, 1], [1, 0, 0] ];
+  installmouse("animationbox", "scaleinput");
 }

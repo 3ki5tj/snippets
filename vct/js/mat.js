@@ -5,6 +5,19 @@
 
 
 
+/* print a matrix */
+function mprint(a)
+{
+  var s = "";
+  for ( var i = 0; i < D; i++ ) {
+    s += ( i === 0 ? "[" : "," );
+    for ( var j = 0; j < D; j++ )
+      s += (j === 0 ? "[" : ",") + a[i][j];
+    s += "]";
+  }
+  return s + "]";
+}
+
 /* return a unit matrix */
 function munit(a)
 {

@@ -78,7 +78,7 @@ function wheel3d(e)
   }
 
   if ( mousescaler ) {
-    grab( mousescaler ).value = mousescale;
+    document.getElementById( mousescaler ).value = mousescale;
   }
   //console.log("wheel", delta);
   if ( e.preventDefault ) {
@@ -107,7 +107,7 @@ function installwheel(target, handler)
 
 function installmouse( box, scaler )
 {
-  var target = grab( box );
+  var target = document.getElementById( box );
   mousescaler = scaler;
   target.onmousedown = mousedown3d;
   target.onmouseup = mouseup3d;
