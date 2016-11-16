@@ -5,19 +5,6 @@
 
 
 
-/* print a matrix */
-function mprint(a)
-{
-  var s = "";
-  for ( var i = 0; i < D; i++ ) {
-    s += ( i === 0 ? "[" : "," );
-    for ( var j = 0; j < D; j++ )
-      s += (j === 0 ? "[" : ",") + a[i][j];
-    s += "]";
-  }
-  return s + "]";
-}
-
 /* return a unit matrix */
 function munit(a)
 {
@@ -133,7 +120,7 @@ function mxrot3d(m, theta)
   theta *= Math.PI / 180;
   var c = Math.cos(theta);
   var s = Math.sin(theta);
-  var m2 = newarr2d(3, 3);
+  var m2 = [new Array(3), new Array(3), new Array(3)];
   var d;
   for ( d = 0; d < 3; d++ ) {
     m2[0][d] = m[0][d];
@@ -150,7 +137,7 @@ function myrot3d(m, theta)
   theta *= Math.PI / 180;
   var c = Math.cos(theta);
   var s = Math.sin(theta);
-  var m2 = newarr2d(3, 3);
+  var m2 = [new Array(3), new Array(3), new Array(3)];
   var d;
   for ( d = 0; d < 3; d++ ) {
     m2[1][d] = m[1][d];
@@ -167,7 +154,7 @@ function mzrot3d(m, theta)
   theta *= Math.PI / 180;
   var c = Math.cos(theta);
   var s = Math.sin(theta);
-  var m2 = newarr2d(3, 3);
+  var m2 = [new Array(3), new Array(3), new Array(3)];
   var d;
   for ( d = 0; d < 3; d++ ) {
     m2[2][d] = m[2][d];
@@ -335,10 +322,11 @@ function mpivotf_(m, r0, cmap, sgn)
 /* return the determinant */
 function mdet(m)
 {
-  var y, det = 1.0, a = newarr2d(D, D);
+  var y, det = 1.0, a = new Array(D);
   var i, j, k, sgn = 1;
 
-  mcopy(a, m);
+  for ( i = 0; i < D; i++ )
+    a[i] = m[i].slice(0);
   for ( i = 0; i < D; i++ ) {
     // find the pivot, the largest element in the matrix
     sgn = mpivotf_(a, i, null, sgn);
@@ -375,7 +363,7 @@ var msolvezero_reltol = 1e-12;
 function msolvezero(a, x, reltol)
 {
   var tol = 0, y;
-  var i, j, k, cmap = newarr(D), sgn = 1;
+  var i, j, k, cmap = new Array(D), sgn = 1;
 
   if ( !reltol ) {
     reltol = msolvezero_reltol;
@@ -414,7 +402,7 @@ function msolvezero(a, x, reltol)
 
   // solve the D - i solutions
   for ( j = 0; j < D - i; j++ ) {
-    var v = newarr(D);
+    var v = new Array(D);
     vzero( v );
     for ( k = 0; k < i; k++ ) {
       v[ cmap[k] ] = -a[k][i + j];
@@ -431,10 +419,10 @@ function msolvezero(a, x, reltol)
 
 function meigvecs_low(vecs, mat, val, reltol)
 {
-  var m = newarr2d(D, D);
+  var m = new Array(D);
 
-  mcopy(m, mat); // make a matrix
   for ( var d = 0; d < D; d++ ) {
+    m[d] = mat[d].slice(0);
     m[d][d] -= val;
   }
   return msolvezero(m, vecs, reltol);

@@ -1,9 +1,5 @@
 TODO:
-* better terminal
-* CHARMM/AMBER output
-* print dimension and center
 * draw x,y,z axes
-* input box dimension
 * simplify the unnecessary Javascripts
 
 package require psfgen

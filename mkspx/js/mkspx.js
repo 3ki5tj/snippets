@@ -2,7 +2,6 @@
 
 var seq_g = [];
 var atomls_g = [];
-var xyz_g = [];
 var length_g = 30;
 
 // grab sequence
@@ -115,10 +114,14 @@ function gchoose(gd, g1, g2, g3, rotamer)
 // shift the center of structure
 function shiftcenter(atomls)
 {
-  var n = atomls.length, xmin, xmax;
+  var n = atomls.length, xmin, xmax, x0, x1;
 
   for ( var i = 0; i < n; i++ ) {
     var x = atomls[i][2];
+    if ( atomls[i][0] === "CA" ) {
+      if ( x0 === undefined ) x0 = x.slice(0);
+      x1 = x.slice(0);
+    }
     if ( i == 0 ) {
       xmin = x.slice(0);
       xmax = x.slice(0);
@@ -134,10 +137,19 @@ function shiftcenter(atomls)
     xc[d] = (xmin[d] + xmax[d]) / 2;
     sz[d] = xmax[d] - xmin[d];
   }
-  document.getElementById("info").innerHTML = "Dimension: "
+  // shift the center
+  for ( var i = 0; i < n; i++ )
+    vdec(atomls[i][2], xc);
+
+  document.getElementById("info").innerHTML =
+    "Dimension: "
     + "<i>x</i>: " + sz[0].toFixed(2) + "&#8491;, "
     + "<i>y</i>: " + sz[1].toFixed(2) + "&#8491;, "
-    + "<i>z</i>: " + sz[2].toFixed(2) + "&#8491;.";
+    + "<i>z</i>: " + sz[2].toFixed(2) + "&#8491;. "
+    + "End-to-end distance: "
+    + vdist(x0, x1).toFixed(2) + "&#8491;.";
+
+  return sz;
 }
 
 function mkpdb(seq)
@@ -355,7 +367,6 @@ function mkpdb(seq)
     var rotamer = 0;
     if ( resnm === "" || resnm === "ALA" ) {
       ;
-    console.log("residue", resnm);
     var xg = [0, 0, 0];
     } else if ( resnm === "SER" ) {
       xg = gchoose(xog2, xog1, xog2, xog3, rotamer);
@@ -571,15 +582,16 @@ function mkpdb(seq)
   }
 
   // shift the coordinates to make them nonnegative
-  shiftcenter(atomls);
+  var sz = shiftcenter(atomls);
 
   // write PDB
+  var boxsize = parseFloat( document.getElementById("boxsize").value );
   var src = "";
   resid = 0;
   var offset = 0;
   if ( nter !== "" ) offset = 1;
   var nn = atomls.length;
-  var xyz = [];
+  var xyz = [], x = [];
   for ( var k = 0; k < nn; k++ ) {
     var trio = atomls[k];
     resid = trio[1];
@@ -588,36 +600,32 @@ function mkpdb(seq)
       resnm = seq[1];
     }
     resid += offset;
-    src += mkatom(k + 1, trio[0], resnm, resid, trio[2]);
-    xyz.push( trio[2] );
+    var x0 = trio[2];
+    for ( var d = 0; d < 3; d++ )
+      x[d] = x0[d] + boxsize * 0.5;
+    src += mkatom(k + 1, trio[0], resnm, resid, x);
+    xyz.push( x0 );
   }
   src += mkter(k + 1, resnm, resid + offset);
-  return [src, atomls, xyz];
+  return [src, atomls, sz];
 }
 
 function mkspx(refresh)
 {
-  if ( refresh || xyz_g.length === 0 ) {
+  if ( refresh || atomls_g.length === 0 ) {
     seq_g = readseq( document.getElementById("aainput").value );
     var ret = mkpdb(seq_g);
     var src = ret[0];
     atomls_g = ret[1];
-    xyz_g = ret[2];
     document.getElementById("pdboutput").value = src;
-    //var xmin = xyz_g[0], xmax = xyz_g[0];
-    var xmin=[0,0,0],xmax=[0,0,0];
-    for ( var i = 0; i < xyz_g.length; i++ ) {
-      for ( var j = 0; j < 3; j++ ) {
-        if ( xyz_g[i][j] < xmin[j] ) xmin[j] = xyz_g[i][j];
-        if ( xyz_g[i][j] > xmax[j] ) xmax[j] = xyz_g[i][j];
-      }
-    }
-    length_g = 0.5 * Math.max(xmax[0]-xmin[0], xmax[1]-xmin[1], xmax[2]-xmin[2]);
+    var sz = ret[2];
+    length_g = 0.5 * Math.max(sz[0], sz[1], sz[2]);
   }
   mousescale = parseFloat( document.getElementById("scaleinput").value );
   var ballscale = parseFloat( document.getElementById("ballScaleInput").value );
-  console.log(mprint(viewmat), "scale", mousescale, "ball scale", ballscale, "length", length_g);
-  pdbdraw(seq_g, xyz_g, atomls_g, length_g,
+  console.log(m2str(viewmat), "scale", mousescale, "ball scale", ballscale, "length", length_g);
+  var boxsize = parseFloat( document.getElementById("boxsize").value );
+  pdbdraw(seq_g, atomls_g, length_g, boxsize,
       "animationbox", mousescale, ballscale, false, false);
 }
 
@@ -635,6 +643,9 @@ function mapchange(a, b)
 function init()
 {
   //viewmat = [ [1, 0, 0], [0, 1, 0], [0, 0, 1] ];
-  viewmat = [ [0, 1, 0], [0, 0, 1], [1, 0, 0] ];
+  //viewmat = [ [0, 1, 0], [0, 0, 1], [1, 0, 0] ];
+  viewmat = [[-0.6211501273837585,0.7805304954451938,-0.07031831149299674],
+             [-0.4395286768639746,-0.2726761673313212,0.8558400843520434],
+             [ 0.6488351573900389,0.5625120918252239,0.512438371987373]];
   installmouse("animationbox", "scaleinput");
 }

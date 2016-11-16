@@ -310,7 +310,7 @@ function vdistx(dx, a, b)
 /* return the distance */
 function vdist(a, b)
 {
-  var dx = newarr(D);
+  var dx = new Array(D);
   return vnorm( vdiff(dx, a, b) );
 }
 

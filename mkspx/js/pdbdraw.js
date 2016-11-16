@@ -5,28 +5,15 @@
 
 
 
+// NOTE: assuming the coordinates have been centered
 function transform3d(x)
 {
-  var i, d, n = x.length, l = 0;
-  var xyz = newarr2d(n, 3), xc = [0, 0, 0], xi = [0, 0, 0];
-
-  // compute the center of mass
-  for ( i = 0; i < n; i++ ) {
-    vinc(xc, x[i]);
-  }
-  vsmul(xc, 1.0/n);
+  var i, n = x.length, xyz = [];
 
   // rotate the coordinates of each particle
-  for ( i = 0; i < n; i++ ) {
-    vdiff(xi, x[i], xc);
-    vmxv(xyz[i], viewmat, xi);
-    //console.log(x[i], xi, xc, xyz[i]);
-    //vinc(xyz[i], xc);
-    for ( d = 0; d < D; d++ ) {
-      l = Math.max( Math.abs( xi[d] ), l );
-    }
-  }
-  return [xyz, xc, l];
+  for ( i = 0; i < n; i++ )
+    xyz.push( [vdot(viewmat[0], x[i]), vdot(viewmat[1], x[i]), vdot(viewmat[2], x[i])] );
+  return xyz;
 }
 
 
@@ -34,11 +21,12 @@ function transform3d(x)
 function sortbyz(x)
 {
   var i, j, k, l, n = x.length;
-  var xyz = newarr2d(n, 3), rt = new Array(D);
+  var xyz = new Array(n), rt = new Array(D);
   var idmap = new Array(n);
   var invmap = new Array(n);
 
   for ( i = 0; i < n; i++ ) {
+    xyz[i] = new Array(3);
     idmap[i] = i;
     // i:         index of the output array `xyz`
     // idmap[i]:  index of the input array `x`
@@ -117,7 +105,7 @@ var atom_dict = {
 };
 
 // draw all atoms in the box
-function pdbdraw(seq, x, atomls, l,
+function pdbdraw(seq, atomls, l, boxsize,
     target, userscale, ballscale,
     overwrite, grey)
 {
@@ -125,7 +113,7 @@ function pdbdraw(seq, x, atomls, l,
   var ctx = c.getContext("2d");
   var width = c.width;
   var height = c.height;
-  var n = x.length;
+  var n = atomls.length;
   var i, j, jb, k, ir, ic, ret;
 
   if ( !ballscale ) {
@@ -138,8 +126,9 @@ function pdbdraw(seq, x, atomls, l,
     ctx.fillRect(0, 0, width, height);
   }
 
-  ret = transform3d(x); // apply the rotation matrix
-  var xt = ret[0];
+  var x = [];
+  for ( i = 0; i < n; i++ ) x.push( atomls[i][2] );
+  var xt = transform3d(x); // apply the rotation matrix
   ret = sortbyz(xt); // sort particles by the z order
   var xyz = ret[0];
   var idmap = ret[1], invmap = ret[2];
@@ -147,12 +136,50 @@ function pdbdraw(seq, x, atomls, l,
   // xyz[ invmap[i] ] --> xt[ i ]
 
   var ortho = document.getElementById("orthographic").checked;
-  var scale = userscale * Math.min(width, height) / (l * 2.5);
-
-  // draw each particle
+  var scale = userscale * Math.min(width, height) / (l * 3.0);
   var zmax = xyz[n - 1][2], zmin = xyz[0][2];
 
+  // draw the box
+  if ( boxsize > 0 ) {
+    var bh = 0.5 * boxsize;
+    var box = transform3d([
+        [-bh, -bh, -bh], [-bh, -bh, bh], [-bh,  bh, -bh], [-bh,  bh, bh],
+        [ bh, -bh, -bh], [ bh, -bh, bh], [ bh,  bh, -bh], [ bh,  bh, bh] ]);
+    ctx.strokeStyle = "#cccccc";
+    ctx.lineWidth = "1px";
+    for ( i = 0; i < 8; i++ ) {
+      for ( j = i + 1; j < 8; j++ ) {
+        if ( vdist(box[i], box[j]) > bh*2.1 ) continue;
+        var scli = scale * getzscale(box[i], zmin, zmax, ortho);
+        var xi = Math.floor(  box[i][0] * scli + width  * 0.5 );
+        var yi = Math.floor( -box[i][1] * scli + height * 0.5 );
+        var sclj = scale * getzscale(box[j], zmin, zmax, ortho);
+        var xj = Math.floor(  box[j][0] * sclj + width  * 0.5 );
+        var yj = Math.floor( -box[j][1] * sclj + height * 0.5 );
+        drawLine(ctx, xi, yi, xj, yj);
+      }
+    }
+  }
+
+  // draw the legend
+  var xo = [80, 80, 0], len = 60;
+  var dx = [0, 0, 0], dy = [0, 0, 0], dz = [0, 0, 0];
+  var xx = [0, 0, 0], xy = [0, 0, 0], xz = [0, 0, 0];
+  var tx = [0, 0, 0], ty = [0, 0, 0], tz = [0, 0, 0];
+  var colorx = "#cc2000", colory = "#20cc00", colorz = "#0020cc";
+  vmxv(dx, viewmat, [1, 0, 0]);
+  vmxv(dy, viewmat, [0, 1, 0]);
+  vmxv(dz, viewmat, [0, 0, 1]);
+  vsadd(xx, xo, dx, len);
+  vsadd(xy, xo, dy, len);
+  vsadd(xz, xo, dz, len);
+  drawLine(ctx, xo[0], height - xo[1], xx[0], height - xx[1], colorx, "2px");
+  drawLine(ctx, xo[0], height - xo[1], xy[0], height - xy[1], colory, "2px");
+  drawLine(ctx, xo[0], height - xo[1], xz[0], height - xz[1], colorz, "2px");
+
+  // draw each particle
   for (i = 0; i < n; i++) {
+
     var z = xyz[i][2];
     var zf = (z - zmin) / (zmax - zmin);
     var i0 = idmap[ i ];
@@ -208,5 +235,16 @@ function pdbdraw(seq, x, atomls, l,
       }
     }
   }
+  var lent = len + 20;
+  vsadd(tx, xo, dx, lent);
+  vsadd(ty, xo, dy, lent);
+  vsadd(tz, xo, dz, lent);
+  ctx.font = "italic 20px Times New Roman";
+  ctx.fillStyle = colorx;
+  ctx.fillText("x", tx[0], height - tx[1]);
+  ctx.fillStyle = colory;
+  ctx.fillText("y", ty[0], height - ty[1]);
+  ctx.fillStyle = colorz;
+  ctx.fillText("z", tz[0], height - tz[1]);
 }
 
