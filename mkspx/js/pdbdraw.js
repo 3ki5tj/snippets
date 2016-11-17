@@ -81,7 +81,7 @@ function getzscale(r, zmin, zmax, ortho)
     return 0.9;
   } else {
     var zf = (r[2] - zmin) / (zmax - zmin);
-    return 0.7 + 0.3 * zf;
+    return 0.8 + 0.2 * zf;
   }
 }
 

@@ -156,7 +156,6 @@ function mkpdb(seq)
 {
   var nter = document.getElementById("n-caps").value;
   var cter = document.getElementById("c-caps").value;
-
   var format = document.getElementById("format").value;
 
   var nres = seq.length;
@@ -246,6 +245,7 @@ function mkpdb(seq)
   var u = [0, 0, 0], v = [0, 0, 0], w = [0, 0, 0], p = [0, 0, 0], q = [0, 0, 0];
 
   var imax = n;
+  // we need the coordinates of the next CA if the C-terminal is NMET
   if ( cter === "NMET" ) imax += 1;
 
   for ( var i = 0; i < imax; i++ ) {
@@ -341,14 +341,19 @@ function mkpdb(seq)
       pushatom(atomls, [cname, resid, xc.slice(0)] );
       if ( i === n - 1 ) {
         if ( cter === "" ) {
-          pushatom(atomls, ["OC1", resid, xo] );
+          var oc1 = "OC1", oc2 = "OC2";
+          if ( format === "CHARMM" ) {
+            oc1 = "OT1";
+            oc2 = "OT2";
+          }
+          pushatom(atomls, [oc1, resid, xo] );
           vdiff(u, xc, xo);
           vnormalize(u);
           vdiff(v, xc, xca);
           vnormalize(v);
           dx = [B_CO*(u[0]+v[0]), B_CO*(u[1]+v[1]), B_CO*(u[2]+v[2])];
           vadd(p, xc, dx);
-          pushatom(atomls, ["OC2", resid, p] );
+          pushatom(atomls, [oc2, resid, p] );
         } else {
           pushatom(atomls, [oname, resid, xo] );
         }
@@ -357,8 +362,13 @@ function mkpdb(seq)
       }
     }
 
-    if ( resnm === "" || resnm === "GLY" || resnm === "ACE" ) {
+    if ( resnm === "" || resnm === "GLY" ) {
       resid += 1;
+      continue;
+    } else if ( resnm === "ACE" ) {
+      if ( format !== "CHARMM" ) {
+        resid += 1;
+      }
       continue;
     }
 
@@ -566,6 +576,7 @@ function mkpdb(seq)
 
   if ( format === "CHARMM" ) { // CHARMM
     if ( cter === "NH2" || cter === "NMET" ) {
+      resid -= 1;
       if ( cter === "NH2" ) {
         pushatom(atomls, ["NT", resid, xn] );
       } else {
@@ -576,9 +587,17 @@ function mkpdb(seq)
       resid += 1;
     }
   } else { // AMBER
-    pushatom(atomls, ["NT", resid, xn] );
-    seq.push( "NH2" );
-    resid += 1;
+    if ( cter === "NH2" || cter === "NMET" ) {
+      if ( cter === "NH2" ) {
+        pushatom(atomls, ["NT", resid, xn] );
+        seq.push( "NH2" );
+      } else { // NMET
+        pushatom(atomls, ["NT", resid, xn] );
+        pushatom(atomls, ["CAT", resid, xca] );
+        seq.push( "NME" );
+      }
+      resid += 1;
+    }
   }
 
   // shift the coordinates to make them nonnegative
@@ -607,7 +626,32 @@ function mkpdb(seq)
     xyz.push( x0 );
   }
   src += mkter(k + 1, resnm, resid + offset);
-  return [src, atomls, sz];
+
+  // write script
+  var script = "";
+  var outname = document.getElementById("outname").value;
+  if ( format === "CHARMM" ) {
+    script += "package require psfgen\n" +
+              "topology top_all27_prot_lipid.inp\n" +
+              "pdbalias residue HIS HSE\n" +
+              "pdbalias atom ILE CD1 CD\n";
+    script += "segment U {pdb out0.pdb"
+    if ( nter === "ACE" ) {
+      script += "\nfirst ACE";
+    }
+    if ( cter === "NH2" ) {
+      script += "\nlast CT2";
+    } else if ( cter === "NMET" ) {
+      script += "\nlast CT3";
+    }
+    script += "}\n";
+    script += "coordpdb out0.pdb U\n" +
+              "guesscoord\n" +
+              "writepdb " + outname + ".pdb\n" +
+              "writepsf " + outname + ".psf\n";
+  }
+
+  return [src, atomls, sz, script];
 }
 
 function mkspx(refresh)
@@ -618,6 +662,7 @@ function mkspx(refresh)
     var src = ret[0];
     atomls_g = ret[1];
     document.getElementById("pdboutput").value = src;
+    document.getElementById("scriptoutput").value = ret[3];
     var sz = ret[2];
     length_g = 0.5 * Math.max(sz[0], sz[1], sz[2]);
   }

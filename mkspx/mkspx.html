@@ -4,10 +4,6 @@
   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
   <title> Generate a PDB structure from an amino acid sequence </title>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
-<!--
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
--->
   <script src="js/vct.js"></script>
   <script src="js/mat.js"></script>
   <script src="js/mkspx.js"></script>
@@ -82,11 +78,11 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
       onchange="mapchange('boxsize', 'boxsize_slider')">
   </div>
 
-  <div class="col-xs-3">
+  <div class="col-xs-4">
     <label for="format">Output format</label>
     <select id="format" class="form-control" onchange="mkspx(true)">
-      <option value="CHARMM">CHARMM</option>
-      <option value="AMBER">AMBER</option>
+      <option value="CHARMM">CHARMM for psfgen of VMD</option>
+      <option value="AMBER">AMBER for gmx2pdb of GROMACS</option>
     </select>
   </div>
 
@@ -107,7 +103,7 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
     </select>
   </div>
 
-  <div class="col-xs-3">
+  <div class="col-xs-2">
     <input type="button" value="Generate"
       style="margin-top: 15px; font-size: 130%; font-weight: bold"
       class="btn btn-primary" onclick="mkspx(true);">
@@ -154,11 +150,23 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
 
 <div>
   <div class="col-xs-12">
-    <label for="pdboutput">Output PDB:</label>
-    <textarea id="pdboutput" rows="10" cols="80" class="form-control">
-    </textarea>
+    <label for="pdboutput">Output PDB (save to out0.pdb):</label>
+    <textarea id="pdboutput" rows="10" cols="80" class="form-control"></textarea>
+  </div>
+
+    <div class="col-xs-3">
+      <label for="outname">Output file name:</label>
+      <input type="text" size="3" value="out" id="outname"
+        class="form-control" onchange="mkspx(true)">
+    </div>
+
+  <div class="col-xs-12">
+    <label for="scriptoutput">Processing script:</label>
+    <textarea id="scriptoutput" rows="10" cols="80" class="form-control"></textarea>
   </div>
 </div>
+
+<div>&nbsp;</div>
 
 </body>
 </html>
