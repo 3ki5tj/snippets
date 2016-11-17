@@ -82,6 +82,7 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
     <label for="format">Output format</label>
     <select id="format" class="form-control" onchange="mkspx(true)">
       <option value="CHARMM">CHARMM for psfgen of VMD</option>
+      <option value="CHARMM-GMX">CHARMM for gmx2pdb of GROMACS</option>
       <option value="AMBER">AMBER for gmx2pdb of GROMACS</option>
     </select>
   </div>
@@ -149,8 +150,8 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
 </div>
 
 <div>
-  <div class="col-xs-12">
-    <label for="pdboutput">Output PDB (save to out0.pdb):</label>
+  <div class="col-xs-12" style="margin: 10px 0px">
+    <label for="pdboutput">Output PDB (to be saved as <tt>out0.pdb</tt>):</label>
     <textarea id="pdboutput" rows="10" cols="80" class="form-control"></textarea>
   </div>
 
@@ -160,13 +161,25 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
         class="form-control" onchange="mkspx(true)">
     </div>
 
-  <div class="col-xs-12">
+  <div class="col-xs-3" id="amberver_wrapper" style="visibility: hidden">
+    <label for="amberver">AMBER version:</label>
+    <select id="amberver" class="form-control"
+      onchange="mkspx(true)">
+      <option value="amberGS">AMBERGS</option>
+      <option value="amber94">AMBER94</option>
+      <option value="amber96">AMBER96</option>
+      <option value="amber99">AMBER99</option>
+      <option value="amber99sb">AMBER99SB</option>
+      <option value="amber03" selected>AMBER03</option>
+      <option value="amber99sb-ildn">AMBER99SB-ILDN</option>
+    </select>
+  </div>
+
+  <div class="col-xs-12" style="margin: 10px 0px">
     <label for="scriptoutput">Processing script:</label>
     <textarea id="scriptoutput" rows="10" cols="80" class="form-control"></textarea>
   </div>
 </div>
-
-<div>&nbsp;</div>
 
 </body>
 </html>

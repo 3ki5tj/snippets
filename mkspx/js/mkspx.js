@@ -586,14 +586,27 @@ function mkpdb(seq)
       seq.push( resnm );
       resid += 1;
     }
+  } else if ( format === "CHARMM-GMX" ) { // CHARMM-GMX
+    if ( cter === "NH2" || cter === "NMET" ) {
+      if ( cter === "NH2" ) {
+        // don't do anything, force field does not have CT2
+        //pushatom(atomls, ["N", resid, xn] );
+        //seq.push( "CT2" );
+      } else { // NMET
+        pushatom(atomls, ["N", resid, xn] );
+        pushatom(atomls, ["CH3", resid, xca] );
+        seq.push( "CT3" );
+        resid += 1;
+      }
+    }
   } else { // AMBER
     if ( cter === "NH2" || cter === "NMET" ) {
       if ( cter === "NH2" ) {
-        pushatom(atomls, ["NT", resid, xn] );
+        pushatom(atomls, ["N", resid, xn] );
         seq.push( "NH2" );
       } else { // NMET
-        pushatom(atomls, ["NT", resid, xn] );
-        pushatom(atomls, ["CAT", resid, xca] );
+        pushatom(atomls, ["N", resid, xn] );
+        pushatom(atomls, ["CH3", resid, xca] );
         seq.push( "NME" );
       }
       resid += 1;
@@ -629,13 +642,14 @@ function mkpdb(seq)
 
   // write script
   var script = "";
+  var out0name = "out0.pdb";
   var outname = document.getElementById("outname").value;
   if ( format === "CHARMM" ) {
     script += "package require psfgen\n" +
               "topology top_all27_prot_lipid.inp\n" +
               "pdbalias residue HIS HSE\n" +
               "pdbalias atom ILE CD1 CD\n";
-    script += "segment U {pdb out0.pdb"
+    script += "segment U {pdb " + out0name;
     if ( nter === "ACE" ) {
       script += "\nfirst ACE";
     }
@@ -645,10 +659,22 @@ function mkpdb(seq)
       script += "\nlast CT3";
     }
     script += "}\n";
-    script += "coordpdb out0.pdb U\n" +
+    script += "coordpdb " + out0name + " U\n" +
               "guesscoord\n" +
               "writepdb " + outname + ".pdb\n" +
               "writepsf " + outname + ".psf\n";
+  } else if ( format === "CHARMM-GMX" ) {
+    script += "gmx pdb2gmx -f " + out0name + " -o "
+            + outname + ".gro -ff charmm27 -water tip3p -ter\n";
+    if ( cter === "" || cter === "NMET" ) {
+      script += "# select None for both terminals\n";
+    } else if ( cter === "NH2" ) {
+      script += "# select None for N-terminal, CT2 for C-terminal\n";
+    }
+  } else if ( format === "AMBER" ) {
+    var amberver = document.getElementById("amberver").value;
+    script += "gmx pdb2gmx -f " + out0name + " -o "
+            + outname + ".gro -ff " + amberver + " -water tip3p\n";
   }
 
   return [src, atomls, sz, script];
@@ -656,6 +682,11 @@ function mkpdb(seq)
 
 function mkspx(refresh)
 {
+  var format = document.getElementById("format").value;
+  //document.getElementById("amberver").disabled = ( format !== "AMBER" );
+  document.getElementById("amberver_wrapper").style.visibility
+    = ( format === "AMBER" ) ? "visible" : "hidden";
+
   if ( refresh || atomls_g.length === 0 ) {
     seq_g = readseq( document.getElementById("aainput").value );
     var ret = mkpdb(seq_g);
