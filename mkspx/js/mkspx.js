@@ -118,7 +118,7 @@ function shiftcenter(atomls)
 
   for ( var i = 0; i < n; i++ ) {
     var x = atomls[i][2];
-    if ( atomls[i][0] === "CA" ) {
+    if ( ["CA", "CH3", "CAY", "CAT"].indexOf(atomls[i][0]) >= 0 ) {
       if ( x0 === undefined ) x0 = x.slice(0);
       x1 = x.slice(0);
     }
@@ -641,7 +641,7 @@ function mkpdb(seq)
   src += mkter(k + 1, resnm, resid + offset);
 
   // write script
-  var script = "";
+  var script = "", runsrc = "";
   var out0name = "out0.pdb";
   var outname = document.getElementById("outname").value;
   if ( format === "CHARMM" ) {
@@ -663,6 +663,69 @@ function mkpdb(seq)
               "guesscoord\n" +
               "writepdb " + outname + ".pdb\n" +
               "writepsf " + outname + ".psf\n";
+
+    var out1 = outname, cellsrc = "";
+
+    // commands for solvation
+    if ( boxsize > 0 ) {
+      var out1 = outname + "_wb";
+      var boxs = boxsize.toFixed(1);
+      var boxh = (boxsize*0.5).toFixed(1);
+      script += "\n# adding water into the box\n"
+      script += "package require solvate\n";
+      script += "solvate " + outname + ".psf " + outname + ".pdb" +
+       " -minmax {{0 0 0} {" + boxs + " " + boxs + " " + boxs +
+       "}} -o " + out1 + "\n";
+
+      cellsrc +=
+       "cellBasisVector1    " + boxs + "   0.0   0.0\n" +
+       "cellBasisVector2     0.0  " + boxs + "   0.0\n" +
+       "cellBasisVector3     0.0   0.0  " + boxs + "\n" +
+       "cellOrigin          " + boxh + "  " + boxh + "  " + boxh + "\n";
+      cellsrc +=
+       "PME                 yes\n" +
+       "PMEGridSpacing      1.0\n";
+    }
+    // generic NAMD running script
+    var out2 = outname + "_init";
+    var nstemin = document.getElementById("nstemin").value;
+    var nstequil = document.getElementById("nstequil").value;
+    runsrc = "" +
+     "set inname          " + out1 + "\n" +
+     "set outname         " + out2 + "\n" +
+     "set temp            300\n" +
+     "structure           " + out1 + ".psf\n" +
+     "coordinates         $inname.pdb\n" +
+     "paraTypeCharmm      on\n" +
+     "parameters          par_all27_prot_lipid.inp\n" +
+     "temperature         $temp\n" +
+     "exclude             scaled1-4\n" +
+     "1-4scaling          1.0\n" +
+     "cutoff              12.0\n" +
+     "switching           on\n" +
+     "switchdist          10.0\n" +
+     "pairlistdist        14.0\n" +
+     "timestep            2.0\n" +
+     "rigidBonds          all\n" +
+     "nonbondedFreq       1\n" +
+     "fullElectFrequency  1\n" +
+     "stepspercycle       4\n" + cellsrc +
+     "wrapAll             on\n" +
+     "langevin            on\n" +
+     "langevinDamping     1.0\n" +
+     "langevinHydrogen    off\n" +
+     "langevinTemp        $temp\n" +
+     "outputname          $outname\n" +
+     "binaryoutput        no\n" +
+     "binaryrestart       no\n" +
+     "DCDfreq             1000000\n" +
+     "restartfreq         1000000\n" +
+     "xstfreq             1000000\n" +
+     "outputEnergies      1000000\n" +
+     "outputPressure      1000000\n" +
+     "outputTiming        1000000\n" +
+     "minimize            " + nstemin + "\n" +
+     "run                 " + nstequil + "\n";
   } else if ( format === "CHARMM-GMX" ) {
     script += "gmx pdb2gmx -f " + out0name + " -o "
             + outname + ".gro -ff charmm27 -water tip3p -ter\n";
@@ -677,7 +740,7 @@ function mkpdb(seq)
             + outname + ".gro -ff " + amberver + " -water tip3p\n";
   }
 
-  return [src, atomls, sz, script];
+  return [src, atomls, sz, script, runsrc];
 }
 
 function mkspx(refresh)
@@ -694,6 +757,7 @@ function mkspx(refresh)
     atomls_g = ret[1];
     document.getElementById("pdboutput").value = src;
     document.getElementById("scriptoutput").value = ret[3];
+    document.getElementById("runoutput").value = ret[4];
     var sz = ret[2];
     length_g = 0.5 * Math.max(sz[0], sz[1], sz[2]);
   }

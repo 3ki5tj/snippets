@@ -12,7 +12,11 @@
   <script src="js/pdbdraw.js"></script>
   <style>
     textarea {
-      font-family: Courier;
+      font-size: 90%;
+      font-family: Lucida Console, FreeMono, Courier, monospace;
+      white-space: pre;
+      overflow-wrap: normal;
+      overflow-x: scroll;
     }
   </style>
 </head>
@@ -149,36 +153,58 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
 
 </div>
 
-<div>
+<div class="grid">
   <div class="col-xs-12" style="margin: 10px 0px">
     <label for="pdboutput">Output PDB (to be saved as <tt>out0.pdb</tt>):</label>
     <textarea id="pdboutput" rows="10" cols="80" class="form-control"></textarea>
   </div>
 
+  <div class="row">
     <div class="col-xs-3">
       <label for="outname">Output file name:</label>
       <input type="text" size="3" value="out" id="outname"
         class="form-control" onchange="mkspx(true)">
     </div>
 
-  <div class="col-xs-3" id="amberver_wrapper" style="visibility: hidden">
-    <label for="amberver">AMBER version:</label>
-    <select id="amberver" class="form-control"
-      onchange="mkspx(true)">
-      <option value="amberGS">AMBERGS</option>
-      <option value="amber94">AMBER94</option>
-      <option value="amber96">AMBER96</option>
-      <option value="amber99">AMBER99</option>
-      <option value="amber99sb">AMBER99SB</option>
-      <option value="amber03" selected>AMBER03</option>
-      <option value="amber99sb-ildn">AMBER99SB-ILDN</option>
-    </select>
+    <div class="col-xs-3" id="amberver_wrapper" style="visibility: hidden">
+      <label for="amberver">AMBER version:</label>
+      <select id="amberver" class="form-control"
+        onchange="mkspx(true)">
+        <option value="amberGS">AMBERGS</option>
+        <option value="amber94">AMBER94</option>
+        <option value="amber96">AMBER96</option>
+        <option value="amber99">AMBER99</option>
+        <option value="amber99sb">AMBER99SB</option>
+        <option value="amber03" selected>AMBER03</option>
+        <option value="amber99sb-ildn">AMBER99SB-ILDN</option>
+      </select>
+    </div>
+    
+    <div class="col-xs-3">
+      <label for="nstemin">Number of minimization steps:</label>
+      <input type="text" size="3" value="1000" id="nstemin"
+        class="form-control" onchange="mkspx(true)">
+    </div>
+
+    <div class="col-xs-3">
+      <label for="nstequil">Number of equilibration steps:</label>
+      <input type="text" size="3" value="5000" id="nstequil"
+        class="form-control" onchange="mkspx(true)">
+    </div>
   </div>
 
-  <div class="col-xs-12" style="margin: 10px 0px">
-    <label for="scriptoutput">Processing script:</label>
-    <textarea id="scriptoutput" rows="10" cols="80" class="form-control"></textarea>
+  <div class="row">
+    <div class="col-xs-6" style="margin: 10px 0px">
+      <label for="scriptoutput">Processing script:</label>
+      <textarea id="scriptoutput" rows="15" cols="50" class="form-control"></textarea>
+    </div>
+
+    <div class="col-xs-6" style="margin: 10px 0px">
+      <label for="runoutput">Running script:</label>
+      <textarea id="runoutput" rows="15" cols="50" class="form-control"></textarea>
+    </div>
   </div>
+
 </div>
 
 </body>

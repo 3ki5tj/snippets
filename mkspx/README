@@ -1,3 +1,5 @@
+psfgen:
+
 package require psfgen
 topology top_all27_prot_lipid.inp
 pdbalias residue HIS HSE
