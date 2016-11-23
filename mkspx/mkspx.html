@@ -73,7 +73,12 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
     </div>
 
   <div class="col-xs-3">
-    <label for="boxsize">Cubic box size:</label>
+    <label for="boxsize">Cubic box size (&#8491;):
+      <span style="background-color:#2060a0;color:white;font-size:90%;font-weight:bold;padding:0px 5px;border: 2px solid #2060a0;border-radius:10px;"
+        title="If the value is positive, an explicit-solvent simulation will be set up; otherwise, an implicit-solvent one.">
+        ?
+      </span>
+    </label>
     <input type="range" size="3" value="0.0" id="boxsize_slider"
       min="0" max="100.0" step="1.0" class="form-control"
       onchange="mapchange('boxsize_slider', 'boxsize')">
@@ -87,7 +92,7 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
     <select id="format" class="form-control" onchange="mkspx(true)">
       <option value="CHARMM">CHARMM for psfgen of VMD</option>
       <option value="CHARMM-GMX">CHARMM for gmx2pdb of GROMACS</option>
-      <option value="AMBER">AMBER for gmx2pdb of GROMACS</option>
+      <option value="AMBER-GMX">AMBER for gmx2pdb of GROMACS</option>
     </select>
   </div>
 

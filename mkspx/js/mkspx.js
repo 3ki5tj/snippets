@@ -599,7 +599,7 @@ function mkpdb(seq)
         resid += 1;
       }
     }
-  } else { // AMBER
+  } else { // AMBER-GMX
     if ( cter === "NH2" || cter === "NMET" ) {
       if ( cter === "NH2" ) {
         pushatom(atomls, ["N", resid, xn] );
@@ -644,6 +644,8 @@ function mkpdb(seq)
   var script = "", runsrc = "";
   var out0name = "out0.pdb";
   var outname = document.getElementById("outname").value;
+  var nstemin = document.getElementById("nstemin").value;
+  var nstequil = document.getElementById("nstequil").value;
   if ( format === "CHARMM" ) {
     script += "package require psfgen\n" +
               "topology top_all27_prot_lipid.inp\n" +
@@ -669,7 +671,7 @@ function mkpdb(seq)
     // commands for solvation
     if ( boxsize > 0 ) {
       var out1 = outname + "_wb";
-      var boxs = boxsize.toFixed(1);
+      var boxs = ("   " + boxsize.toFixed(1)).slice(-5);
       var boxh = (boxsize*0.5).toFixed(1);
       script += "\n# adding water into the box\n"
       script += "package require solvate\n";
@@ -678,9 +680,9 @@ function mkpdb(seq)
        "}} -o " + out1 + "\n";
 
       cellsrc +=
-       "cellBasisVector1    " + boxs + "   0.0   0.0\n" +
-       "cellBasisVector2     0.0  " + boxs + "   0.0\n" +
-       "cellBasisVector3     0.0   0.0  " + boxs + "\n" +
+       "cellBasisVector1   " + boxs + "   0.0   0.0\n" +
+       "cellBasisVector2     0.0 " + boxs + "   0.0\n" +
+       "cellBasisVector3     0.0   0.0 " + boxs + "\n" +
        "cellOrigin          " + boxh + "  " + boxh + "  " + boxh + "\n";
       cellsrc +=
        "PME                 yes\n" +
@@ -688,8 +690,6 @@ function mkpdb(seq)
     }
     // generic NAMD running script
     var out2 = outname + "_init";
-    var nstemin = document.getElementById("nstemin").value;
-    var nstequil = document.getElementById("nstequil").value;
     runsrc = "" +
      "set inname          " + out1 + "\n" +
      "set outname         " + out2 + "\n" +
@@ -709,7 +709,17 @@ function mkpdb(seq)
      "rigidBonds          all\n" +
      "nonbondedFreq       1\n" +
      "fullElectFrequency  1\n" +
-     "stepspercycle       4\n" + cellsrc +
+     "stepspercycle       4\n";
+    if ( boxsize > 0 ) {
+      runsrc += cellsrc;
+    } else {
+      runsrc += "# implicit solvent parameters\n" +
+       "GBIS                on\n" +
+       "ionConcentration    0.2\n" +
+       "SASA                on\n" +
+       "surfaceTension      0.005\n";
+    }
+    runsrc += "" +
      "wrapAll             on\n" +
      "langevin            on\n" +
      "langevinDamping     1.0\n" +
@@ -728,16 +738,105 @@ function mkpdb(seq)
      "run                 " + nstequil + "\n";
   } else if ( format === "CHARMM-GMX" ) {
     script += "gmx pdb2gmx -f " + out0name + " -o "
-            + outname + ".gro -ff charmm27 -water tip3p -ter\n";
+            + outname + ".gro -ff charmm27 -water tip3p -ignh -ter\n";
     if ( cter === "" || cter === "NMET" ) {
       script += "# select None for both terminals\n";
     } else if ( cter === "NH2" ) {
       script += "# select None for N-terminal, CT2 for C-terminal\n";
     }
-  } else if ( format === "AMBER" ) {
+  } else if ( format === "AMBER-GMX" ) {
     var amberver = document.getElementById("amberver").value;
     script += "gmx pdb2gmx -f " + out0name + " -o "
             + outname + ".gro -ff " + amberver + " -water tip3p\n";
+  }
+
+  if ( format.slice(-3) === "GMX" ) {
+    var out1 = outname;
+    if ( boxsize > 0 ) {
+      var boxgro = outname + "_box.gro";
+      out1 = outname + "_wb";
+      script += "\n# adding water to the box\n";
+      script += "gmx editconf -f " + outname + ".gro -o "
+              + boxgro + " -box " + (boxsize*0.1).toFixed(2) + "\n";
+      script += "gmx solvate -cp " + boxgro + " -cs spc216.gro -o " + out1 + " -p topol.top\n";
+    }
+    var gmxrun = "" +
+     "dt = 0.002\n" +
+     "nstxtcout = 1000000\n" +
+     "nstxout = 0\n" +
+     "nstvout = 0\n" +
+     "nstfout = 0\n" +
+     "nstcalcenergy = 10\n" +
+     "nstcomm = 10\n" +
+     "nstlog = 1000\n" +
+     "nstenergy = 1000\n" +
+     "xtc-grps = System\n" +
+     "tc-grps = System\n" +
+     "energygrps = System\n" +
+     "tau-t = 0.1\n" +
+     "ref-t = 300\n";
+    if ( boxsize > 0 ) { // explicit solvent parameters
+      gmxrun += "" +
+       "ns-type = grid\n" +
+       "nstlist = 10\n" + 
+       "cutoff-scheme = verlet\n" +
+       "rvdw = 1.2\n" +
+       "rvdw-switch = 0.9\n" +
+       "rlist = 1.2\n" +
+       "rcoulomb = 1.2\n" +
+       "vdwtype = shift\n" +
+       "coulombtype = PME\n" +
+       "fourierspacing = 0.144\n" +
+       "pme-order = 4\n" +
+       "ewald-rtol = 1e-5\n";
+    } else { // implicit solvent parameters
+      gmxrun += "" +
+       "comm-mode = angular\n" +
+       "ns-type = simple\n" +
+       "nstlist = 0\n" +
+       "pbc = no\n" +
+       "cutoff-scheme = group\n" +
+       "rlist = 0.0\n" +
+       "rvdw = 0.0\n" +
+       "rcoulomb = 0.0\n" +
+       "implicit-solvent = GBSA\n" +
+       "gb-algorithm = OBC\n" +
+       "rgbradii = 0.0\n" +
+       "nstgbradii = 1\n" +
+       "vdwtype = Cut-off\n" +
+       "coulombtype = Cut-off\n" +
+       "sa-surface-tension = 2.25936\n";
+    }
+    // for energy minimization
+    var gmxem = "" +
+     "define -DFLEX_SPC\n" +
+     "integrator = steep\n" +
+     "constraints = none\n" +
+     "emstep = 0.01\n" +
+     "emtol = 2000\n" +
+     "gen-vel = no\n" +
+     "nsteps = " + nstemin + "\n" +
+     "gen-seed = " + Math.floor(Math.random() * 1000000000 + 1)+ "\n" +
+      gmxrun;
+    // for the equilibration run
+    var gmxequil = "" +
+     "integrator = md\n" +
+     "constraints = hbonds\n" +
+     "nsteps = " + nstequil + "\n" +
+     "gen-seed = " + Math.floor(Math.random() * 1000000000 + 1) + "\n" +
+      gmxrun;
+    runsrc = "### Energy minimization (em.mdp) #########\n" + gmxem + "\n\n\n" +
+             "### Equilibration run (equil.mdp) ###########\n" + gmxequil + "\n";
+
+    // energy minimization script
+    script += "\n# Energy minimization (first prepare em.mdp from the right box)\n"
+            + "gmx grompp -f em.mdp -c " + out1 + " -o em.tpr\n"
+            + "gmx mdrun -v -deffnm em -c " + outname + "_em\n";
+
+    // equlibration script
+    script += "\n# Equilibration run (first prepare equil.mdp from the right box)\n"
+            + "gmx grompp -f equil.mdp -c " + outname + "_em -o equil.tpr\n"
+            + "gmx mdrun -v -deffnm equil -c " + outname + "_init\n";
   }
 
   return [src, atomls, sz, script, runsrc];
@@ -746,9 +845,9 @@ function mkpdb(seq)
 function mkspx(refresh)
 {
   var format = document.getElementById("format").value;
-  //document.getElementById("amberver").disabled = ( format !== "AMBER" );
+  //document.getElementById("amberver").disabled = ( format.slice(0, 5) !== "AMBER" );
   document.getElementById("amberver_wrapper").style.visibility
-    = ( format === "AMBER" ) ? "visible" : "hidden";
+    = ( format.slice(0, 5) === "AMBER" ) ? "visible" : "hidden";
 
   if ( refresh || atomls_g.length === 0 ) {
     seq_g = readseq( document.getElementById("aainput").value );
