@@ -10,6 +10,7 @@
   <script src="js/draw.js"></script>
   <script src="js/mouse3d.js"></script>
   <script src="js/pdbdraw.js"></script>
+  <script src="js/download.js"></script>
   <style>
     textarea {
       font-size: 90%;
@@ -17,6 +18,9 @@
       white-space: pre;
       overflow-wrap: normal;
       overflow-x: scroll;
+    }
+    .downloadln {
+      color: #4060a0;
     }
   </style>
 </head>
@@ -160,7 +164,18 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
 
 <div class="grid">
   <div class="col-xs-12" style="margin: 10px 0px">
-    <label for="pdboutput">Output PDB (to be saved as <tt>out0.pdb</tt>):</label>
+    <label for="pdboutput">Output PDB:
+      <span onclick="download(
+        document.getElementById('out0name').innerHTML.trim(),
+        document.getElementById('pdboutput').value)"
+        class="downloadln">
+        <span class="glyphicon glyphicon-download" aria-hidden="true"></span>
+        Download
+        <a id="out0name">
+          out_raw.pdb
+        </a>
+      </span>
+    </label>
     <textarea id="pdboutput" rows="10" cols="80" class="form-control"></textarea>
   </div>
 
@@ -184,7 +199,7 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
         <option value="amber99sb-ildn">AMBER99SB-ILDN</option>
       </select>
     </div>
-    
+
     <div class="col-xs-3">
       <label for="nstemin">Number of minimization steps:</label>
       <input type="text" size="3" value="1000" id="nstemin"
@@ -200,13 +215,46 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
 
   <div class="row">
     <div class="col-xs-6" style="margin: 10px 0px">
-      <label for="scriptoutput">Processing script:</label>
+      <label for="scriptoutput">Processing script:
+        <span onclick="download(
+          document.getElementById('scriptname').innerHTML.trim(),
+          document.getElementById('scriptoutput').value)"
+          class="downloadln">
+          <span class="glyphicon glyphicon-download" aria-hidden="true"></span>
+          Download
+          <a id="scriptname">
+            input.tcl
+          </a>
+        </span>
+      </label>
       <textarea id="scriptoutput" rows="15" cols="50" class="form-control"></textarea>
     </div>
 
     <div class="col-xs-6" style="margin: 10px 0px">
-      <label for="runoutput">Running script:</label>
-      <textarea id="runoutput" rows="15" cols="50" class="form-control"></textarea>
+      <label for="runoutput">Running script:
+        <span onclick="download(
+          document.getElementById('emscript').innerHTML.trim(),
+          document.getElementById('emoutput').value)"
+          class="downloadln">
+          <span class="glyphicon glyphicon-download" aria-hidden="true"></span>
+          Download
+          <a id="emscript">
+            em.conf
+          </a>
+        </span>
+        <span id="andpart" style="visibility:hidden">
+        and
+        <span onclick="download(
+          document.getElementById('equilscript').innerHTML.trim(),
+          document.getElementById('equiloutput').value)"
+          class="downloadln">
+          <a id="equilscript">
+            equil.conf
+        </span></a>
+        </span>
+      </label>
+      <textarea id="emoutput" rows="15" cols="50" class="form-control"></textarea>
+      <textarea id="equiloutput" rows="7" cols="50" class="form-control" style="visibility: hidden"></textarea>
     </div>
   </div>
 

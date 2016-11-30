@@ -3,6 +3,16 @@
 var seq_g = [];
 var atomls_g = [];
 var length_g = 30;
+var pdbout_g = "";
+var emout_g = "";
+var equilout_g = "";
+
+// adding the function trim to strings
+if (typeof(String.prototype.trim) === "undefined") {
+  String.prototype.trim = function() {
+    return String(this).replace(/^\s+|\s+$/g, '');
+  };
+}
 
 // grab sequence
 function readseq(s)
@@ -114,10 +124,13 @@ function gchoose(gd, g1, g2, g3, rotamer)
 // shift the center of structure
 function shiftcenter(atomls)
 {
-  var n = atomls.length, xmin, xmax, x0, x1;
+  var n = atomls.length, xmin, xmax, x0, x1, r0 = 100000, r1 = -10000;
 
   for ( var i = 0; i < n; i++ ) {
     var x = atomls[i][2];
+    var resid = atomls[i][1];
+    if ( resid < r0 ) r0 = resid;
+    if ( resid > r1 ) r1 = resid;
     if ( ["CA", "CH3", "CAY", "CAT"].indexOf(atomls[i][0]) >= 0 ) {
       if ( x0 === undefined ) x0 = x.slice(0);
       x1 = x.slice(0);
@@ -141,7 +154,9 @@ function shiftcenter(atomls)
   for ( var i = 0; i < n; i++ )
     vdec(atomls[i][2], xc);
 
-  document.getElementById("info").innerHTML =
+  document.getElementById("info").innerHTML = "Info: " +
+    (r1 - r0 + 1) + " residues; " +
+    n + " atoms. " +
     "Dimension: "
     + "<i>x</i>: " + sz[0].toFixed(2) + "&#8491;, "
     + "<i>y</i>: " + sz[1].toFixed(2) + "&#8491;, "
@@ -641,11 +656,15 @@ function mkpdb(seq)
   src += mkter(k + 1, resnm, resid + offset);
 
   // write script
-  var script = "", runsrc = "";
-  var out0name = "out0.pdb";
+  var script = "", runem = "", runequil = "", emname = "", equilname = "";
   var outname = document.getElementById("outname").value;
+  var out0name = outname + "_raw.pdb";
+  document.getElementById("out0name").innerHTML = out0name;
   var nstemin = document.getElementById("nstemin").value;
   var nstequil = document.getElementById("nstequil").value;
+  var out1 = outname, out2 = "", cellsrc = "";
+  var watermodel = (boxsize > 0) ? "tip3p" : "none";
+
   if ( format === "CHARMM" ) {
     script += "package require psfgen\n" +
               "topology top_all27_prot_lipid.inp\n" +
@@ -665,8 +684,23 @@ function mkpdb(seq)
               "guesscoord\n" +
               "writepdb " + outname + ".pdb\n" +
               "writepsf " + outname + ".psf\n";
+  } else if ( format === "CHARMM-GMX" ) {
+    script += "gmx pdb2gmx -f " + out0name + " -o "
+            + outname + ".gro -ff charmm27 -water " + watermodel + " -ignh -ter\n";
+    if ( cter === "" || cter === "NMET" ) {
+      script += "# select None for both terminals\n";
+    } else if ( cter === "NH2" ) {
+      script += "# select None for N-terminal, CT2 for C-terminal\n";
+    }
+  } else if ( format === "AMBER-GMX" ) {
+    var amberver = document.getElementById("amberver").value;
+    script += "gmx pdb2gmx -f " + out0name + " -o "
+            + outname + ".gro -ff " + amberver + " -water " + watermodel + " -ignh\n";
+  }
 
-    var out1 = outname, cellsrc = "";
+  if ( format.slice(-3) !== "GMX" ) { // NAMD running script
+    emname = "em.conf";
+    equilname = "equil.conf";
 
     // commands for solvation
     if ( boxsize > 0 ) {
@@ -688,9 +722,8 @@ function mkpdb(seq)
        "PME                 yes\n" +
        "PMEGridSpacing      1.0\n";
     }
-    // generic NAMD running script
-    var out2 = outname + "_init";
-    runsrc = "" +
+    out2 = outname + "_init";
+    runem = "" +
      "set inname          " + out1 + "\n" +
      "set outname         " + out2 + "\n" +
      "set temp            300\n" +
@@ -701,25 +734,31 @@ function mkpdb(seq)
      "temperature         $temp\n" +
      "exclude             scaled1-4\n" +
      "1-4scaling          1.0\n" +
-     "cutoff              12.0\n" +
      "switching           on\n" +
-     "switchdist          10.0\n" +
-     "pairlistdist        14.0\n" +
      "timestep            2.0\n" +
      "rigidBonds          all\n" +
      "nonbondedFreq       1\n" +
      "fullElectFrequency  1\n" +
      "stepspercycle       4\n";
     if ( boxsize > 0 ) {
-      runsrc += cellsrc;
+      runem += cellsrc;
+      runem += "" +
+       "switchdist          10.0\n" +
+       "cutoff              12.0\n" +
+       "pairlistdist        14.0\n";
     } else {
-      runsrc += "# implicit solvent parameters\n" +
+      runem += "# implicit solvent parameters\n" +
        "GBIS                on\n" +
        "ionConcentration    0.2\n" +
        "SASA                on\n" +
-       "surfaceTension      0.005\n";
+       "surfaceTension      0.005\n" +
+       "alphaCutoff         14.0\n";
+      runem += "" +
+       "switchdist          15.0\n" +
+       "cutoff              16.0\n" +
+       "pairlistdist        18.0\n";
     }
-    runsrc += "" +
+    runem += "" +
      "wrapAll             on\n" +
      "langevin            on\n" +
      "langevinDamping     1.0\n" +
@@ -736,21 +775,10 @@ function mkpdb(seq)
      "outputTiming        1000000\n" +
      "minimize            " + nstemin + "\n" +
      "run                 " + nstequil + "\n";
-  } else if ( format === "CHARMM-GMX" ) {
-    script += "gmx pdb2gmx -f " + out0name + " -o "
-            + outname + ".gro -ff charmm27 -water tip3p -ignh -ter\n";
-    if ( cter === "" || cter === "NMET" ) {
-      script += "# select None for both terminals\n";
-    } else if ( cter === "NH2" ) {
-      script += "# select None for N-terminal, CT2 for C-terminal\n";
-    }
-  } else if ( format === "AMBER-GMX" ) {
-    var amberver = document.getElementById("amberver").value;
-    script += "gmx pdb2gmx -f " + out0name + " -o "
-            + outname + ".gro -ff " + amberver + " -water tip3p\n";
-  }
+    runem = "# To use this script on the command line:\n# namd " + emname + "\n\n" + runem;
 
-  if ( format.slice(-3) === "GMX" ) {
+    script = "# To use this script on the command line:\n#   vmd -dispdev text -eofexit < input.tcl\n\n" + script;
+  } else { // GROMACS .mdp files
     var out1 = outname;
     if ( boxsize > 0 ) {
       var boxgro = outname + "_box.gro";
@@ -778,7 +806,7 @@ function mkpdb(seq)
     if ( boxsize > 0 ) { // explicit solvent parameters
       gmxrun += "" +
        "ns-type = grid\n" +
-       "nstlist = 10\n" + 
+       "nstlist = 10\n" +
        "cutoff-scheme = verlet\n" +
        "rvdw = 1.2\n" +
        "rvdw-switch = 0.9\n" +
@@ -825,21 +853,25 @@ function mkpdb(seq)
      "nsteps = " + nstequil + "\n" +
      "gen-seed = " + Math.floor(Math.random() * 1000000000 + 1) + "\n" +
       gmxrun;
-    runsrc = "### Energy minimization (em.mdp) #########\n" + gmxem + "\n\n\n" +
-             "### Equilibration run (equil.mdp) ###########\n" + gmxequil + "\n";
+    runem = "### Energy minimization (em.mdp) #########\n" + gmxem;
+    runequil = "### Equilibration run (equil.mdp) ###########\n" + gmxequil;
+    emname = "em.mdp";
+    equilname = "equil.mdp";
 
     // energy minimization script
     script += "\n# Energy minimization (first prepare em.mdp from the right box)\n"
             + "gmx grompp -f em.mdp -c " + out1 + " -o em.tpr\n"
-            + "gmx mdrun -v -deffnm em -c " + outname + "_em\n";
+            + "gmx mdrun -v -deffnm em -c " + outname + "_em -nt 1\n";
 
     // equlibration script
     script += "\n# Equilibration run (first prepare equil.mdp from the right box)\n"
             + "gmx grompp -f equil.mdp -c " + outname + "_em -o equil.tpr\n"
-            + "gmx mdrun -v -deffnm equil -c " + outname + "_init\n";
+            + "gmx mdrun -v -deffnm equil -c " + outname + "_init -nt 1\n";
   }
+  document.getElementById("emscript").innerHTML = emname;
+  document.getElementById("equilscript").innerHTML = equilname;
 
-  return [src, atomls, sz, script, runsrc];
+  return [src, atomls, sz, script, runem, runequil];
 }
 
 function mkspx(refresh)
@@ -848,15 +880,29 @@ function mkspx(refresh)
   //document.getElementById("amberver").disabled = ( format.slice(0, 5) !== "AMBER" );
   document.getElementById("amberver_wrapper").style.visibility
     = ( format.slice(0, 5) === "AMBER" ) ? "visible" : "hidden";
+  if ( format.slice(-3) === "GMX" ) {
+    document.getElementById("scriptname").innerHTML = "input.sh";
+    document.getElementById("andpart").style.visibility = "visible";
+    document.getElementById("emoutput").rows = "7";
+    document.getElementById("equiloutput").style.visibility = "visible";
+  } else {
+    document.getElementById("scriptname").innerHTML = "input.tcl";
+    document.getElementById("andpart").style.visibility = "hidden";
+    document.getElementById("emoutput").rows = "15";
+    document.getElementById("equiloutput").style.visibility = "hidden";
+  }
 
   if ( refresh || atomls_g.length === 0 ) {
     seq_g = readseq( document.getElementById("aainput").value );
     var ret = mkpdb(seq_g);
-    var src = ret[0];
+    pdbout_g = ret[0];
     atomls_g = ret[1];
-    document.getElementById("pdboutput").value = src;
+    emout_g = ret[4];
+    equilout_g = ret[5];
+    document.getElementById("pdboutput").value = pdbout_g;
     document.getElementById("scriptoutput").value = ret[3];
-    document.getElementById("runoutput").value = ret[4];
+    document.getElementById("emoutput").value = emout_g;
+    document.getElementById("equiloutput").value = equilout_g;
     var sz = ret[2];
     length_g = 0.5 * Math.max(sz[0], sz[1], sz[2]);
   }
