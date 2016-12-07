@@ -7,7 +7,7 @@ var pdbout_g = "";
 var emout_g = "";
 var equilout_g = "";
 
-// adding the function trim to strings
+// adding the function trim() to strings
 if (typeof(String.prototype.trim) === "undefined") {
   String.prototype.trim = function() {
     return String(this).replace(/^\s+|\s+$/g, '');
@@ -360,6 +360,9 @@ function mkpdb(seq)
           if ( format === "CHARMM" ) {
             oc1 = "OT1";
             oc2 = "OT2";
+          } else if ( format === "AMBER" ) {
+            oc1 = "O";
+            oc2 = "OXT";
           }
           pushatom(atomls, [oc1, resid, xo] );
           vdiff(u, xc, xo);
@@ -684,6 +687,23 @@ function mkpdb(seq)
               "guesscoord\n" +
               "writepdb " + outname + ".pdb\n" +
               "writepsf " + outname + ".psf\n";
+
+  } else if ( format === "AMBER" ) {
+    script += "# To use this script on the command line:\n"
+           +  "# tleap -f " + document.getElementById("scriptname").innerHTML.trim() + "\n";
+    script += "source leaprc.protein.ff14SB\n";
+    script += 'mol = loadpdb "' + out0name + '"\n';
+    if ( boxsize ) {
+      var bs = boxsize.toFixed(1);
+      script += "source leaprc.water.tip3p\n";
+      script += "set default FlexibleWater on\n";
+      script += "solvate mol TIP3PBOX {" + bs + " " + bs + " " + bs + "}\n";
+      out1 += "_wb";
+    }
+    script += "savepdb mol " + out1 + ".pdb\n";
+    script += "saveamberparm mol " + out1 + ".prmtop " + out1 + ".inpcrd\n";
+    script += "quit\n";
+
   } else if ( format === "CHARMM-GMX" ) {
     script += "gmx pdb2gmx -f " + out0name + " -o "
             + outname + ".gro -ff charmm27 -water " + watermodel + " -ignh -ter\n";
@@ -692,26 +712,30 @@ function mkpdb(seq)
     } else if ( cter === "NH2" ) {
       script += "# select None for N-terminal, CT2 for C-terminal\n";
     }
+
   } else if ( format === "AMBER-GMX" ) {
     var amberver = document.getElementById("amberver").value;
     script += "gmx pdb2gmx -f " + out0name + " -o "
             + outname + ".gro -ff " + amberver + " -water " + watermodel + " -ignh\n";
   }
 
-  if ( format.slice(-3) !== "GMX" ) { // NAMD running script
+  if ( format === "CHARMM"   // NAMD running script
+    || format === "AMBER" ) {
     emname = "em.conf";
     equilname = "equil.conf";
 
     // commands for solvation
     if ( boxsize > 0 ) {
-      var out1 = outname + "_wb";
+      out1 = outname + "_wb";
       var boxs = ("   " + boxsize.toFixed(1)).slice(-5);
       var boxh = (boxsize*0.5).toFixed(1);
-      script += "\n# adding water into the box\n"
-      script += "package require solvate\n";
-      script += "solvate " + outname + ".psf " + outname + ".pdb" +
-       " -minmax {{0 0 0} {" + boxs + " " + boxs + " " + boxs +
-       "}} -o " + out1 + "\n";
+      if ( format === "CHARMM" ) {
+        script += "\n# adding water into the box\n"
+        script += "package require solvate\n";
+        script += "solvate " + outname + ".psf " + outname + ".pdb" +
+         " -minmax {{0 0 0} {" + boxs + " " + boxs + " " + boxs +
+         "}} -o " + out1 + "\n";
+      }
 
       cellsrc +=
        "cellBasisVector1   " + boxs + "   0.0   0.0\n" +
@@ -723,14 +747,20 @@ function mkpdb(seq)
        "PMEGridSpacing      1.0\n";
     }
     out2 = outname + "_init";
-    runem = "" +
+    runem = "";
+    if ( format === "CHARMM" ) {
+      runem += "paraTypeCharmm      on\n" +
+               "parameters          par_all27_prot_lipid.inp\n";
+    } else {
+      runem += "amber               on\n" +
+               "parmfile            " + out1 + ".prmtop\n";
+    }
+    runem += "" +
      "set inname          " + out1 + "\n" +
      "set outname         " + out2 + "\n" +
      "set temp            300\n" +
      "structure           " + out1 + ".psf\n" +
      "coordinates         $inname.pdb\n" +
-     "paraTypeCharmm      on\n" +
-     "parameters          par_all27_prot_lipid.inp\n" +
      "temperature         $temp\n" +
      "exclude             scaled1-4\n" +
      "1-4scaling          1.0\n" +
@@ -775,9 +805,15 @@ function mkpdb(seq)
      "outputTiming        1000000\n" +
      "minimize            " + nstemin + "\n" +
      "run                 " + nstequil + "\n";
-    runem = "# To use this script on the command line:\n# namd " + emname + "\n\n" + runem;
+    runem = "# To use this script on the command line:\n"
+          + "# namd2 " + emname + "\n\n" + runem;
 
-    script = "# To use this script on the command line:\n#   vmd -dispdev text -eofexit < input.tcl\n\n" + script;
+    if ( format === "CHARMM" ) {
+      script = "# To use this script on the command line:\n"
+             + "#   vmd -dispdev text -eofexit < input.tcl\n\n"
+             + script;
+    }
+
   } else { // GROMACS .mdp files
     var out1 = outname;
     if ( boxsize > 0 ) {
@@ -879,12 +915,17 @@ function mkspx(refresh)
   var format = document.getElementById("format").value;
   //document.getElementById("amberver").disabled = ( format.slice(0, 5) !== "AMBER" );
   document.getElementById("amberver_wrapper").style.visibility
-    = ( format.slice(0, 5) === "AMBER" ) ? "visible" : "hidden";
+    = ( format === "AMBER-GMX" ) ? "visible" : "hidden";
   if ( format.slice(-3) === "GMX" ) {
     document.getElementById("scriptname").innerHTML = "input.sh";
     document.getElementById("andpart").style.visibility = "visible";
     document.getElementById("emoutput").rows = "7";
     document.getElementById("equiloutput").style.visibility = "visible";
+  } else if ( format === "AMBER" ) {
+    document.getElementById("scriptname").innerHTML = "input.leap";
+    document.getElementById("andpart").style.visibility = "hidden";
+    document.getElementById("emoutput").rows = "15";
+    document.getElementById("equiloutput").style.visibility = "hidden";
   } else {
     document.getElementById("scriptname").innerHTML = "input.tcl";
     document.getElementById("andpart").style.visibility = "hidden";
@@ -933,4 +974,5 @@ function init()
              [-0.4395286768639746,-0.2726761673313212,0.8558400843520434],
              [ 0.6488351573900389,0.5625120918252239,0.512438371987373]];
   installmouse("animationbox", "scaleinput");
+  mkspx(true);
 }
