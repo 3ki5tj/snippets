@@ -7,7 +7,12 @@
 #include <stdlib.h>
 #include <math.h>
 
-int solid = 1;
+
+
+enum { SOLID_SPHERE, HOLLOW_SPHERE, GAUSSIAN };
+const char *type_names[] = { "solid sphere", "hollow sphere", "Gaussian" };
+int type;
+
 
 static double ewald(double r, int km)
 {
@@ -31,10 +36,15 @@ static double ewald(double r, int km)
           mul = 8;
         }
         x = sqrt(k2) * 2 * M_PI * r;
-        if ( solid ) {
+        if ( type == SOLID_SPHERE ) {
           rhok = 3 * (sin(x) - x * cos(x)) / (x * x * x);
-        } else {
+          // approximately exp(-x*x/10)
+        } else if ( type == HOLLOW_SPHERE ) {
           rhok = sin(x) / x;
+          // approximately exp(-x*x/6)
+        } else if ( type == GAUSSIAN ) {
+          rhok = exp(-x*x/4);
+          // approximately exp(-x*x/4)
         }
         erecip += mul * rhok * rhok / k2;
       }
@@ -42,27 +52,29 @@ static double ewald(double r, int km)
   }
   erecip /= M_PI;
 
-  if ( solid ) {
+  if ( type == SOLID_SPHERE ) {
     elimit = -1.2/r;
-  } else {
+  } else if ( type == HOLLOW_SPHERE ) {
     elimit = -1.0/r;
+  } else if ( type == GAUSSIAN ) {
+    elimit = -sqrt(2/M_PI)/r;
   }
   etot = erecip + elimit;
   del = (etot + 2.8372974794806)/(r*r*M_PI);
   printf("%s: tot %.14f, elimit %.14f, recip %.14f, del %g*PI, r %g, kmax %d\n",
-      (solid ? "solid" : "hollow"), etot, elimit, erecip, del, r, km);
+      type_names[type], etot, elimit, erecip, del, r, km);
   return elimit + erecip;
 }
 
 
 int main(int argc, char **argv)
 {
-  double r = 0.1;
+  double r = 0.05;
   int kterms = 200;
 
   if ( argc > 1 ) r = atof(argv[1]);
   if ( argc > 2 ) kterms = atof(argv[2]);
-  if ( argc > 3 ) solid = 0;
+  if ( argc > 3 ) type = atoi(argv[3]);
   ewald(r, kterms);
   return 0;
 }
