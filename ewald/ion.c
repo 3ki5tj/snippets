@@ -14,6 +14,8 @@ double cal = 4.184;
 double atm = 101325;
 
 
+
+/* vector cross product */
 static double *vcross(double *c, double *a, double *b)
 {
   c[0] = a[1] * b[2] - a[2] * b[1];
@@ -31,7 +33,15 @@ static void vscale(double *v, double s)
 
 static double getvol(double mat[3][3])
 {
-  return mat[0][0] * mat[1][1] * mat[2][2];
+  return fabs(mat[0][0] * mat[1][1] * mat[2][2]);
+}
+
+static double getmindim(double mat[3][3])
+{
+  double x = fabs( mat[0][0] );
+  if ( fabs(mat[1][1]) < x ) x = fabs(mat[1][1]);
+  if ( fabs(mat[2][2]) < x ) x = fabs(mat[2][2]);
+  return x;
 }
 
 static double inverse(double invmat[3][3], double mat[3][3])
@@ -48,38 +58,61 @@ static double getdist2(double x, double y, double z, double mat[3][3])
   int i, j;
   for ( i = 0; i < 3; i++ ) {
     for ( j = 0; j < 3; j++ )
-      u[i] += mat[i][j]*v[j];
+      u[i] += v[j] * mat[j][i];
     dis2 += u[i] * u[i];
   }
   return dis2;
 }
 
-static double ewald(double sqrta, int xm, int km,
-    double mat[3][3])
+static double ewald(double sigma, double tol, double mat[3][3])
 {
-  int i, j, l;
+  int i, j, l, xm[3], km[3];
   double r, k2, eself = 0, ereal = 0, erecip = 0, ebg = 0;
-  double inva = M_PI * M_PI / (sqrta * sqrta);
-  double vol = getvol(mat), invmat[3][3], dis2;
+  double sqrta, inva;
+  double vol = getvol(mat), invmat[3][3], dis2, dim, invdim;
+
+  dim = getmindim(mat);
+  inverse(invmat, mat);
+  invdim = getmindim(invmat);
+
+  sqrta = sigma > 0 ? sigma : sqrt(M_PI*invdim/dim);
+  inva = M_PI * M_PI / (sqrta * sqrta);
+
+  /* estimate the number of neighboring cells */
+  for ( i = 0; i < 3; i++ ) {
+    for ( xm[i] = 1; xm[i] <= 1000; xm[i]++ ) {
+      r = fabs(mat[i][i]) * xm[i];
+      if ( erfc(sqrta*r)/r < tol ) break;
+    }
+    printf("dim %d, xm %d, sqrta %g, r %g, %g\n", i, xm[i], sqrta, r, erfc(sqrta*r)/r);
+  }
+
+  /* estimate the number of wave vectors */
+  for ( i = 0; i < 3; i++ ) {
+    for ( km[i] = 1; km[i] <= 1000; km[i]++ ) {
+      r = fabs(invmat[i][i]) * km[i];
+      k2 = r * r;
+      if ( exp(-k2*inva)/k2/M_PI/vol < tol ) break;
+    }
+    printf("dim %d, km %d, inva %g, k %g, %g\n", i, km[i], inva, r, exp(-k2*inva)/k2/M_PI/vol);
+  }
 
   /* real-space sum */
-  for ( i = -xm; i <= xm; i++ ) {
-    for ( j = -xm; j <= xm; j++ ) {
-      for ( l = -xm; l <= xm; l++ ) {
+  for ( i = -xm[0]; i <= xm[0]; i++ ) {
+    for ( j = -xm[1]; j <= xm[1]; j++ ) {
+      for ( l = -xm[2]; l <= xm[2]; l++ ) {
         dis2 = getdist2(i, j, l, mat);
-        if ( r <= 0 ) continue;
+        if ( dis2 <= 0 ) continue;
         r = sqrt(dis2);
         ereal += erfc(sqrta*r)/r;
       }
     }
   }
 
-  inverse(invmat, mat);
-
   /* reciprocal-space sum */
-  for ( i = -km; i <= km; i++ ) {
-    for ( j = -km; j <= km; j++ ) {
-      for ( l = -km; l <= km; l++ ) {
+  for ( i = -km[0]; i <= km[0]; i++ ) {
+    for ( j = -km[1]; j <= km[1]; j++ ) {
+      for ( l = -km[2]; l <= km[2]; l++ ) {
         k2 = getdist2(i, j, l, invmat);
         if ( k2 <= 0 ) continue;
         erecip += exp(-k2*inva)/k2;
@@ -93,26 +126,25 @@ static double ewald(double sqrta, int xm, int km,
 
   /* background energy */
   ebg = -M_PI / (sqrta * sqrta * vol);
+  printf("%g %g %g %g\n", ereal, erecip, eself, ebg);
   return eself + ereal + erecip + ebg;
 }
 
 
+
 int main(int argc, char **argv)
 {
-  double ene, epot, sigma = 0.0;
+  double ene, epot, sigma = 0.0, tol = 1e-14;
   double mat[3][3] = {{10, 0, 0}, {0, 10, 0}, {0, 0, 10}};
-  int nterms = 100, kterms = 100;
-  double K0 = 332.0716, P0, vol = getvol(mat), pres;
+  double K0, P0, vol = getvol(mat), pres;
 
   if ( argc > 1 ) sigma = atof(argv[1]);
-  if ( sigma == 0 ) sigma = 5.6 / mat[0][0];
-  if ( argc > 2 ) nterms = atoi(argv[2]);
-  if ( argc > 3 ) kterms = atoi(argv[3]);
-  //K0 = echarge * echarge / (4 * M_PI * eps0) * NA * 1e10 / (cal*1e3);
-  ene = ewald(sigma, nterms, kterms, mat);
+  K0 = echarge * echarge / (4 * M_PI * eps0) * NA * 1e10 / (cal*1e3);
+  // 332.0716 -- CHARMM
+  ene = ewald(sigma, tol, mat);
   epot = 0.5 * K0 * ene;
   P0 = K0 / (NA*1e7/cal) * 1e40 / atm;
   pres = 0.5 * P0 * ene / (3 * vol);
-  printf("%.15f, u = %.14f, p = %.14f, K0 %.10f\n", ene, epot, pres, K0);
+  printf("ene = %.15f, u = %.14f, p = %.14f, K0 %.8f\n", ene, epot, pres, K0);
   return 0;
 }

@@ -173,9 +173,9 @@ function pdbdraw(seq, atomls, l, boxsize,
   vsadd(xx, xo, dx, len);
   vsadd(xy, xo, dy, len);
   vsadd(xz, xo, dz, len);
-  drawLine(ctx, xo[0], height - xo[1], xx[0], height - xx[1], colorx, "2px");
-  drawLine(ctx, xo[0], height - xo[1], xy[0], height - xy[1], colory, "2px");
-  drawLine(ctx, xo[0], height - xo[1], xz[0], height - xz[1], colorz, "2px");
+  drawLine(ctx, xo[0], height - xo[1], xx[0], height - xx[1], colorx, 2);
+  drawLine(ctx, xo[0], height - xo[1], xy[0], height - xy[1], colory, 2);
+  drawLine(ctx, xo[0], height - xo[1], xz[0], height - xz[1], colorz, 2);
 
   // draw each particle
   for (i = 0; i < n; i++) {
