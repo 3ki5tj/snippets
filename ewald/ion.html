@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title> Ion in opposite uniform (plasma) background </title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+  <script src="js/vct.js"></script>
+  <script src="js/mat.js"></script>
+  <script src="js/mouse3d.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/ion.js"></script>
+  <style>
+    textarea {
+      font-size: 90%;
+      font-family: Lucida Console, FreeMono, Courier, monospace;
+      white-space: pre;
+      overflow-wrap: normal;
+      overflow-x: scroll;
+    }
+    table, th, td {
+      border: 2px ridge #c0c0c0;
+      border-collapse: collapse;
+      padding: 5px 20px;
+      text-align: center;
+      margin: auto;
+    }
+    th {
+      background-color: #e0e0e0;
+    }
+    .downloadln {
+      color: #4060a0;
+    }
+  </style>
+</head>
+<body style="width:800px; margin:auto" onload="init()">
+
+<h2 style="text-align:center; font-size:170%">
+  Electric energy of an ion in neutralizing plasma background
+</h2>
+
+<form style="width:800px; margin:auto;">
+  <div class="col-xs-3">
+    <label for="lattype">Lattice type:</label>
+    <select id="lattype" class="form-control" onchange="paint()">
+      <option value="cubic">Cubic</option>
+      <option value="orthorhombic">Orthorhombic</option>
+      <option value="triclinic">Triclinic</option>
+    </select>
+  </div>
+
+  <div class="col-xs-3">
+    <label for="qtot">Total net charge:</label>
+    <input type="text" value="1.0" id="qtot" class="form-control" onchange="paint()">
+    </input>
+  </div>
+
+  <div class="col-xs-3">
+    <label for="kappa"><i>&kappa;</i> (&#8491;<sup>&minus;1</sup>)
+      <span style="background-color:#2060a0;color:white;font-size:90%;font-weight:bold;padding:0px 5px;border: 2px solid #2060a0;border-radius:10px;"
+        title="In the Ewald sum method, the screening charge will take the form of exp(-&kappa; x^2), the value 0 means the default value.">
+        ?</span>:</label>
+    <input type="text" value="default" id="kappa" class="form-control" onchange="paint()">
+    </input>
+  </div>
+
+  <div class="col-xs-3">
+    <label for="tol">Error tolerance:</label>
+    <input type="text" value="1e-15" id="tol" class="form-control" onchange="paint()">
+    </input>
+  </div>
+
+  <div class="col-xs-3">
+    <label>Vector 1 (&#8491;):</label>
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="10.0" id="x0" class="form-control" onchange="paint()">
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="0.0" id="x1" class="form-control" onchange="paint()">
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="0.0" id="x2" class="form-control" onchange="paint()">
+  </div>
+
+  <div class="col-xs-3">
+    <label>Vector 2 (&#8491;):</label>
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="0.0" id="y0" class="form-control" onchange="paint()">
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="10.0" id="y1" class="form-control" onchange="paint()">
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="0.0" id="y2" class="form-control" onchange="paint()">
+  </div>
+
+  <div class="col-xs-3">
+    <label>Vector 3 (&#8491;):</label>
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="0.0" id="z0" class="form-control" onchange="paint()">
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="0.0" id="z1" class="form-control" onchange="paint()">
+  </div>
+  <div class="col-xs-3">
+    <input type="text" size="3" value="10.0" id="z2" class="form-control" onchange="paint()">
+  </div>
+
+  <div class="col-xs-3">
+    <label for="eunit">Unit of energy:</label>
+    <select id="eunit" class="form-control" onchange="paint()">
+      <option value="">Gaussian</option>
+      <option value="kcal/mol" selected>kcal/mol</option>
+      <option value="kJ/mol">kJ/mol</option>
+      <option value="J">J (SI unit)</option>
+    </select>
+  </div>
+
+  <div class="col-xs-3">
+    <label for="punit">Unit of pressure</label>
+    <select id="punit" class="form-control" onchange="paint()">
+      <option value="">Gaussian</option>
+      <option value="atm" selected>atm</option>
+      <option value="bar">bar</option>
+      <option value="Pa">Pa (SI unit)</option>
+    </select>
+  </div>
+
+  <div class="col-xs-3">
+    <input type="button" value="Compute"
+      style="margin-top: 15px; font-size: 130%; font-weight: bold"
+      class="btn btn-primary" onclick="paint()">
+  </div>
+
+  <div class="col-xs-12" id="info" style="font: 130% Times New Roman; margin: 10px;">
+    <table>
+      <tr>
+        <th></th>
+        <th>Finite-size correction</th>
+        <th>Volume correction</th>
+        <th>Total correction</th>
+      </tr>
+      <tr>
+        <th>Energy</th>
+        <td id="efin"></td>
+        <td id="evol"></td>
+        <td id="ecor"></td>
+      </tr>
+      <tr>
+        <th>Pressure</th>
+        <td id="pfin"></td>
+        <td id="pvol"></td>
+        <td id="pcor"></td>
+      </tr>
+      <tr>
+        <td colspan="4" id="sinfo">
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</form>
+
+<!-- container -->
+<div id="container">
+
+  <div id="simulbox" style="text-align:center">
+    <canvas id="animationbox" width="580" height="580"
+      style="border: 1px solid #cccccc; margin: 10px; text-align:center"
+      onclick="paint()"></canvas>
+  </div>
+
+  <div class="col-xs-12">
+    <label for="scaleinput">Scale:</label>
+    <input type="range" id="scaleinput" value="1.0"
+      min="0.01" step="0.01" max="3.0"
+      style="border: solid 1px #f0f0f0"
+      onchange="paint()">
+  </div>
+
+  <span class="col-xs-12"
+    id="info" style="font: 130% Times New Roman,serif; margin: 10px 20px">
+    &nbsp;
+  </span>
+
+</div>
+
+</body>
+</html>
