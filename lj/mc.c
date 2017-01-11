@@ -11,6 +11,7 @@ double tp = 1.5;
 double rcdef = 1e9;
 double amp = 0.2; /* Monte Carlo move size */
 const char *fnpos = "lj.pos";
+int dopr = 0;
 
 
 
@@ -20,7 +21,7 @@ int main(void)
   lj_t *lj;
   double epsm = 0, accsm = 0;
 
-  lj = lj_open(n, rho, rcdef);
+  lj = lj_open(n, rho, rcdef, dopr);
   lj_energy(lj);
   for ( t = 1; t <= nequil + nsteps; t++ ) {
     acc = lj_metro(lj, amp, 1/tp);

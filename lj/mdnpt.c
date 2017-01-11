@@ -13,6 +13,7 @@ double dt = 0.002;
 double thdt = 0.02;
 double pdt = 1e-5;
 const char *fnpos = "lj.pos";
+int dopr = 0;
 
 
 
@@ -22,7 +23,7 @@ int main(void)
   double usm = 0, psm = 0, rhosm = 0;
   lj_t *lj;
 
-  lj = lj_open(n, rho, rcdef);
+  lj = lj_open(n, rho, rcdef, dopr);
   for ( t = 1; t <= nequil + nsteps; t++ ) {
     lj_vv(lj, dt);
     lj->ekin = lj_vrescale(lj, tp, thdt);

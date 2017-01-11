@@ -170,7 +170,7 @@ function getdbde(tp, dof)
   var bet, bet2, dbde1, dbde;
   if ( sum1 < 3 ) {
     dbde = -1.0 / (tp * tp * (0.5 * dof - 1));
-  } else { 
+  } else {
     bet = sumb / sum1;
     bet2 = sumb2 / sum1 - bet * bet;
     dbde1 = sumdbde / sum1;
@@ -309,7 +309,7 @@ function updatecorrplot()
   //console.log(kelen, vlen);
   for ( i = 0; i <= 1000; i++ ) {
     if ( i >= kelen && i >= vlen ) break;
-    
+
     jmax = kelen - i;
     kecorr = 0;
     for ( j = 0; j < jmax; j++ )
@@ -395,7 +395,7 @@ function resetdata()
   sumdbde = 0.0;
   for ( var i = 0; i < kehistn; i++ ) kehist[i] = 0;
   keseq = [];
-  vseq = []; 
+  vseq = [];
   histplot = null;
   corrplot = null;
   paintcnt = 0;

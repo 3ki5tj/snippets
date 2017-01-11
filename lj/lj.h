@@ -4,8 +4,7 @@
 
 
 /* define the dimension D before including this file
- * Note: coordinates are not reduced
- * no matrix for pair distance */
+ * Note: coordinates are not reduced */
 
 
 
@@ -36,6 +35,8 @@ typedef struct {
   double (*x)[D]; /* position */
   double (*v)[D]; /* velocity */
   double (*f)[D]; /* force */
+  double *r2ij; /* pair distances */
+  double *r2i; /* pair distances from i */
   double epot, ep0, ep6, ep12, eps;
   double vir;
   double ekin;
@@ -162,7 +163,7 @@ static void lj_setrho(lj_t *lj, double rho)
 
 
 /* open an LJ system */
-static lj_t *lj_open(int n, double rho, double rcdef)
+static lj_t *lj_open(int n, double rho, double rcdef, int dopr)
 {
   lj_t *lj;
   int i, d;
@@ -175,6 +176,14 @@ static lj_t *lj_open(int n, double rho, double rcdef)
   xnew(lj->x, n);
   xnew(lj->v, n);
   xnew(lj->f, n);
+
+  if ( dopr ) {
+    xnew(lj->r2ij, n * n);
+    xnew(lj->r2i, n);
+  } else {
+    lj->r2ij = NULL;
+    lj->r2i = NULL;
+  }
 
   lj_setrho(lj, rho);
 
@@ -201,6 +210,8 @@ static void lj_close(lj_t *lj)
   free(lj->x);
   free(lj->v);
   free(lj->f);
+  free(lj->r2ij);
+  free(lj->r2i);
   free(lj);
 }
 
@@ -230,12 +241,12 @@ static double lj_pbcdist2(double *dx, const double *a, const double *b,
 
 
 #define lj_energy(lj) \
-  lj->epot = lj_energy_low(lj, lj->x, \
+  lj->epot = lj_energy_low(lj, lj->x, lj->r2ij, \
       &lj->vir, &lj->ep0, &lj->ep6, &lj->ep12, &lj->eps)
 
 /* compute force and virial, return energy */
 __inline static double lj_energy_low(lj_t *lj, double (*x)[D],
-    double *virial, double *ep0,
+    double *r2ij, double *virial, double *ep0,
     double *pep6, double *pep12, double *eps)
 {
   double dx[D], dr2, ir6, ep, ep6, ep12, rc2 = lj->rc2;
@@ -246,6 +257,10 @@ __inline static double lj_energy_low(lj_t *lj, double (*x)[D],
   for ( i = 0; i < n - 1; i++ ) {
     for ( j = i + 1; j < n; j++ ) {
       dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
+      if ( r2ij != NULL ) {
+        r2ij[i*n + j] = dr2;
+        r2ij[j*n + i] = dr2;
+      }
       if ( dr2 >= rc2 ) continue;
       dr2 = 1 / dr2;
       ir6 = dr2 * dr2 * dr2;
@@ -271,13 +286,13 @@ __inline static double lj_energy_low(lj_t *lj, double (*x)[D],
 
 #define lj_force(lj) \
   lj->epot = lj_force_low(lj, lj->x, lj->f, \
-      &lj->vir, &lj->ep0, \
+      lj->r2ij, &lj->vir, &lj->ep0, \
       &lj->ep6, &lj->ep12, &lj->eps)
 
 /* compute force and virial, return energy
  * the pair distances are recomputed */
 __inline static double lj_force_low(lj_t *lj, double (*x)[D], double (*f)[D],
-    double *virial, double *ep0,
+    double *r2ij, double *virial, double *ep0,
     double *pep6, double *pep12, double *eps)
 {
   double dx[D], fi[D], dr2, ir6, fs;
@@ -293,6 +308,10 @@ __inline static double lj_force_low(lj_t *lj, double (*x)[D], double (*f)[D],
     vzero(fi);
     for ( j = i + 1; j < n; j++ ) {
       dr2 = lj_pbcdist2(dx, x[i], x[j], l, invl);
+      if ( r2ij != NULL ) {
+        r2ij[i*n + j] = dr2;
+        r2ij[j*n + i] = dr2;
+      }
       if ( dr2 >= rc2 ) continue;
       dr2 = 1 / dr2;
       ir6 = dr2 * dr2 * dr2;
@@ -442,8 +461,16 @@ __inline static double lj_depot(lj_t *lj, int i, double *xi,
 
   *u6 = *u12 = *vir = 0.0;
   for ( j = 0; j < n; j++ ) { /* pair */
-    if ( j == i ) continue;
-    r2 = lj_pbcdist2(dx, lj->x[i], lj->x[j], l, invl);
+    if ( j == i ) {
+      if ( lj->r2i != NULL )
+        lj->r2i[j] = 0;
+      continue;
+    }
+    if ( lj->r2ij != NULL ) {
+      r2 = lj->r2ij[i*n + j];
+    } else {
+      r2 = lj_pbcdist2(dx, lj->x[i], lj->x[j], l, invl);
+    }
     if ( lj_pair(r2, rc2, &du6, &du12, &dvir) ) {
       *u6 -= du6;
       *u12 -= du12;
@@ -455,6 +482,8 @@ __inline static double lj_depot(lj_t *lj, int i, double *xi,
       *u12 += du12;
       *vir += dvir;
     }
+    if ( lj->r2i != NULL )
+      lj->r2i[j] = r2;
   }
   return *u12 - *u6;
 }
@@ -474,6 +503,12 @@ __inline static void lj_commit(lj_t *lj, int i, const double *xi,
   lj->ep0 += du;
   lj->epot += du;
   lj->vir += dvir;
+  if ( lj->r2ij != NULL ) {
+    for ( j = 0; j < n; j++ ) {
+      lj->r2ij[i*n + j] = lj->r2i[j];
+      lj->r2ij[j*n + i] = lj->r2i[j];
+    }
+  }
 }
 
 
@@ -507,7 +542,7 @@ __inline static int lj_metro(lj_t *lj, double amp, double bet)
  * the ensemble distribution is
  *   distr. ~ V^(dof/D - ensx) exp(-beta * ep)
  * */
-__inline int lj_mcvmov(lj_t *lj, double lnvamp, double tp, double pext,
+__inline static int lj_mcvmov(lj_t *lj, double lnvamp, double tp, double pext,
     int ensx)
 {
   int acc = 0, i;
@@ -551,6 +586,11 @@ __inline int lj_mcvmov(lj_t *lj, double lnvamp, double tp, double pext,
     /* scale the coordinates */
     for ( i = 0; i < lj->n; i++ ) {
       vsmul(lj->x[i], s);
+    }
+    if ( lj->r2ij != NULL ) {
+      for ( i = 0; i < lj->n * lj->n; i++ ) {
+        lj->r2ij[i] *= ss;
+      }
     }
   }
   return acc;

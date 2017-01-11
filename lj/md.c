@@ -18,6 +18,7 @@ int tstat = NHCHAIN;
 double zeta[]  = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 double zmass[] = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 const char *fnpos = "lj.pos";
+int dopr = 0;
 
 
 void thermostat(lj_t *lj, double dt)
@@ -40,7 +41,7 @@ int main(void)
   lj_t *lj;
   double epsm = 0, eksm = 0;
 
-  lj = lj_open(n, rho, rcdef);
+  lj = lj_open(n, rho, rcdef, dopr);
   for ( t = 1; t <= nequil + nsteps; t++ ) {
     thermostat(lj, dt * 0.5);
     lj_vv(lj, dt);
