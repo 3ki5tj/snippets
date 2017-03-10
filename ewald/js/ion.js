@@ -1,21 +1,5 @@
 "use strict";
 
-function grab(id) {
-  var x = document.getElementById(id);
-  if ( x === null ) console.log("cannot grab element ", id);
-  return x;
-}
-
-function get_float(id, def) {
-  var x = parseFloat( grab(id).value );
-  return !isNaN(x) && isFinite(x) ? x : def;
-}
-
-function get_int(id, def) {
-  var x = parseInt( grab(id).value, 10 );
-  return !isNaN(x) && isFinite(x) ? x : def;
-}
-
 function erfc(z)
 {
   var t = 2./(2. + z), ty = 4*t - 2, tmp, d = 0, dd = 0;
@@ -261,7 +245,10 @@ function numformat(x, pres)
       s1 = s1.substring(0, i - 1);
     // the exponent
     var s2 = s.substring(p + 1);
-    if ( s2.substring(0, 1) === "-" ) {
+    if ( s2.substring(0, 1) === "+" ) { // remove the leading `+` sign
+      s2 = s2.substring(1);
+    }
+    if ( s2.substring(0, 1) === "-" ) { // convert the leading `-` sign to &minus;
       s2 = "&minus;" + s2.substring(1);
     }
     s = s1 + "&times;10<sup>" + s2 + "</sup>";
@@ -275,6 +262,127 @@ function numformat(x, pres)
       s = s.substring(0, i - 1);
   }
   return s;
+}
+
+function readPDB()
+{
+  var pdb = document.getElementById("inputPDB").value.trim();
+  if ( pdb === "" ) return;
+  var lines = pdb.split("\n"), i, line;
+  var resid = -1, resi, resnm;
+  var qtot = 0;
+  for ( i = 0; i < lines.length; i++ ) {
+    line = lines[i].trim();
+    if ( line === "" || line.substring(0, 6) !== "ATOM  " )
+      continue;
+    resi = parseInt( line.substring(22, 26).trim() );
+    if ( resi === resid ) { // old residue
+      continue;
+    } else {
+      resid = resi;
+    }
+    resnm = line.substring(17, 21).trim().toUpperCase();
+    if ( resnm === "SOD" || resnm === "POT" || resnm === "CES"
+      || resnm === "NA"  || resnm === "K" || resnm === "CS"
+      || resnm === "ARG" || resnm === "LYS" || resnm === "LYSP"
+      || resnm === "HSP" || resnm === "HIP" || resnm === "HISP"
+      || resnm === "PROP" ) {
+      qtot += 1;
+    } else if ( resnm === "CAL" || resnm === "MG" || resnm === "ZN2" ) {
+      qtot += 2;
+    } else if ( resnm === "CLA" || resnm === "CL"
+      || resnm === "ASP" || resnm === "GLU"
+      || resnm === "GUA" || resnm === "ADE" || resnm === "CYT"
+      || resnm === "THY" || resnm === "URA"
+      || resnm === "CTER" ) {
+      qtot += -1;
+    } else if ( resnm === "DISU" ) {
+      qtot += -0.36;
+    }
+  }
+  document.getElementById("qtot").value = qtot;
+}
+
+function readNAMDconf()
+{
+  var conf = document.getElementById("NAMDconf").value.trim();
+  if ( conf === "" ) return;
+  document.getElementById("eunit").selectedIndex = 1;
+  document.getElementById("punit").selectedIndex = 1;
+  var cutoff = 12, pmetolerance = 1e-6;
+  var lines = conf.split("\n"), i, line;
+  var x = [0, 0, 0], y = [0, 0, 0], z = [0, 0, 0];
+  var haslattice = false;
+  var alchDecouple = false;
+  for ( i = 0; i < lines.length; i++ ) {
+    line = lines[i].trim();
+    if ( line === "" || line.charAt(0) === "#" )
+      continue;
+    var arr = line.split(/\s+/);
+    var key = arr[0].toLowerCase();
+    if ( key === "cellbasisvector1" ) {
+      x[0] = parseFloat( arr[1] );
+      x[1] = parseFloat( arr[2] );
+      x[2] = parseFloat( arr[3] );
+      haslattice = true;
+    } else if ( key === "cellbasisvector2" ) {
+      y[0] = parseFloat( arr[1] );
+      y[1] = parseFloat( arr[2] );
+      y[2] = parseFloat( arr[3] );
+      haslattice = true;
+    } else if ( key === "cellbasisvector3" ) {
+      z[0] = parseFloat( arr[1] );
+      z[1] = parseFloat( arr[2] );
+      z[2] = parseFloat( arr[3] );
+      haslattice = true;
+    } else if ( key === "cutoff" ) {
+      cutoff = parseFloat( arr[1] );
+    } else if ( key === "pmetolerance" ) {
+      pmetolerance = parseFloat( arr[1] );
+    } else if ( key === "alchdecouple" ) {
+      var val = arr[1].toLowerCase();
+      alchDecouple = ( val === "on" || val === "yes" || val === "true" );
+    }
+  }
+
+  if ( haslattice ) {
+    // update the lattice type
+    if ( x[1] != 0 || x[2] != 0 || y[0] != 0 || y[2] != 0 || z[0] != 0 || z[1] != 0 ) {
+      document.getElementById("lattype").selectedIndex = 2;
+    } else if ( x[0] != y[1] || y[1] != z[2] ) {
+      document.getElementById("lattype").selectedIndex = 1;
+    } else {
+      document.getElementById("lattype").selectedIndex = 0;
+    }
+    // update lattice parameters
+    document.getElementById("x0").value = x[0];
+    document.getElementById("x1").value = x[1];
+    document.getElementById("x2").value = x[2];
+    document.getElementById("y0").value = y[0];
+    document.getElementById("y1").value = y[1];
+    document.getElementById("y2").value = y[2];
+    document.getElementById("z0").value = z[0];
+    document.getElementById("z1").value = z[1];
+    document.getElementById("z2").value = z[2];
+  }
+
+  // find the default ewaldcoef
+  // code adapted from SimParameters.C
+  var ewaldcof = 1.0;
+  while ( erfc(ewaldcof*cutoff)/cutoff >= pmetolerance ) {
+    ewaldcof *= 2.0;
+  }
+  var ewaldcof_lo = 0, ewaldcof_hi = ewaldcof;
+  for ( i = 0; i < 100; ++i ) {
+    ewaldcof = 0.5 * ( ewaldcof_lo + ewaldcof_hi );
+    if ( erfc(ewaldcof*cutoff)/cutoff >= pmetolerance ) {
+      ewaldcof_lo = ewaldcof;
+    } else {
+      ewaldcof_hi = ewaldcof;
+    }
+  }
+  document.getElementById("kappa").value = ewaldcof;
+  document.getElementById("alchDecouple").checked = alchDecouple;
 }
 
 function update()
@@ -333,6 +441,9 @@ function paint()
 {
   var mat = update();
   var vol = getvol(mat);
+  if ( vol <= 0 ) {
+    return;
+  }
   mousescale = parseFloat( document.getElementById("scaleinput").value );
   drawbox(mat, "animationbox", mousescale);
   var kappa = parseFloat( document.getElementById("kappa").value );
@@ -345,6 +456,8 @@ function paint()
   var punit = document.getElementById("punit").value;
   if ( eunit === "kcal/mol" ) {
     K0 = echarge * echarge / (4 * Math.PI * eps0) * NA * 1e10 / (cal * 1e3);
+    // 332.06371301869575
+    // NAMD uses 332.0636
   } else if ( eunit === "kJ/mol" ) {
     K0 = echarge * echarge / (4 * Math.PI * eps0) * NA * 1e10 / 1e3;
   } else if ( eunit === "J" ) {
@@ -354,46 +467,98 @@ function paint()
     P0 = echarge * echarge / (4 * Math.PI * eps0) * 1e40 / atm;
   } else if ( punit === "bar" ) {
     P0 = echarge * echarge / (4 * Math.PI * eps0) * 1e40 / 1e5;
+    // NAMD uses bar as the unit of pressure
+    // PRESSUREFACTOR = cal/NA*1e30 = 100 * P0 / K0
+    // NAMD's PRESSUREFACTOR is 6.95e6 instead of 6947695.345147256
   } else if ( punit === "Pa" ) {
     P0 = echarge * echarge / (4 * Math.PI * eps0) * 1e40;
   }
+  var epsilon = parseFloat( document.getElementById("epsilon").value );
+  if ( epsilon <= 0 ) epsilon = 1;
+  var RBorn = parseFloat( document.getElementById("RBorn").value );
+  var hasvcorr = document.getElementById("hasvcorr").checked;
   var qtot = parseFloat( document.getElementById("qtot").value );
   var qq = qtot * qtot;
-  var efin, evol, ecor;
-  var pfin, pvol, pcor;
+  var efin, evol, ecor, eborn, ecor2;
+  var pfin, pvol, pcor, pcor2;
   efin = ene[0] + ene[1] + ene[2] + ene[3];
   evol = ene[3];
-  ecor = -(ene[0] + ene[1] + ene[2]);
-  pfin = efin / (3 * vol);
-  pvol = evol / (3 * vol);
-  pcor = ecor / (3 * vol);
+  eborn = 2 * Math.PI * RBorn * RBorn / (3 * vol);
+  ecor = (efin + eborn) * (1 - 1/epsilon);
+  ecor2 = ecor - efin;
+  if ( !hasvcorr ) ecor2 += evol;
+  pfin = efin / (3 * vol); // efin ~ 1/L ~ 1/V^(1/3)
+  pvol = evol / (3 * vol); // evol ~ 1/(kappa^2 V) ~ 1/L
+  pcor = (efin + 4 * eborn) / (3 * vol) * (1 - 1/epsilon);
+  pcor2 = pcor - pfin;
+  if ( !hasvcorr ) pcor2 += pvol;
   efin *= K0 * qq;
   evol *= K0 * qq;
   ecor *= K0 * qq;
+  ecor2 *= K0 * qq;
   pfin *= P0 * qq;
   pvol *= P0 * qq;
   pcor *= P0 * qq;
-  document.getElementById("efin").innerHTML = numformat(efin) + " " + eunit;
-  document.getElementById("evol").innerHTML = numformat(evol) + " " + eunit;
-  document.getElementById("ecor").innerHTML = numformat(ecor) + " " + eunit;
-  document.getElementById("pfin").innerHTML = numformat(pfin) + " " + punit;
-  document.getElementById("pvol").innerHTML = numformat(pvol) + " " + punit;
-  document.getElementById("pcor").innerHTML = numformat(pcor) + " " + punit;
+  pcor2 *= P0 * qq;
+  document.getElementById("efin").innerHTML = numformat(efin);
+  document.getElementById("evol").innerHTML = numformat(evol);
+  document.getElementById("ecor").innerHTML = numformat(ecor);
+  document.getElementById("ecor2").innerHTML = numformat(ecor2);
+  document.getElementById("pfin").innerHTML = numformat(pfin);
+  document.getElementById("pvol").innerHTML = numformat(pvol);
+  document.getElementById("pcor").innerHTML = numformat(pcor);
+  document.getElementById("pcor2").innerHTML = numformat(pcor2);
+
+  var hicolor = "#ffffcc", locolor = "white";
+  if ( document.getElementById("alchDecouple").checked ) {
+    document.getElementById("ecor").style.backgroundColor = hicolor;
+    document.getElementById("ecor2").style.backgroundColor = locolor;
+    document.getElementById("pcor").style.backgroundColor = hicolor;
+    document.getElementById("pcor2").style.backgroundColor = locolor;
+  } else {
+    document.getElementById("ecor").style.backgroundColor = locolor;
+    document.getElementById("ecor2").style.backgroundColor = hicolor;
+    document.getElementById("pcor").style.backgroundColor = locolor;
+    document.getElementById("pcor2").style.backgroundColor = hicolor;
+  }
+
+  var ereal = ene[0] * K0 * qq;
+  var erecip = ene[1] * K0 * qq;
+  var eself = ene[2] * K0 * qq;
+  var eBorn = eborn * K0 * qq;
+  document.getElementById("ereal").innerHTML  = numformat(ereal);
+  document.getElementById("erecip").innerHTML = numformat(erecip);
+  document.getElementById("eself").innerHTML  = numformat(eself);
+  document.getElementById("eBorn").innerHTML  = numformat(eBorn);
+  var preal = ene[0] / (3 * vol) * P0 * qq;
+  var precip = ene[1] / (3 * vol) * P0 * qq;
+  var pself = ene[2] / (3 * vol) * P0 * qq;
+  var pBorn = eborn / vol * P0 * qq;
+  document.getElementById("preal").innerHTML  = numformat(preal);
+  document.getElementById("precip").innerHTML = numformat(precip);
+  document.getElementById("pself").innerHTML  = numformat(pself);
+  document.getElementById("pBorn").innerHTML  = numformat(pBorn);
+
+  document.getElementById("etitle").innerHTML = "Energy<br>(" + eunit + ")";
+  document.getElementById("ptitle").innerHTML = "Pressure<br>(" + punit + ")";
+
   var kappa = ene[4], xm = ene[5], km = ene[6];
-  document.getElementById("sinfo").innerHTML =
-    "Inverse width of the cloud charge, <i>&kappa;</i> = " + numformat(kappa) + " &#8491;<sup>&minus;1</sup>,"
-    + " as in exp(&minus;<i>&kappa;<sub> </sub>x</i><sup>2 </sup>).<br>" +
-    "Number of neighboring cells in each dimension: "
-    + xm[0] + " (<i>x</i>), " + xm[1] + " (<i>y</i>), " + xm[2] + " (<i>z</i>).<br>" +
-    "Number of wave vectors in each dimension: "
+  document.getElementById("sinfo").innerHTML = "Notes: "
+    + "<i>e</i><sup>2</sup>/(4<i>&pi;&epsilon;</i><sub>0</sub>) = " + numformat(K0) + " " + eunit + "; "
+    + "<i>e</i><sup>2</sup>/(4<i>&pi;&epsilon;</i><sub>0</sub> &#8491;<sup>4</sup>) = " + numformat(P0) + " " + punit + ".<br>"
+    + "Ewald coefficient: <i>&kappa;</i> = " + numformat(kappa) + " &#8491;<sup>&minus;1</sup>,"
+    + " as in erfc(&minus;<i>&kappa;<sub> </sub>r</i>) / <i>r</i>.<br>"
+    + "Number of neighboring cells in each dimension: "
+    + xm[0] + " (<i>x</i>), " + xm[1] + " (<i>y</i>), " + xm[2] + " (<i>z</i>).<br>"
+    + "Number of wave vectors in each dimension: "
     + km[0] + " (<i>x</i>), " + km[1] + " (<i>y</i>), " + km[2] + " (<i>z</i>).<br>";
 }
 
 function init()
 {
-  viewmat = [[-0.6211501273837585,0.7805304954451938,-0.07031831149299674],
-             [-0.4395286768639746,-0.2726761673313212,0.8558400843520434],
-             [ 0.6488351573900389,0.5625120918252239,0.512438371987373]];
+  viewmat = [[-0.6211501273837585,  0.7805304954451938, -0.07031831149299674],
+             [-0.4395286768639746, -0.2726761673313212,  0.8558400843520434],
+             [ 0.6488351573900389,  0.5625120918252239,  0.512438371987373]];
   installmouse("animationbox", "scaleinput");
   paint();
 }

@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
-  <title> Ion in opposite uniform (plasma) background </title>
+  <title> Ion in uniform compensating background </title>
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
   <script src="js/vct.js"></script>
   <script src="js/mat.js"></script>
@@ -35,38 +35,56 @@
 <body style="width:800px; margin:auto" onload="init()">
 
 <h2 style="text-align:center; font-size:170%">
-  Electric energy of an ion in neutralizing plasma background
+  Electrostatic free energy of an ion in uniform compensating background
 </h2>
 
-<form style="width:800px; margin:auto;">
+<form style="width:820px; margin:auto;">
+  <div class="col-xs-12">
+    <label for="qtot">Total net charge:</label>
+    <input type="text" value="1.0" id="qtot" class="form-control" onchange="paint()">
+  </div>
+
   <div class="col-xs-3">
+    <label for="kappa">
+      <span style="border-bottom: 1px dotted #000000;"
+        title="In the Ewald sum method, the electric potential of the screened charge will take the form of erfc(-&kappa;r)/r, the value 0 means the default value. You can use the NAMD configuration box to automatically compute this value (please include 'cutoff' and optionally 'PMETolerance').">
+        Ewald coefficient</span>,
+      <i>&kappa;</i> (&#8491;<sup>&minus;1</sup>):</label>
+    <input type="text" value="auto" id="kappa" class="form-control" onchange="paint()">
+  </div>
+
+  <div class="col-xs-3">
+    <label for="tol">Error tolerance:</label>
+    <input type="text" value="1e-15" id="tol" class="form-control" onchange="paint()">
+  </div>
+
+  <div class="col-xs-3">
+    <label for="eunit">Unit of energy:</label>
+    <select id="eunit" class="form-control" onchange="paint()">
+      <option value="">Gaussian</option>
+      <option value="kcal/mol" selected>kcal/mol</option>
+      <option value="kJ/mol">kJ/mol</option>
+      <option value="J">J (SI unit)</option>
+    </select>
+  </div>
+
+  <div class="col-xs-3">
+    <label for="punit">Unit of pressure:</label>
+    <select id="punit" class="form-control" onchange="paint()">
+      <option value="">Gaussian</option>
+      <option value="bar" selected>bar</option>
+      <option value="atm">atm</option>
+      <option value="Pa">Pa (SI unit)</option>
+    </select>
+  </div>
+
+  <div class="col-xs-12">
     <label for="lattype">Lattice type:</label>
     <select id="lattype" class="form-control" onchange="paint()">
       <option value="cubic">Cubic</option>
       <option value="orthorhombic">Orthorhombic</option>
       <option value="triclinic">Triclinic</option>
     </select>
-  </div>
-
-  <div class="col-xs-3">
-    <label for="qtot">Total net charge:</label>
-    <input type="text" value="1.0" id="qtot" class="form-control" onchange="paint()">
-    </input>
-  </div>
-
-  <div class="col-xs-3">
-    <label for="kappa"><i>&kappa;</i> (&#8491;<sup>&minus;1</sup>)
-      <span style="background-color:#2060a0;color:white;font-size:90%;font-weight:bold;padding:0px 5px;border: 2px solid #2060a0;border-radius:10px;"
-        title="In the Ewald sum method, the screening charge will take the form of exp(-&kappa; x^2), the value 0 means the default value.">
-        ?</span>:</label>
-    <input type="text" value="default" id="kappa" class="form-control" onchange="paint()">
-    </input>
-  </div>
-
-  <div class="col-xs-3">
-    <label for="tol">Error tolerance:</label>
-    <input type="text" value="1e-15" id="tol" class="form-control" onchange="paint()">
-    </input>
   </div>
 
   <div class="col-xs-3">
@@ -109,53 +127,184 @@
   </div>
 
   <div class="col-xs-3">
-    <label for="eunit">Unit of energy:</label>
-    <select id="eunit" class="form-control" onchange="paint()">
-      <option value="">Gaussian</option>
-      <option value="kcal/mol" selected>kcal/mol</option>
-      <option value="kJ/mol">kJ/mol</option>
-      <option value="J">J (SI unit)</option>
-    </select>
+    <label for="epsilon" title="Dielectric constant, 78.3 for water at room temperature">
+      <span style="border-bottom: 1px dotted #000000;">
+      Relative permittivity</span>, <i>&epsilon;</i>:</label>
+    <input type="text" value="78.3" id="epsilon" class="form-control" onchange="paint()">
   </div>
 
   <div class="col-xs-3">
-    <label for="punit">Unit of pressure</label>
-    <select id="punit" class="form-control" onchange="paint()">
-      <option value="">Gaussian</option>
-      <option value="atm" selected>atm</option>
-      <option value="bar">bar</option>
-      <option value="Pa">Pa (SI unit)</option>
-    </select>
+    <label for="RBorn">Born radius, <i>R</i><sub>B</sub> (&#8491;):</label>
+    <input type="text" value="0" id="RBorn" class="form-control" onchange="paint()">
   </div>
 
   <div class="col-xs-3">
-    <input type="button" value="Compute"
+    <label for="alchDecouple">
+      <span title="Exclude solute-solute interaction"
+        style="border-bottom: 1px dotted #000000">alchDecouple</span> on?</label>
+    <input type="checkbox" id="alchDecouple" class="form-control" onchange="paint()">
+    </input>
+  </div>
+
+  <div class="col-xs-3">
+    <label for="hasvcorr"
+      title="Whether the MD package included the volume correction for charged systems. GROMACS has this correction, but NAMD 2.11 may not.">
+      Has volume correction?</label>
+    <input type="checkbox" id="hasvcorr" class="form-control" onchange="paint()">
+    </input>
+  </div>
+
+  <div class="col-xs-6">
+    <input type="button" class="btn btn-primary" style="margin: 10px 0px 5px 0px"
+      value="Fill the form using the following NAMD configuration file"
+      onclick="readNAMDconf()">
+    <textarea id="NAMDconf" rows="12" cols="72" class="form-control"
+      style="font-size: 90%; font-family: FreeMono, Courier, monospace;"
+      onchange="readNAMDconf()"></textarea>
+  </div>
+
+  <div class="col-xs-6">
+    <input type="button" class="btn btn-primary" style="margin: 10px 0px 5px 0px"
+      value="Compute the total charge from the following PDB file"
+      onclick="readPDB()">
+    <textarea id="inputPDB" rows="12" cols="72" class="form-control"
+      style="font-size: 90%; font-family: FreeMono, Courier, monospace;"
+      onchange="readPDB()"></textarea>
+  </div>
+
+  <div class="col-xs-12">
+    <input type="button" class="btn btn-primary btn-lg"
+      value="Compute"
       style="margin-top: 15px; font-size: 130%; font-weight: bold"
-      class="btn btn-primary" onclick="paint()">
+      onclick="paint()">
   </div>
 
-  <div class="col-xs-12" id="info" style="font: 130% Times New Roman; margin: 10px;">
+  <div class="col-xs-12" style="font: 130% Times New Roman; margin: 10px;">
     <table>
       <tr>
         <th></th>
-        <th>Finite-size correction</th>
-        <th>Volume correction</th>
-        <th>Total correction</th>
+        <th id="etitle">Energy</th>
+        <th id="ptitle">Pressure<a href="#pnote"><sup>&dagger;</sup></a></th>
+        <th>Description</th>
       </tr>
       <tr>
-        <th>Energy</th>
+        <th>
+          Vacuum potential energy
+        </th>
         <td id="efin"></td>
-        <td id="evol"></td>
-        <td id="ecor"></td>
-      </tr>
-      <tr>
-        <th>Pressure</th>
         <td id="pfin"></td>
-        <td id="pvol"></td>
-        <td id="pcor"></td>
+        <td style="text-align:left">
+          Potential energy of placing a point ion in the lattice
+          with uniform compensating background charge in vacuum.
+          For a cubic box of side <i>L</i>,
+          the value is given by
+          &minus;&frac12; 2.837297 <i>q</i><sup>2</sup> / <i>L</i>.
+        </td>
       </tr>
       <tr>
-        <td colspan="4" id="sinfo">
+        <th>Finite ion-size correction</th>
+        <td id="eBorn"></td>
+        <td id="pBorn"></td>
+        <td style="text-align:left">
+          Interaction energy between a finite-size ion of Born radius <i>R<sub>B</i>
+          and the uniform compensating background
+          less the interaction energy between a point charge
+          and the background,
+          2<i>&pi;</i><i>R<sub>B</sub></i><sup>2</sup>/(3<i>V</i>).
+        </td>
+      </tr>
+      <tr>
+        <th>
+          Correction
+        </th>
+        <td id="ecor"></td>
+        <td id="pcor"></td>
+        <td style="text-align:left">
+          Correction for extrapolating free energy to infinite system.
+          <br>
+          For a cubic box of side <i>L</i>, the value is<br>
+          [&minus;&frac12; 2.837297<i>q</i><sup>2</sup>/<i>L</i>
+          + 2<i>&pi;</i><i>R<sub>B</sub></i><sup>2</sup>/(3<i>V</i>)]
+          (1 &minus; 1/<i>&epsilon;</i>).
+          <br>
+          This correction assumes the simulation value
+          includes only solute-solvent interaction.
+          In NAMD, it means
+          <tt style="font-family:courier;font-weight:normal">alchDecouple on</tt>.
+        </td>
+      </tr>
+      <tr>
+        <th>
+          Volume correction
+        </th>
+        <td id="evol"></td>
+        <td id="pvol"></td>
+        <td style="text-align:left">
+          The interaction energy between the uniform compensating background
+          and the screened charge of ion
+          (a point charge less its own cloud charge).
+          The cloud charge is introduced by the Ewald method
+          to improve convergence.
+          However, the volume correction is missing from NAMD
+          (but included in GROMACS).
+        </td>
+      </tr>
+      <tr>
+        <th>
+          Correction 2
+        </th>
+        <td id="ecor2"></td>
+        <td id="pcor2"></td>
+        <td style="text-align:left">
+          Correction for extrapolating the solvation free energy to infinite system.
+          For free energy calculation, this correction
+          applies to the chemical potential,
+          or the sum of solute-solute and solute-solvent energy.
+          In NAMD, it means
+          <tt style="font-family:courier;font-weight:normal">alchDecouple off</tt>.
+        </td>
+      </tr>
+      <tr>
+        <th>Real</th>
+        <td id="ereal"></td>
+        <td id="preal"></td>
+        <td style="text-align:left">
+          Interaction energy of a point charge
+          and the cloud charges of other point charges
+          (periodic images),
+          &frac12; &Sigma;<sub>(<i>i</i>, <i>j</i>)</sub> erfc(<i>&kappa;r<sub>ij</sub></i>)/<i>r<sub>ij</sub></i>.
+          <br>
+          With the usual half-box cutoff scheme,
+          this contribution may also be missing from MD results.
+        </td>
+      </tr>
+      <tr>
+        <th>Reciprocal</th>
+        <td id="erecip"></td>
+        <td id="precip"></td>
+        <td style="text-align:left">
+          Interaction energy of all point charges
+          with the uniform compensating background
+          and all cloud charges with the uniform
+          compensating background,
+          1/(2<i>&pi;V</i>) &Sigma;<sub>(<b>k</b>)</sub> exp[&minus;<i>k</i><sup>2</sup>/(4<i>&kappa;</i><sup>2</sup>)]/<i>k</i><sup>2</sup>.
+        </td>
+      </tr>
+      <tr>
+        <th>Self</th>
+        <td id="eself"></td>
+        <td id="pself"></td>
+        <td style="text-align:left">
+          Negative of the interaction energy of
+          a point charge and
+          its own cloud charge,
+          <i>&kappa;</i>/&radic;<i>&pi;</i>.
+        </td>
+      </tr>
+      <tr>
+        <td colspan="4" style="text-align: left">
+          <a name="pnote">&dagger;</a>
+          Assuming <i>&kappa;</i> is inversely proportional to the box side, <i>L</i>.
         </td>
       </tr>
     </table>
@@ -186,6 +335,45 @@
   </span>
 
 </div>
+
+<h3>References</h3>
+
+<ol>
+  <li>
+  G. Hummer, L. R. Pratt, and A. E. Garc&iacute;a,
+  Ion sizes and finite-size corrections for ionic-solvation free energies,
+  J. Chem. Phys. <b>107</b> 9275 (1997).
+  <br>
+  This paper is the main reference of this work.
+  </li>
+  <li>
+    NAMD tutorial:
+  A Tutorial on Alchemical Free Energy Perturbation Calculations in NAMD,
+  <a href="http://www.ks.uiuc.edu/Training/Tutorials/#freeenergymethods"
+    >http://www.ks.uiuc.edu/Training/Tutorials/#freeenergymethods</a>.
+  See example 2 on charging an ion.
+  </li>
+  <li>
+  S. Bogusz, T. E. Cheatham III, and B. R. Brooks,
+  Removal of pressure and free energy artifacts in charged periodic systems
+  via net charge corrections to the Ewald potential,
+  J. Chem. Phys. <b>108</b> 7070 (1998).
+  <br>
+  The correction reported there applies to the chemical potential
+  which includes solute-solute interaction.
+  <br>
+  To reproduce Table I, set
+  the Ewald coefficient, <i>&kappa;</i>, to 0.32,
+  the relative permittivity, <i>&epsilon;</i>, to 1.0,
+  the Born radius, <i>R</i><sub>Born</sub>, to 0,
+  and turn off &ldquo;alDecouple&rdquo; and &ldquo;Has volume correction.&rdquo;
+  </li>
+  <li>
+  G. Hummer, L. R. Pratt, and A. E. Garc&iacute;a,
+  Free energy of Ionic Hydration,
+  J. Phys. Chem. <b>100</b> 1206-1215 (1996).
+  </li>
+</ol>
 
 </body>
 </html>
