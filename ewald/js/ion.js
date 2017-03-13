@@ -303,12 +303,27 @@ function readPDB()
   document.getElementById("qtot").value = qtot;
 }
 
+function changelunit()
+{
+  var lunit = document.getElementById("lunit").value;
+  if ( lunit !== "" ) {
+    document.getElementById("invl_1").innerHTML = " (" + lunit + "<sup>&minus;1</sup>)";
+    document.getElementById("l_0").innerHTML = " (" + lunit + ")";
+    document.getElementById("l_1").innerHTML = " (" + lunit + ")";
+    document.getElementById("l_2").innerHTML = " (" + lunit + ")";
+    document.getElementById("l_3").innerHTML = " (" + lunit + ")";
+  }
+  return lunit;
+}
+
 function readNAMDconf()
 {
   var conf = document.getElementById("NAMDconf").value.trim();
   if ( conf === "" ) return;
   document.getElementById("eunit").selectedIndex = 1;
   document.getElementById("punit").selectedIndex = 1;
+  document.getElementById("lunit").selectedIndex = 1;
+  changelunit();
   var cutoff = 12, pmetolerance = 1e-6;
   var lines = conf.split("\n"), i, line;
   var x = [0, 0, 0], y = [0, 0, 0], z = [0, 0, 0];
@@ -383,6 +398,8 @@ function readNAMDconf()
   }
   document.getElementById("kappa").value = ewaldcof;
   document.getElementById("alchDecouple").checked = alchDecouple;
+  document.getElementById("hasvcorr").checked = false;
+  document.getElementById("hasvreal").checked = false;
 }
 
 function update()
@@ -451,32 +468,42 @@ function paint()
   var tol = parseFloat( document.getElementById("tol").value );
   if ( isNaN(tol) ) tol = 1e-15;
   var ene = ewald(kappa, tol, mat);
-  var K0 = 1, P0 = 1;
+  var K0 = 1, P0 = 1, L0 = 1;
+  //var lunit = document.getElementById("lunit").value;
+  var lunit = changelunit();
+  if ( lunit === "\u212B" ) {
+    L0 = 1e-10;
+  } else if ( lunit === "nm" ) {
+    L0 = 1e-9;
+  }
+  //console.log(L0, lunit);
   var eunit = document.getElementById("eunit").value;
   var punit = document.getElementById("punit").value;
   if ( eunit === "kcal/mol" ) {
-    K0 = echarge * echarge / (4 * Math.PI * eps0) * NA * 1e10 / (cal * 1e3);
+    K0 = echarge * echarge / (4 * Math.PI * eps0) * NA / (L0 * cal * 1e3);
     // 332.06371301869575
     // NAMD uses 332.0636
   } else if ( eunit === "kJ/mol" ) {
-    K0 = echarge * echarge / (4 * Math.PI * eps0) * NA * 1e10 / 1e3;
+    K0 = echarge * echarge / (4 * Math.PI * eps0) * NA / (L0 * 1e3);
   } else if ( eunit === "J" ) {
-    K0 = echarge * echarge / (4 * Math.PI * eps0) * 1e10;
+    K0 = echarge * echarge / (4 * Math.PI * eps0) / L0;
   }
+  var L0_4 = L0 * L0 * L0 * L0;
   if ( punit === "atm" ) {
-    P0 = echarge * echarge / (4 * Math.PI * eps0) * 1e40 / atm;
+    P0 = echarge * echarge / (4 * Math.PI * eps0) / (L0_4 * atm);
   } else if ( punit === "bar" ) {
-    P0 = echarge * echarge / (4 * Math.PI * eps0) * 1e40 / 1e5;
+    P0 = echarge * echarge / (4 * Math.PI * eps0) / (L0_4 * 1e5);
     // NAMD uses bar as the unit of pressure
     // PRESSUREFACTOR = cal/NA*1e30 = 100 * P0 / K0
     // NAMD's PRESSUREFACTOR is 6.95e6 instead of 6947695.345147256
   } else if ( punit === "Pa" ) {
-    P0 = echarge * echarge / (4 * Math.PI * eps0) * 1e40;
+    P0 = echarge * echarge / (4 * Math.PI * eps0) / L0_4;
   }
   var epsilon = parseFloat( document.getElementById("epsilon").value );
   if ( epsilon <= 0 ) epsilon = 1;
   var RBorn = parseFloat( document.getElementById("RBorn").value );
   var hasvcorr = document.getElementById("hasvcorr").checked;
+  var hasvreal = document.getElementById("hasvreal").checked;
   var qtot = parseFloat( document.getElementById("qtot").value );
   var qq = qtot * qtot;
   var efin, evol, ecor, eborn, ecor2;
@@ -487,11 +514,13 @@ function paint()
   ecor = (efin + eborn) * (1 - 1/epsilon);
   ecor2 = ecor - efin;
   if ( !hasvcorr ) ecor2 += evol;
+  if ( !hasvreal ) ecor2 += ene[0];
   pfin = efin / (3 * vol); // efin ~ 1/L ~ 1/V^(1/3)
   pvol = evol / (3 * vol); // evol ~ 1/(kappa^2 V) ~ 1/L
   pcor = (efin + 4 * eborn) / (3 * vol) * (1 - 1/epsilon);
   pcor2 = pcor - pfin;
   if ( !hasvcorr ) pcor2 += pvol;
+  if ( !hasvreal ) pcor2 += ene[0] / (3 * vol);
   efin *= K0 * qq;
   evol *= K0 * qq;
   ecor *= K0 * qq;
@@ -544,9 +573,11 @@ function paint()
 
   var kappa = ene[4], xm = ene[5], km = ene[6];
   document.getElementById("sinfo").innerHTML = "Notes: "
-    + "<i>e</i><sup>2</sup>/(4<i>&pi;&epsilon;</i><sub>0</sub>) = " + numformat(K0) + " " + eunit + "; "
-    + "<i>e</i><sup>2</sup>/(4<i>&pi;&epsilon;</i><sub>0</sub> &#8491;<sup>4</sup>) = " + numformat(P0) + " " + punit + ".<br>"
-    + "Ewald coefficient: <i>&kappa;</i> = " + numformat(kappa) + " &#8491;<sup>&minus;1</sup>,"
+    + "<i>e</i><sup>2</sup>/(4<i>&pi;&epsilon;</i><sub>0</sub>) = " + numformat(K0) + " " + eunit
+    + " = " + numformat(P0) + " " + punit
+    + (lunit !== "" ? " " + lunit  + "<sup>4</sup>" : "") + ".<br>"
+    + "Ewald coefficient: <i>&kappa;</i> = " + numformat(kappa)
+    + (lunit !== "" ? " " + lunit + "<sup>&minus;1</sup>" : "") + ","
     + " as in erfc(&minus;<i>&kappa;<sub> </sub>r</i>) / <i>r</i>.<br>"
     + "Number of neighboring cells in each dimension: "
     + xm[0] + " (<i>x</i>), " + xm[1] + " (<i>y</i>), " + xm[2] + " (<i>z</i>).<br>"
@@ -562,3 +593,5 @@ function init()
   installmouse("animationbox", "scaleinput");
   paint();
 }
+
+window.onload = init;

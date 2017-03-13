@@ -6,7 +6,7 @@ bdir=/Bossman/cz1/snippets/ewald
 
 Bossman:
 	rm -f *~ js/*~ .*.un~ js/.*.un~
-	rstrip.py -R
+	rstrip.py -R js/* *
 	../htmlpack.py
 	rsync -avzL js/*.js $(bdir)/js
 	rsync -avz ion.html $(bdir)/
