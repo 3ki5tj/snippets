@@ -15,7 +15,7 @@ static void rmcom(double (*x)[D], const double *m, int n)
   double xc[D] = {0}, mtot = 0, wt;
 
   for ( i = 0; i < n; i++ ) {
-    wt = m ? m[i] : 1.0;
+    wt = (m != NULL) ? m[i] : 1.0;
     vsinc(xc, x[i], wt);
     mtot += wt;
   }
@@ -136,16 +136,11 @@ __inline static void shiftang(double (*x)[D], double (*v)[D],
 __inline static double md_ekin(double (*v)[D], const double *m, int n)
 {
   int i;
-  double ek = 0;
+  double ek = 0, wt;
 
-  if ( m == NULL ) {
-    for ( i = 0; i < n; i++ ) {
-      ek += vsqr( v[i] );
-    }
-  } else {
-    for ( i = 0; i < n; i++ ) {
-      ek += m[i] * vsqr( v[i] );
-    }
+  for ( i = 0; i < n; i++ ) {
+    wt = ( m != NULL ) ? m[i] : 1;
+    ek += m[i] * vsqr( v[i] );
   }
   return ek * 0.5;
 }
@@ -211,22 +206,23 @@ __inline static double md_nhchain(double (*v)[D],
 
 
 
-__inline static void md_langevin(double (*v)[D],
+__inline static double md_langevin(double (*v)[D],
     const double *m, int n, double tp, double dt)
 {
   int i, k;
-  double s, v0;
+  double s, v0, wt, ek = 0;
 
   s = exp(-dt);
   v0 = sqrt( tp * (1 - s * s) );
   for ( i = 0; i < n; i++ ) {
-    if ( m != NULL ) {
-      v0 /= sqrt( m[i] );
-    }
+    wt = ( m != NULL ) ? m[i] : 1;
+    v0 /= sqrt( wt );
     for ( k = 0; k < D; k++ ) {
       v[i][k] = v[i][k] * s + v0 * randgaus();
     }
+    ek += 0.5 * wt * vsqr(v[i]); 
   }
+  return ek;
 }
 
 
@@ -257,6 +253,65 @@ __inline static double md_vscramble(double (*v)[D],
     }
   }
   return md_ekin(v, m, n);
+}
+
+
+
+/* bond energy k (r - r0)^2 */
+static double md_potbond(double *a, double *b,
+    double r0, double k, double *fa, double *fb)
+{
+  double dx[D], r, dr, amp;
+
+  r = vnorm( vdiff(dx, a, b) );
+  dr = r - r0;
+  if ( fa != NULL ) {
+    amp = 2 * k * dr / r;
+    vsinc(fa, dx, -amp);
+    vsinc(fb, dx,  amp);
+  }
+  return k * dr * dr;
+}
+
+/* harmonic angle k (ang - ang0)^2 */
+static double md_potang(double *a, double *b, double *c,
+    double ang0, double k, double *fa, double *fb, double *fc)
+{
+  double dang, amp, ga[D], gb[D], gc[D];
+
+  dang = vang(a, b, c, ga, gb, gc) - ang0;
+  if ( fa != NULL ) {
+    amp = -2 * k * dang;
+    vsinc(fa, ga, amp);
+    vsinc(fb, gb, amp);
+    vsinc(fc, gc, amp);
+  }
+  return k * dang * dang;
+}
+
+
+
+/* 1-3 dihedral: k1 * (1 - cos(dang)) + k3 * (1 - cos(3*dang)) */
+static double md_potdih13(double *a, double *b, double *c, double *d,
+    double ang0, double k1, double k3,
+    double *fa, double *fb, double *fc, double *fd)
+{
+  double dang, amp, ga[3], gb[3], gc[3], gd[3], u;
+
+  if ( fa != NULL ) {
+    dang = vdih(a, b, c, d, ga, gb, gc, gd) - ang0;
+    amp  = -k1 * sin(dang);
+    amp += -3 * k3 * sin(3*dang);
+    vsinc(fa, ga, amp);
+    vsinc(fb, gb, amp);
+    vsinc(fc, gc, amp);
+    vsinc(fd, gd, amp);
+  } else {
+    dang = vdih(a, b, c, d, NULL, NULL, NULL, NULL) - ang0;
+  }
+  u  = k1 * (1 - cos(dang));
+  u += k3 * (1 - cos(3 * dang));
+  return u;
 }
 
 

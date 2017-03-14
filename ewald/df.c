@@ -1,4 +1,4 @@
-/* compute the electric energy of a uniform-sphere ion
+/* compute the electric energy of a spherical ion
  * in a uniform negative background by Ewald sum
  * To compile and run
  *    gcc ion.c -lm && ./a.out
@@ -8,10 +8,12 @@
 #include <math.h>
 
 
+double r = 0.2; /* radius of the cloud charge */
+int kterms = 200;
 
 enum { SOLID_SPHERE, HOLLOW_SPHERE, GAUSSIAN };
 const char *type_names[] = { "solid sphere", "hollow sphere", "Gaussian" };
-int type;
+int type = SOLID_SPHERE;
 
 
 static double ewald(double r, int km)
@@ -44,7 +46,6 @@ static double ewald(double r, int km)
           // approximately exp(-x*x/6)
         } else if ( type == GAUSSIAN ) {
           rhok = exp(-x*x/4);
-          // approximately exp(-x*x/4)
         }
         erecip += mul * rhok * rhok / k2;
       }
@@ -69,9 +70,6 @@ static double ewald(double r, int km)
 
 int main(int argc, char **argv)
 {
-  double r = 0.05;
-  int kterms = 200;
-
   if ( argc > 1 ) r = atof(argv[1]);
   if ( argc > 2 ) kterms = atof(argv[2]);
   if ( argc > 3 ) type = atoi(argv[3]);
