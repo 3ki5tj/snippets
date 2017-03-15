@@ -224,7 +224,7 @@
         </td>
       </tr>
       <tr>
-        <th>Finite ion-size correction</th>
+        <th>Ion size correction</th>
         <td id="eBorn"></td>
         <td id="pBorn"></td>
         <td style="text-align:left">
@@ -232,7 +232,7 @@
           and the uniform compensating background
           less the interaction energy between a point charge
           and the background,
-          2<i>&pi;</i><i>R<sub>B</sub></i><sup>2</sup>/(3<i>V</i>).
+          2<i>&pi;</i><i>R<sub>B</sub></i><sup>2</sup><i>q</i><sup>2</sup>/(3<i>V</i>).
         </td>
       </tr>
       <tr>
@@ -245,8 +245,9 @@
           Correction for extrapolating free energy to infinite system.
           <br>
           For a cubic box of side <i>L</i>, the value is<br>
-          [&minus;&frac12; 2.837297<i>q</i><sup>2</sup>/<i>L</i>
+          [&minus;&frac12; 2.837297/<i>L</i>
           + 2<i>&pi;</i><i>R<sub>B</sub></i><sup>2</sup>/(3<i>V</i>)]
+          <i>q</i><sup>2</sup>
           (1 &minus; 1/<i>&epsilon;</i>).
           <br>
           This correction assumes the simulation value

@@ -140,7 +140,7 @@ __inline static double md_ekin(double (*v)[D], const double *m, int n)
 
   for ( i = 0; i < n; i++ ) {
     wt = ( m != NULL ) ? m[i] : 1;
-    ek += m[i] * vsqr( v[i] );
+    ek += wt * vsqr( v[i] );
   }
   return ek * 0.5;
 }
@@ -220,7 +220,7 @@ __inline static double md_langevin(double (*v)[D],
     for ( k = 0; k < D; k++ ) {
       v[i][k] = v[i][k] * s + v0 * randgaus();
     }
-    ek += 0.5 * wt * vsqr(v[i]); 
+    ek += 0.5 * wt * vsqr(v[i]);
   }
   return ek;
 }
@@ -291,6 +291,7 @@ static double md_potang(double *a, double *b, double *c,
 
 
 
+#if D == 3
 /* 1-3 dihedral: k1 * (1 - cos(dang)) + k3 * (1 - cos(3*dang)) */
 static double md_potdih13(double *a, double *b, double *c, double *d,
     double ang0, double k1, double k3,
@@ -314,6 +315,7 @@ static double md_potdih13(double *a, double *b, double *c, double *d,
   return u;
 }
 
+#endif
 
 
 #endif /* MDUTIL_H__ */

@@ -231,7 +231,7 @@ __inline static double vang(const double *xi, const double *xj, const double *xk
   if ( gi && gj && gk ) {
     double sn, gij, gkj;
     int d;
-    sn = -1.0 / sqrt(1 - dot * dot); /* -1.0/sin(phi) */
+    sn = -1.0 / sqrt(1 + DBL_EPSILON  - dot * dot); /* -1.0/sin(phi) */
     for ( d = 0; d < D; d++ ) {
       gij = sn * (xkj[d] - xij[d]*dot) / ri;
       gkj = sn * (xij[d] - xkj[d]*dot) / rk;
