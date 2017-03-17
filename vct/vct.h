@@ -299,7 +299,7 @@ __inline static double *vgetperp(double *p, const double *v)
 
   vzero(u);
   u[im] = 1;
-  vcross(p, v, u);
+  vnormalize(vcross(p, v, u));
   return p;
 }
 

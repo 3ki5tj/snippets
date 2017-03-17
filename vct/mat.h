@@ -226,9 +226,9 @@ __inline static int msolve(double (*a)[D], double *b)
 
     /* normalize this row */
     x = a[i][i];
-    if ( fabs(x) < DBL_MIN ) {
-      fprintf(stderr, "Error: singular matrix\n");
-      return -1;
+    if ( fabs(x) <= 0 ) {
+      fprintf(stderr, "Error: singular matrix, |a_ii| %g\n", x);
+      break;
     }
     for ( k = i; k < D; k++ ) a[i][k] /= x;
     b[i] /= x;
@@ -244,7 +244,7 @@ __inline static int msolve(double (*a)[D], double *b)
 
   /* now that the matrix is upper triangular
    * make it diagonal */
-  for ( i = D - 1; i >= 0; i-- ) {
+  for ( --i; i >= 0; i-- ) {
     /* note a[i][i] should be 1 now */
     for ( j = 0; j < i; j++ ) {
       b[j] -= b[i] * a[j][i];

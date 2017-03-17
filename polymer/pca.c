@@ -13,6 +13,7 @@ long nstskip = 10;
 
 typedef struct {
   int n;
+  int dim;
   int cnt;
   double *mass;
   double *sqrtm;
@@ -52,6 +53,7 @@ pca_t *pca_load(const char *fn, long skip)
   sscanf(buf, "#%d%d%n", &np, &n, &next);
   xnew(pca, 1);
   pca->n = n;
+  pca->dim = n / np;
   xnew(pca->mass, n);
   xnew(pca->sqrtm, n);
   xnew(pca->x, n);
@@ -133,7 +135,7 @@ int pca_analyze(pca_t *pca, double kT)
     sig[i] = pca->cov[i*n+i] > 0 ? sqrt( pca->cov[i*n+i] ) : 1;
 
   for ( i = 0; i < n; i++ ) {
-    printf("%4d %8.3f: ", i, sig[i]);
+    printf("%4d %8.3f: ", i, sig[i]*1000);
     for ( j = 0; j < n; j++ ) {
       printf(" %8.3f", pca->cov[i*n + j]/sig[i]/sig[j]);
     }
@@ -167,15 +169,17 @@ int pca_analyze(pca_t *pca, double kT)
 
   /* compute the entropy */
   nmodes = 0;
-  for ( i = 0; i < n - 6; i++ ) {
+  printf("hbar*omega/kT: ");
+  for ( i = 0; i < n - pca->dim*(pca->dim+1)/2; i++ ) {
     alpha = pca->eval[i];
     //if ( alpha <= 0 ) continue;
     alpha = hbar/sqrt(alpha)/kT;
-    entc += 1 + log(alpha);
+    entc += 1 - log(alpha);
     entq += alpha/(exp(alpha)-1) - log(1-exp(-alpha));
     nmodes += 1;
+    printf(" %g", alpha);
   }
-  printf("Entropy: %g kcal/mol/K, %g kB (classical) %g kcal/mol/K, %g kB (quantum); %d none-zero modes\n",
+  printf("\nEntropy: %g kcal/mol/K, %g kB (classical) %g kcal/mol/K, %g kB (quantum); %d none-zero modes\n",
       entc * KB, entc, entq * KB, entq, nmodes);
 
   printf("1/omega in fs\n");

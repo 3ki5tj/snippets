@@ -9,7 +9,7 @@
 const double KB = 0.0019872041; /* kcal/mol/K */
 
 int chainlen = D + 1;
-//int chainlen = 4;
+//int chainlen = 3;
 double tp = 300;
 long nsteps = 1000000;
 double mddt = 0.002; /* in ps */
@@ -34,6 +34,8 @@ double bond0 = 3.79;
 double kbond = 222.5;
 double theta0 = 113 * PI / 180;
 double ktheta = 58.35;
+//double theta0 = 180 * PI / 180;
+//double ktheta = 1000;
 double phi0 = PI;
 double kdih1 = 100.;
 double kdih3 = 0.0;
@@ -65,7 +67,7 @@ static void polymer_close(polymer_t *p)
 
 
 /* print out the angular momentum */
-static void polymer_printang(polymer_t *p, const char *flag)
+__inline static void polymer_printang(polymer_t *p, const char *flag)
 {
   int i, n = p->n;
 #if D == 2
@@ -81,7 +83,7 @@ static void polymer_printang(polymer_t *p, const char *flag)
     vcross(x, p->xref[i], p->xt[i]);
     vsinc(ang, x, p->m[i]);
   }
-  printf("%s: %g %g %g\n", flag, ang[0], ang[1], ang[2]);
+  printf("%s: %g %g %g | norm %g\n", flag, ang[0], ang[1], ang[2], vnorm(ang));
 #endif
 }
 
@@ -100,8 +102,7 @@ static void polymer_transform(polymer_t *p, int type)
     }
     /* remove the center of mass motion */
     rmcom(p->xt, p->m, n);
-    /* remove the overall rotation
-     * by treating xt as velocity */
+    /* remove the overall rotational by treating xt as velocity */
     //polymer_printang(p, "before");
     shiftangv(p->xref, p->xt, p->m, n);
     //polymer_printang(p, "after"); getchar();
@@ -163,6 +164,7 @@ static int polymer_write(polymer_t *p, const char *fn)
 #else
     fprintf(fp, "%g %g %g\n", p->xt[i][0], p->xt[i][1], p->xt[i][2]);
 #endif
+    //if ( i > 0 && i < p->n - 1 ) printf("i %d: %g\n", i, vang(p->xt[i-1], p->xt[i], p->xt[i+1],NULL,NULL,NULL)*180/M_PI);
   }
   fclose(fp);
   return 0;
@@ -178,7 +180,7 @@ void polymer_logpos(polymer_t *p, FILE *fp, long t, int header)
     /* report the masses */
     fprintf(fp, "# %d %d", n, n * D);
     for ( i = 0; i < n; i++ ) {
-      for ( j = 0; j < n; j++ ) {
+      for ( j = 0; j < D; j++ ) {
         fprintf(fp, " %g", p->m[i]);
       }
     }
@@ -233,7 +235,7 @@ double polymer_force(polymer_t *p)
 static void polymer_rmcom(polymer_t *p, double (*x)[D], double (*v)[D])
 {
   rmcom(v, p->m, p->n);
-  shiftangr(x, v, p->m, p->n);
+  shiftang(x, v, p->m, p->n);
 }
 
 polymer_t *polymer_open(int n, double tp0)

@@ -38,13 +38,6 @@ static void rmcom(double (*x)[D], const double *m, int n)
 
 
 
-/* compare to shiftangr(), shiftangv() has the advantage
- * of preserving the magnitude of each velocity
- * this is why it is chosen by default */
-#ifndef shiftang
-#define shiftang(x, v, m, n) shiftangv(x, v, m, n)
-#endif
-
 #if D == 2
 
 
@@ -84,7 +77,7 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
 }
 
 /* annihilate the total angular momentum by rotation */
-__inline static void shiftangr(double (*x)[D], double (*v)[D],
+__inline static void shiftang(double (*x)[D], double (*v)[D],
     const double *m, int n)
 {
   int i;
@@ -119,51 +112,57 @@ __inline static void shiftangr(double (*x)[D], double (*v)[D],
 __inline static void shiftangv(double (*x)[D], double (*v)[D],
     const double *m, int n)
 {
-  int i, j, k;
-  double xc[D], xi[D], ang[D], am[D];
-  double wt, wdot, mat[D][D], vr[D], s;
+  int i, j, k, round;
+  double xc[D], xi[D], ang[D], am[D], z[D], th, rot[D][D];
+  double wt, wdot, mat[D][D], vi[D], ama;
+  double tol = DBL_EPSILON * 1e3;
 
   /* compute the center of mass */
   getcom(xc, x, m, n);
 
-  /* compute the total angular momentum and
-   * determine the axis of rotation, omega, such that
-   *   Sum_i mi xi x vi is parallel to
-   *   Sum_i mi xi x (omega x vi)
-   *   = Sum_i mi [(vi.xi) - (vi::xi)] omega */
-  vzero(am);
-  mzero(mat);
-  for ( i = 0; i < n; i++ ) {
-    wt = ( m != NULL ) ? m[i] : 1.0;
-    vdiff(xi, x[i], xc);
-    vcross(ang, xi, v[i]);
-    vsinc(am, ang, wt);
-    wdot = wt * vdot(v[i], xi);
-    for ( j = 0; j < D; j++ ) {
-      mat[j][j] += wdot;
-      for ( k = 0; k < D; k++ ) {
-        mat[j][k] -= wt * v[i][j] * xi[k];
+  for ( round = 0; round < 100; round++ ) {
+    /* compute the total angular momentum and
+     * determine the axis of rotation, omega, such that
+     *   Sum_i mi xi x vi is parallel to
+     *   Sum_i mi xi x (omega x vi)
+     *   = Sum_i mi [(vi.xi) - (vi::xi)] omega */
+    vzero(am);
+    mzero(mat);
+    ama = 0;
+    for ( i = 0; i < n; i++ ) {
+      wt = ( m != NULL ) ? m[i] : 1.0;
+      vdiff(xi, x[i], xc);
+      vcross(ang, xi, v[i]);
+      vsinc(am, ang, wt);
+      ama += wt * vnorm(ang);
+      wdot = wt * vdot(v[i], xi);
+      for ( j = 0; j < D; j++ ) {
+        mat[j][j] += wdot;
+        for ( k = 0; k < D; k++ ) {
+          mat[j][k] -= wt * v[i][j] * xi[k];
+        }
       }
     }
-  }
-  msolve(mat, am);
-  /* now the direction of `am` reprensent the axis of rotation,
-   * around with an 90-degree rotation (omega x vi) will produce
-   * the same angular momentum as the initial velocity, vi
-   * which means if `am` is normalized, the resulting angular
-   * momentum is L/|am|. */
-  s = 1/(1 + vsqr(am));
+    wdot = vnorm(am);
+    if ( wdot < ama * tol ) break;
+    msolve(mat, am);
+    th = atan2(-vnorm(am), 1);
+    //printf("round %d, th %g, am %g, ama %g, |L| %g\n", round, th, vnorm(am), ama, wdot);
+    vnormalize(vcopy(z, am));
 
-  /* compute the total angular momentum
-   * from the 90-degree rotated velocities */
-  for ( i = 0; i < n; i++ ) {
-    wt = ( m != NULL ) ? m[i] : 1.0;
-    vdiff(xi, x[i], xc);
-    /* vi' = (vi - am x vi) / sqrt(1 + u[1]^2); */
-    vcross(vr, am, v[i]); /* vr: 90-degree rotated velocity */
-    vsinc(v[i], vr, -1);
-    vsmul(v[i], s);
-    vcross(ang, xi, v[i]); /* ang: xi x (z x vi) */
+    /* now the direction of `am` reprensent the axis of rotation,
+     * around with an 90-degree rotation (omega x vi) will produce
+     * the same angular momentum as the initial velocity, vi
+     * which means if `am` is normalized, the resulting angular
+     * momentum is L/|am|. */
+    mrota(rot, z, th); 
+
+    /* compute the total angular momentum
+     * from the 90-degree rotated velocities */
+    for ( i = 0; i < n; i++ ) {
+      mmxv(vi, rot, v[i]);
+      vcopy(v[i], vi);
+    }
   }
 }
 
@@ -177,7 +176,7 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
  * use a velocity field
  *    v' = v - c x r
  *   */
-__inline static void shiftangr(double (*x)[D], double (*v)[D],
+__inline static void shiftang(double (*x)[D], double (*v)[D],
     const double *m, int n)
 {
   int i;
