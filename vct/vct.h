@@ -213,6 +213,7 @@ __inline static double vang(const double *xi, const double *xj, const double *xk
     double *gi, double *gj, double *gk)
 {
   double xij[D], xkj[D], ri, rk, dot, ang;
+  const double eps = DBL_EPSILON;
 
   ri = vdistx(xij, xi, xj);
   vsmul(xij, 1.0/ri);
@@ -231,7 +232,9 @@ __inline static double vang(const double *xi, const double *xj, const double *xk
   if ( gi && gj && gk ) {
     double sn, gij, gkj;
     int d;
-    sn = -1.0 / sqrt(1 + DBL_EPSILON  - dot * dot); /* -1.0/sin(phi) */
+    sn = 1 - dot * dot;
+    if ( sn < eps ) sn = eps;
+    sn = -1.0 / sqrt(sn); /* -1.0/sin(phi) */
     for ( d = 0; d < D; d++ ) {
       gij = sn * (xkj[d] - xij[d]*dot) / ri;
       gkj = sn * (xij[d] - xkj[d]*dot) / rk;
@@ -255,6 +258,15 @@ __inline static double vcross(double *x, double *y)
 
 
 
+/* get a perpendicular vector to v */
+__inline static double *vgetperp(double *p, const double *v)
+{
+  p[0] = -v[1];
+  p[1] =  v[0];
+  return p;
+}
+
+
 #elif D == 3
 
 
@@ -267,6 +279,29 @@ __inline static double *vcross(double *z, const double *x, const double *y)
   return z;
 }
 
+
+
+/* get a perpendicular vector to v */
+__inline static double *vgetperp(double *p, const double *v)
+{
+  int i, im = 0;
+  double u[D], tmp, min;
+
+  /* find the smallest component */
+  min = fabs(v[im]);
+  for ( i = 1; i < D; i++ ) {
+    tmp = fabs(v[i]);
+    if ( tmp < min ) {
+      im = i;
+      min = tmp;
+    }
+  }
+
+  vzero(u);
+  u[im] = 1;
+  vcross(p, v, u);
+  return p;
+}
 
 
 __inline static double vdih(const double *xi, const double *xj,

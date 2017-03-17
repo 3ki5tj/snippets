@@ -52,5 +52,17 @@ int main(void)
     }
     printf("\n");
   }
+
+  vzero(v);
+  v[2] = 1;
+  mrota(t1, v, M_PI/3);
+  printf("rotation matrix around z\n");
+  for ( i = 0; i < D; i++ ) {
+    for ( j = 0; j < D; j++ ) {
+      printf("%8.3f ", t1[i][j]);
+    }
+    printf("\n");
+  }
+
   return 0;
 }

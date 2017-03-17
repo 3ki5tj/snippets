@@ -8,18 +8,29 @@
 
 
 
-/* remove the center of mass motion */
-static void rmcom(double (*x)[D], const double *m, int n)
+/* compute the center of mass */
+static double getcom(double *xc, double (*x)[D], const double *m, int n)
 {
   int i;
-  double xc[D] = {0}, mtot = 0, wt;
+  double mtot = 0, wt;
 
+  vzero(xc);
   for ( i = 0; i < n; i++ ) {
     wt = (m != NULL) ? m[i] : 1.0;
     vsinc(xc, x[i], wt);
     mtot += wt;
   }
   vsmul(xc, 1.0 / mtot);
+  return mtot;
+}
+
+/* remove the center of mass motion */
+static void rmcom(double (*x)[D], const double *m, int n)
+{
+  int i;
+  double xc[D];
+
+  getcom(xc, x, m, n);
   for ( i = 0; i < n; i++ ) {
     vdec(x[i], xc);
   }
@@ -27,25 +38,60 @@ static void rmcom(double (*x)[D], const double *m, int n)
 
 
 
+/* compare to shiftangr(), shiftangv() has the advantage
+ * of preserving the magnitude of each velocity
+ * this is why it is chosen by default */
+#ifndef shiftang
+#define shiftang(x, v, m, n) shiftangv(x, v, m, n)
+#endif
+
 #if D == 2
 
 
 
-/* annihilate the total angular momentum */
-__inline static void shiftang(double (*x)[D], double (*v)[D],
+/* annihilate the total angular momentum by rotating the velocities */
+__inline static void shiftangv(double (*x)[D], double (*v)[D],
+    const double *m, int n)
+{
+  double u[D], xc[D], dx[D], newv;
+  int i;
+
+  /* compute the center of mass */
+  getcom(xc, x, m, n);
+
+  vzero(u);
+  for ( i = 0; i < n; i++ ) {
+    vdiff(dx, x[i], xc);
+    /* u[0] and u[1] are the total angular momenta from
+     * the current velocities, v[i], and the 90-degree
+     * rotated velocities vi' = (-v[i][1], v[i][0])
+     * and dx x vi' = dx[0]*v[i][0] - dx[1]*(-v[i][1]) */
+    u[0] += m[i] * vcross(dx, v[i]);
+    u[1] += m[i] * vdot(dx, v[i]);
+  }
+  vnormalize(u);
+
+  /* if we now multiply the original velocity by u[1]
+   * and multiply the rotated velocity by -u[0]
+   * the total angular momentum would be zero
+   * this is equivalent to a rotation with
+   * cos(theta) = u[1] and sin(theta) = -u[0] */
+  for ( i = 0; i < n; i++ ) {
+    newv    =  u[1] * v[i][0] + u[0] * v[i][1];
+    v[i][1] = -u[0] * v[i][0] + u[1] * v[i][1];
+    v[i][0] = newv;
+  }
+}
+
+/* annihilate the total angular momentum by rotation */
+__inline static void shiftangr(double (*x)[D], double (*v)[D],
     const double *m, int n)
 {
   int i;
-  double am, r2, xc[D] = {0, 0}, xi[D];
-  double mtot = 0, wt;
+  double am, r2, wt, xc[D] = {0, 0}, xi[D];
 
-  /* determine the center of mass */
-  for ( i = 0; i < n; i++ ) {
-    wt = ( m != NULL ) ? m[i] : 1.0;
-    vsinc(xc, x[i], wt);
-    mtot += wt;
-  }
-  vsmul(xc, 1.0 / mtot);
+  /* compute the center of mass */
+  getcom(xc, x, m, n);
 
   am = r2 = 0.0;
   for ( i = 0; i < n; i++ ) {
@@ -69,6 +115,60 @@ __inline static void shiftang(double (*x)[D], double (*v)[D],
 
 
 
+/* annihilate the total angular momentum */
+__inline static void shiftangv(double (*x)[D], double (*v)[D],
+    const double *m, int n)
+{
+  int i, j, k;
+  double xc[D], xi[D], ang[D], am[D];
+  double wt, wdot, mat[D][D], vr[D], s;
+
+  /* compute the center of mass */
+  getcom(xc, x, m, n);
+
+  /* compute the total angular momentum and
+   * determine the axis of rotation, omega, such that
+   *   Sum_i mi xi x vi is parallel to
+   *   Sum_i mi xi x (omega x vi)
+   *   = Sum_i mi [(vi.xi) - (vi::xi)] omega */
+  vzero(am);
+  mzero(mat);
+  for ( i = 0; i < n; i++ ) {
+    wt = ( m != NULL ) ? m[i] : 1.0;
+    vdiff(xi, x[i], xc);
+    vcross(ang, xi, v[i]);
+    vsinc(am, ang, wt);
+    wdot = wt * vdot(v[i], xi);
+    for ( j = 0; j < D; j++ ) {
+      mat[j][j] += wdot;
+      for ( k = 0; k < D; k++ ) {
+        mat[j][k] -= wt * v[i][j] * xi[k];
+      }
+    }
+  }
+  msolve(mat, am);
+  /* now the direction of `am` reprensent the axis of rotation,
+   * around with an 90-degree rotation (omega x vi) will produce
+   * the same angular momentum as the initial velocity, vi
+   * which means if `am` is normalized, the resulting angular
+   * momentum is L/|am|. */
+  s = 1/(1 + vsqr(am));
+
+  /* compute the total angular momentum
+   * from the 90-degree rotated velocities */
+  for ( i = 0; i < n; i++ ) {
+    wt = ( m != NULL ) ? m[i] : 1.0;
+    vdiff(xi, x[i], xc);
+    /* vi' = (vi - am x vi) / sqrt(1 + u[1]^2); */
+    vcross(vr, am, v[i]); /* vr: 90-degree rotated velocity */
+    vsinc(v[i], vr, -1);
+    vsmul(v[i], s);
+    vcross(ang, xi, v[i]); /* ang: xi x (z x vi) */
+  }
+}
+
+
+
 /* annihilate the total angular momentum
  * solve
  *   /  m (y^2 + z^2)   -m x y          -m x y        \
@@ -77,23 +177,19 @@ __inline static void shiftang(double (*x)[D], double (*v)[D],
  * use a velocity field
  *    v' = v - c x r
  *   */
-__inline static void shiftang(double (*x)[D], double (*v)[D],
+__inline static void shiftangr(double (*x)[D], double (*v)[D],
     const double *m, int n)
 {
   int i;
-  double xc[D] = {0, 0, 0}, xi[D], ang[D], am[D] = {0, 0, 0};
-  double dv[D], mat[D][D], inv[D][D];
+  double xc[D], xi[D], ang[D], am[D];
+  double dv[D], mat[D][D];
   double xx = 0, yy = 0, zz = 0, xy = 0, zx = 0, yz = 0;
-  double mtot = 0, wt;
+  double wt;
 
-  /* determine the center of mass */
-  for ( i = 0; i < n; i++ ) {
-    wt = ( m != NULL ) ? m[i] : 1.0;
-    vsinc(xc, x[i], wt);
-    mtot += wt;
-  }
-  vsmul(xc, 1.0 / mtot);
+  /* compute the center of mass */
+  getcom(xc, x, m, n);
 
+  vzero(am);
   for ( i = 0; i < n; i++ ) {
     wt = ( m != NULL ) ? m[i] : 1.0;
     vdiff(xi, x[i], xc);
@@ -113,15 +209,14 @@ __inline static void shiftang(double (*x)[D], double (*v)[D],
   mat[0][1] = mat[1][0] = -xy;
   mat[1][2] = mat[2][1] = -yz;
   mat[0][2] = mat[2][0] = -zx;
-  minv(inv, mat);
 
-  /* ang is the solution of M^(-1) * L */
-  ang[0] = -vdot(inv[0], am);
-  ang[1] = -vdot(inv[1], am);
-  ang[2] = -vdot(inv[2], am);
+  /* the axis of rotation is the solution of -M^(-1) * L */
+  msolve(mat, am);
+  vneg(am);
+
   for ( i = 0; i < n; i++ ) {
     vdiff(xi, x[i], xc);
-    vcross(dv, ang, xi);
+    vcross(dv, am, xi);
     vinc(v[i], dv);
   }
 }

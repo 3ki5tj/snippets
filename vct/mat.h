@@ -7,6 +7,16 @@
 
 
 
+__inline static void mzero(double x[D][D])
+{
+  int d;
+
+  for ( d = 0; d < D; d++ )
+    vzero(x[d]);
+}
+
+
+
 /* a = b */
 __inline static void mcopy(double a[D][D], double b[D][D])
 {
@@ -189,6 +199,60 @@ __inline static int minv(double (*b)[D], double (*a)[D])
   }
   return 0;
 }
+
+
+
+/* solve a x = b by Gaussian elimination */
+__inline static int msolve(double (*a)[D], double *b)
+{
+  int i, j, k, ip;
+  double x;
+
+  /* Gaussian elimination */
+  for ( i = 0; i < D; i++ ) {
+    /* choose the pivot as the largest element of column i */
+    x = fabs( a[i][i] );
+    for ( ip = i, k = ip + 1; k < D; k++ ) {
+      if ( fabs( a[k][i] ) > x ) {
+        ip = k;
+        x = fabs( a[k][i] );
+      }
+    }
+
+    /* swap the pivot (ip'th) row with the present row i */
+    for ( k = i; k < D; k++ )
+      x = a[i][k], a[i][k] = a[ip][k], a[ip][k] = x;
+    x = b[i], b[i] = b[ip], b[ip] = x;
+
+    /* normalize this row */
+    x = a[i][i];
+    if ( fabs(x) < DBL_MIN ) {
+      fprintf(stderr, "Error: singular matrix\n");
+      return -1;
+    }
+    for ( k = i; k < D; k++ ) a[i][k] /= x;
+    b[i] /= x;
+
+    /* use the pivot row to zero the rest rows */
+    for ( j = i + 1; j < D; j++ ) {
+      x = a[j][i];
+      for ( k = i; k < D; k++ )
+        a[j][k] -= x * a[i][k];
+      b[j] -= x * b[i];
+    }
+  }
+
+  /* now that the matrix is upper triangular
+   * make it diagonal */
+  for ( i = D - 1; i >= 0; i-- ) {
+    /* note a[i][i] should be 1 now */
+    for ( j = 0; j < i; j++ ) {
+      b[j] -= b[i] * a[j][i];
+    }
+  }
+  return 0;
+}
+
 
 
 
@@ -387,7 +451,135 @@ __inline static void msort2(double s[D], double (*u)[D], double (*v)[D])
 
 
 
-#if D == 3
+#if D == 2
+
+
+
+/* rotation matrix for angle theta */
+__inline static void mrot(double rot[D][D], double theta)
+{
+  double c = cos(theta), s = sin(theta);
+  rot[0][0] =  c;
+  rot[0][1] = -s;
+  rot[1][0] =  s;
+  rot[1][1] =  c;
+}
+
+
+
+/* compute eigenvalues of a matrix */
+__inline static double *meigval(double v[D], double a[D][D])
+{
+  double b, c, del;
+
+  b = (a[0][0] + a[1][1])/2;
+  c = a[0][0] * a[1][1] - a[0][1] * a[1][0];
+  /* solve x^2 - 2 b x  + c = 0 */
+  del = b * b - c;
+  if ( del >= 0 ) {
+    del = sqrt(del);
+    v[0] = b + del;
+    v[1] = b - del;
+  } else { /* no real solution */
+    v[0] = b;
+    v[1] = b;
+  }
+  return v;
+}
+
+
+#define meigsys(vals, vecs, mat, nt) \
+  meigsys_(vals, vecs, mat, nt, meig_reltol)
+
+/* given the matrix 'mat' and its eigenvalues 'vals' return eigenvalues 'vecs'
+ * ideally, eigenvalues are sorted in descending order
+ * by default, vecs are transposed as a set of column vectors
+ * set 'nt' != 0 to disable it: so vecs[0] is the first eigenvector  */
+__inline static int meigsys_(double vals[D], double vecs[D][D], double mat[D][D],
+    int nt, double reltol)
+{
+  int n = 0;
+
+  /* eigenvalues are sorted in descending order */
+  meigval(vals, mat);
+
+  /* find the eigenvector of the first eigenvalue
+   * we are guarantee to have at least one solution */
+  n = meigvecs_(vecs, mat, vals[0], reltol, D);
+
+  if ( n == 1 ) {
+    vecs[1][0] = -vecs[0][1];
+    vecs[1][1] =  vecs[0][0];
+  }
+
+  msort2(vals, vecs, NULL);
+
+  if ( !nt ) {
+    mtrans(vecs);
+  }
+  return 0;
+}
+
+
+
+#elif D == 3
+
+
+
+/* rotation matrix around axis z for angle theta */
+__inline static void mrota(double rot[D][D], double *z, double theta)
+{
+  double x[D], y[D], nx[D], ny[D], c, s;
+  int i, j;
+
+  /* define the x and y axes */
+  vnormalize(z);
+  vgetperp(x, z);
+  vcross(y, z, x);
+
+  /* construct the rotated x and y
+   * nx =  cos(theta) x + sin(theta) y
+   * ny = -sin(theta) x + cos(theta) y */
+  c = cos(theta);
+  s = sin(theta);
+  vsmul2(nx, x, c);
+  vsinc(nx, y, s);
+  vsmul2(ny, x, -s);
+  vsinc(ny, y, c);
+
+  /* the rotation R v is equivalent to
+   * z (z.v) + nx (x.v) + ny (y.v) */
+  for ( i = 0; i < D; i++ ) {
+    for ( j = 0; j < D; j++ ) {
+      rot[i][j] = z[i] * z[j] + nx[i] * x[j] + ny[i] * y[j];
+    }
+  }
+}
+
+
+
+/* rotation matrix that bring v1 to v2 */
+__inline static void mrotvv(double rot[D][D], double *v1, double *v2)
+{
+  double x[D], y[D], z[D], nx[D], ny[D];
+  int i, j;
+
+  /* define the x, y, z axes */
+  vnormalize(vcopy(x, v1));
+  vnormalize(vcopy(nx, v2));
+  vcross(z, x, nx);
+  vnormalize(z);
+  vcross(y, z, x);
+  vcross(ny, z, nx);
+
+  /* the rotation R v is equivalent to
+   * z (z.v) + nx (x.v) + ny (y.v) */
+  for ( i = 0; i < D; i++ ) {
+    for ( j = 0; j < D; j++ ) {
+      rot[i][j] = z[i] * z[j] + nx[i] * x[j] + ny[i] * y[j];
+    }
+  }
+}
 
 
 
@@ -486,16 +678,17 @@ __inline static int meigsys_(double vals[3], double vecs[3][3], double mat[3][3]
   return 0;
 }
 
+#endif
 
 
 double msvd_reltol = 1e-6;
 
 /* SVD decomposition of a matrix A = U S V^T */
-__inline static void msvd(double a[3][3],
-    double u[3][3], double s[3], double v[3][3])
+__inline static void msvd(double a[D][D],
+    double u[D][D], double s[D], double v[D][D])
 {
   int i, rank;
-  double ata[3][3], us[3][3];
+  double ata[D][D], us[D][D];
 
   /* A^T A = V S^2 V^T, so (A^T A) V = V S^2 */
 
@@ -511,37 +704,43 @@ __inline static void msvd(double a[3][3],
   } else {
     double tol = msvd_reltol;
 
-    mmxmt(u, v, a);
-    for ( i = 0; i < 3; i++ ) {
+    mmxmt(u, v, a); /* U = V^T A^T, currently v = V^T */
+    for ( i = 0; i < D; i++ ) {
       vcopy(us[i], u[i]); /* save a copy of V^T A^T before normalizing it */
       s[i] = vnorm(u[i]);
-      if ( s[i] > 0 ) {
-        vsmul(u[i], 1 / s[i]);
-      }
+      if ( s[i] > 0 ) vsmul(u[i], 1 / s[i]);
     }
     rank = 1;
     rank += (fabs( vdot(u[0], u[1]) ) < tol && s[1] > tol);
+#if D == 2
+    if ( rank == 1 ) {
+      vgetperp(u[1], u[0]);
+      s[1] = vdot(u[1], us[1]);
+      if ( s[1] < 0 ) {
+        s[1] = -s[1];
+        vneg(u[1]);
+      }
+    }
+#elif D == 3
     rank += (fabs( vdot(u[0], u[2]) ) < tol
           && fabs( vdot(u[1], u[2]) ) < tol && s[2] > tol);
-    if ( rank <= 2 ) {
+    if ( rank < D ) {
       if ( rank == 1 ) {
-        double z[3] = {0, 0, 0}, w, tmp;
-
-        w = fabs( u[0][i = 0] );
-        if ((tmp = fabs(u[0][1])) < w) w = tmp, i = 1;
-        if ((tmp = fabs(u[0][2])) < w) i = 2;
-        z[i] = 1.0f; /* select the smallest element in u[0] as z */
-        vnormalize( vcross(u[1], z, u[0]) );
+        /* use a vector perpendicular to u[0] as u[1] */
+        vgetperp(u[1], u[0]);
         s[1] = vdot(u[1], us[1]); /* S = U^T (V^T A^T)^T is more accurate than sqrt(A^T A) */
-        if (s[1] < 0) { s[1] = -s[1]; vneg(u[1]); } /* make sure s[1] > 0 */
+        if ( s[1] < 0 ) { s[1] = -s[1]; vneg(u[1]); } /* make sure s[1] > 0 */
       }
+      /* use the orthonormal condition
+       * to compute the last vector */
       vnormalize( vcross(u[2], u[0], u[1]) );
       s[2] = vdot(u[2], us[2]);
-      if (s[2] < 0) {
+      if ( s[2] < 0 ) {
         s[2] = -s[2];
         vneg(u[2]);
       }
     }
+#endif
     msort2(s, u, v);
   }
   mtrans(v);
@@ -558,7 +757,7 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
     double r[D][D], double *t)
 {
   int i;
-  double wi, wtot = 0, sq, dev = 0, dev0, detm;
+  double wi, wtot = 0, sq, dev = 0, dev0, detm, ssig = 0;
   double xc[D], yc[D], xs[D], ys[D], xfi[D], sig[D], t_[D];
   double u[D][D], v[D][D], s[D][D] = {{0}}, xy[D][D], r_[D][D];
 
@@ -584,7 +783,7 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
 
     vdiff(xs, x[i], xc); /* shift to the center avoid the translation */
     vdiff(ys, y[i], yc);
-    mvtxv(xy, xs, ys);
+    mvtxv(xy, xs, ys); /* tensor product */
     msinc(s, xy, wi);
 
     sq  = vsqr(xs);
@@ -600,14 +799,18 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
   mmxmt(r, v, u);
   detm = mdet(r);
 
+  for ( ssig = 0, i = 0; i < D; i++ ) {
+    ssig += sig[i];
+  }
+
   if ( detm < 0 && !refl ) { /* to avoid a reflection */
     mtrans(u);
-    vneg(u[2]); /* flip the last eigenvector */
+    vneg(u[D - 1]); /* flip the last eigenvector */
     mmxm(r, v, u);
-    dev -= 2*(sig[0] + sig[1] - sig[2]);
+    dev -= 2 * (ssig - 2 * sig[1]);
     detm = mdet(r);
   } else {
-    dev -= 2 * (sig[0] + sig[1] + sig[2]); /* -2 Tr(R x y^T) */
+    dev -= 2 * ssig; /* -2 Tr(R x y^T) */
   }
   if ( dev < 0 ) {
     dev = 0;
@@ -626,10 +829,6 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
   }
   return sqrt(dev/wtot);
 }
-
-
-
-#endif /* D == 3 */
 
 
 

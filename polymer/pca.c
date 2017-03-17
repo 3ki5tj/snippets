@@ -4,10 +4,12 @@
 #define xnew(x, n) if ( (x = calloc((n), sizeof(*(x)))) == NULL ) exit(1);
 
 const double KB = 0.0019872041; /* kcal/mol/K */
+#define AVOGADRO 6.022140857e23
+const double hbar = 1.054571800e-34*AVOGADRO*1e12/4184; /* kcal/mol*ps */
 
 char *fnin = "polymer.log";
 double tp = 300;
-long nstskip = 100;
+long nstskip = 10;
 
 typedef struct {
   int n;
@@ -116,19 +118,30 @@ pca_t *pca_load(const char *fn, long skip)
 
 int pca_analyze(pca_t *pca, double kT)
 {
-  int i, j, cnt = 0, n = pca->n;
-  double del = 0;
+  int i, j, cnt = 0, n = pca->n, nmodes = 0;
+  double del = 0, alpha, entc = 0, entq = 0;
+  double *sig;
 
   for ( i = 0; i < n; i++ ) {
     for ( j = 0; j < n; j++ ) {
       pca->cov[i*n+j] /= kT;
-      printf(" %8.3f", 1e3*pca->cov[i*n + j]);
+    }
+  }
+
+  xnew(sig, n);
+  for ( i = 0; i < n; i++ )
+    sig[i] = pca->cov[i*n+i] > 0 ? sqrt( pca->cov[i*n+i] ) : 1;
+
+  for ( i = 0; i < n; i++ ) {
+    printf("%4d %8.3f: ", i, sig[i]);
+    for ( j = 0; j < n; j++ ) {
+      printf(" %8.3f", pca->cov[i*n + j]/sig[i]/sig[j]);
     }
     printf("\n");
   }
 
   printf("n %d\n", n);
-  /* determining the shift */
+  /* determining the shift to improve stability*/
   for ( i = 0; i < n; i++ ) {
     if ( pca->cov[i*n+i] > 0 ) {
       del += pca->cov[i*n+i];
@@ -142,7 +155,6 @@ int pca_analyze(pca_t *pca, double kT)
     pca->cov[i*n+i] += del;
   }
 
-
   eigsym(pca->cov, pca->eval, pca->evec, n);
 
   /* unshift the eigenvalues */
@@ -153,14 +165,28 @@ int pca_analyze(pca_t *pca, double kT)
     }
   }
 
+  /* compute the entropy */
+  nmodes = 0;
+  for ( i = 0; i < n - 6; i++ ) {
+    alpha = pca->eval[i];
+    //if ( alpha <= 0 ) continue;
+    alpha = hbar/sqrt(alpha)/kT;
+    entc += 1 + log(alpha);
+    entq += alpha/(exp(alpha)-1) - log(1-exp(-alpha));
+    nmodes += 1;
+  }
+  printf("Entropy: %g kcal/mol/K, %g kB (classical) %g kcal/mol/K, %g kB (quantum); %d none-zero modes\n",
+      entc * KB, entc, entq * KB, entq, nmodes);
+
   printf("1/omega in fs\n");
   for ( i = 0; i < n; i++ ) {
-    printf("ev %4d: %10.4f: ", i + 1, sqrt(pca->eval[i])*1000);
+    printf("ev %4d: %10.4f: ", i + 1, sqrt(pca->eval[i])*1000);    
     for ( j = 0; j < n; j++ ) {
       printf(" %7.3f", pca->evec[j*n + i]);
     }
     printf("\n");
   }
+  free(sig);
   return 0;
 }
 

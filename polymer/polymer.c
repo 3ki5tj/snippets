@@ -1,4 +1,4 @@
-#define D 2
+#define D 3
 #include "vct.h"
 #include "mat.h"
 #include "mdutil.h"
@@ -9,18 +9,21 @@
 const double KB = 0.0019872041; /* kcal/mol/K */
 
 int chainlen = D + 1;
+//int chainlen = 4;
 double tp = 300;
-long nsteps = 10000000;
+long nsteps = 1000000;
 double mddt = 0.002; /* in ps */
 enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN};
-int thtype = ANDERSEN;
-//int thtype = VRESCALE;
+int thstat = ANDERSEN;
+//int thstat = VRESCALE;
 double thdt = 0.1; /* time step for velocity rescaling or NH-chain */
 double langdt = 0.1;
-int nstlog = 50;
+int nstlog = 20;
 
-enum { TRANSFORM_COM, TRANSFORM_HEAD, TRANSFORM_RMSD };
-int transform = TRANSFORM_COM;
+enum { TRANSFORM_NONE, TRANSFORM_COM, TRANSFORM_HEAD, TRANSFORM_RMSD };
+//int transform = TRANSFORM_COM;
+//int transform = TRANSFORM_HEAD;
+int transform = TRANSFORM_RMSD;
 
 #define NNHC 5
 double nhc_zeta[NNHC];
@@ -28,11 +31,11 @@ double nhc_zmass[NNHC] = {1, 1, 1, 1, 1};
 
 double mass = 12 / 418.4;
 double bond0 = 3.79;
-double kbond = 1222.5;
-double theta0 = 180 * PI / 180;
+double kbond = 222.5;
+double theta0 = 113 * PI / 180;
 double ktheta = 58.35;
 double phi0 = PI;
-double kdih1 = 10.0;
+double kdih1 = 100.;
 double kdih3 = 0.0;
 
 typedef struct {
@@ -47,7 +50,9 @@ typedef struct {
   double (*xref)[D]; /* reference coordinates */
 } polymer_t;
 
-void polymer_close(polymer_t *p)
+
+
+static void polymer_close(polymer_t *p)
 {
   free(p->m);
   free(p->x);
@@ -58,43 +63,50 @@ void polymer_close(polymer_t *p)
   free(p);
 }
 
-/* to use the output:
- * splot "polymer.xyz" w lp pt 7 ps 5 */
-int polymer_write(polymer_t *p, const char *fn)
-{
-  FILE *fp;
-  int i;
 
-  if ((fp = fopen(fn, "w")) == NULL ) {
-    fprintf(stderr, "cannot open %s\n", fn);
-    return -1;
-  }
-  fprintf(fp, "# %d\n", p->n);
-  for ( i = 0; i < p->n; i++ ) {
-#if D == 2
-    fprintf(fp, "%g %g\n", p->x[i][0], p->x[i][1]);
-#else
-    fprintf(fp, "%g %g %g\n", p->x[i][0], p->x[i][1], p->x[i][2]);
-#endif
-  }
-  fclose(fp);
-  return 0;
-}
-
-void polymer_transform(polymer_t *p, int type)
+/* print out the angular momentum */
+static void polymer_printang(polymer_t *p, const char *flag)
 {
   int i, n = p->n;
-  double rot[D][D], trans[D], mtot = 0;
+#if D == 2
+  double ang;
+  for ( i = 0; i < n; i++ ) {
+    ang += p->m[i] * vcross(p->xref[i], p->xt[i]);
+  }
+  printf("%s: %g\n", flag, ang);
+#else
+  double x[D], ang[D];
+  vzero(ang);
+  for ( i = 0; i < n; i++ ) {
+    vcross(x, p->xref[i], p->xt[i]);
+    vsinc(ang, x, p->m[i]);
+  }
+  printf("%s: %g %g %g\n", flag, ang[0], ang[1], ang[2]);
+#endif
+}
 
-  if ( type == TRANSFORM_COM ) {
+/* remove the center of mass motion as well as overall rotations */
+static void polymer_transform(polymer_t *p, int type)
+{
+  int i, n = p->n;
+  double rot[D][D], trans[D], v[D], newx[D];
+
+  if ( type == TRANSFORM_NONE ) {
     for ( i = 0; i < n; i++ )
       vcopy(p->xt[i], p->x[i]);
+  } else if ( type == TRANSFORM_COM ) {
+    for ( i = 0; i < n; i++ ) {
+      vcopy(p->xt[i], p->x[i]);
+    }
+    /* remove the center of mass motion */
     rmcom(p->xt, p->m, n);
-    /* treating xt as velocities and
-     * to remove the total angular momentum */
-    shiftang(p->xref, p->xt, p->m, n);
+    /* remove the overall rotation
+     * by treating xt as velocity */
+    //polymer_printang(p, "before");
+    shiftangv(p->xref, p->xt, p->m, n);
+    //polymer_printang(p, "after"); getchar();
   } else if ( type == TRANSFORM_HEAD ) {
-    double v[D], newx, newy;
+    /* 1. displace x[0] at the origin */
     vcopy(trans, p->x[0]);
     for ( i = 0; i < n; i++ ) {
       vdiff(p->xt[i], p->x[i], trans);
@@ -103,21 +115,60 @@ void polymer_transform(polymer_t *p, int type)
     vdiff(v, p->xt[1], p->xt[0]);
     vnormalize(v);
     for ( i = 0; i < n; i++ ) {
-      newx =  v[0] * p->xt[i][0] + v[1] * p->xt[i][1];
-      newy = -v[1] * p->xt[i][0] + v[0] * p->xt[i][1];
-      p->xt[i][0] = newx;
-      p->xt[i][1] = newy;
-      // printf("i %d, xt %g %g\n", i, p->xt[i][0], p->xt[i][1]);
+      newx[0] =  v[0] * p->xt[i][0] + v[1] * p->xt[i][1];
+      newx[1] = -v[1] * p->xt[i][0] + v[0] * p->xt[i][1];
+      vcopy(p->xt[i], newx);
     }
 #else
+    {
+      double x[D] = {1, 0, 0}, y[D] = {0, 1, 0}, rot[D][D];
+      /* 2. rotate p->xt[1] to the x axis */
+      mrotvv(rot, p->xt[1], x);
+      for ( i = 1; i < n; i++ ) {
+        mmxv(newx, rot, p->xt[i]);
+        vcopy(p->xt[i], newx);
+      }
+      /* 3. rotate p->xt[2] on to the x-y plane */
+      vdiff(v, p->xt[2], p->xt[1]);
+      v[0] = 0; /* remove the x component */
+      mrotvv(rot, v, y);
+      for ( i = 2; i < n; i++ ) {
+        mmxv(newx, rot, p->xt[i]);
+        vcopy(p->xt[i], newx);
+      }
+    }
 #endif
   } else if ( type == TRANSFORM_RMSD ) {
-#if D == 3
     vrmsd(p->x, p->xt, p->xref, p->m, n, 0, rot, trans);
+  }
+}
+
+/* to use the output:
+ * splot "polymer.xyz" w lp pt 7 ps 5 */
+static int polymer_write(polymer_t *p, const char *fn)
+{
+  FILE *fp;
+  int i;
+
+  if ((fp = fopen(fn, "w")) == NULL ) {
+    fprintf(stderr, "cannot open %s\n", fn);
+    return -1;
+  }
+  polymer_transform(p, transform);
+
+  fprintf(fp, "# %d %d\n", p->n, D);
+  for ( i = 0; i < p->n; i++ ) {
+#if D == 2
+    fprintf(fp, "%g %g\n", p->xt[i][0], p->xt[i][1]);
+#else
+    fprintf(fp, "%g %g %g\n", p->xt[i][0], p->xt[i][1], p->xt[i][2]);
 #endif
   }
-
+  fclose(fp);
+  return 0;
 }
+
+
 
 void polymer_logpos(polymer_t *p, FILE *fp, long t, int header)
 {
@@ -140,9 +191,9 @@ void polymer_logpos(polymer_t *p, FILE *fp, long t, int header)
   fprintf(fp, "%ld", t);
   for ( i = 0; i < n; i++ ) {
     for ( j = 0; j < D; j++ )
-      fprintf(fp, " %.3f", p->xt[i][j]);
+      fprintf(fp, " %.6f", p->xt[i][j]);
   }
-  fprintf(fp, "\n");
+  fprintf(fp, " %g %g\n", p->epot, p->ekin);
 }
 
 /* compute the force and energy */
@@ -182,7 +233,7 @@ double polymer_force(polymer_t *p)
 static void polymer_rmcom(polymer_t *p, double (*x)[D], double (*v)[D])
 {
   rmcom(v, p->m, p->n);
-  shiftang(x, v, p->m, p->n);
+  shiftangr(x, v, p->m, p->n);
 }
 
 polymer_t *polymer_open(int n, double tp0)
@@ -233,7 +284,7 @@ polymer_t *polymer_open(int n, double tp0)
       p->v[i][j] = s * randgaus();
     }
   }
-  if ( thtype != LANGEVIN && thtype != ANDERSEN ) {
+  if ( thstat != LANGEVIN && thstat != ANDERSEN ) {
     polymer_rmcom(p, p->x, p->v); /* remove center of mass motion */
     p->dof = n * D - D * (D + 1) / 2;
   } else {
@@ -269,16 +320,16 @@ void polymer_thermostat(polymer_t *p)
   static int t;
 
   ++t;
-  if ( thtype == VRESCALE ) {
+  if ( thstat == VRESCALE ) {
     p->ekin = md_vrescale(p->v, p->m, p->n, p->dof,
         KB * tp, 0.5 * thdt);
-  } else if ( thtype == LANGEVIN ) {
+  } else if ( thstat == LANGEVIN ) {
     p->ekin = md_langevin(p->v, p->m, p->n,
         KB * tp, 0.5 * langdt);
-  } else if ( thtype == NHCHAIN ) {
+  } else if ( thstat == NHCHAIN ) {
     p->ekin = md_nhchain(p->v, p->m, p->n, p->dof,
         KB * tp, 0.5 * thdt, NNHC, nhc_zeta, nhc_zmass);
-  } else if ( thtype == ANDERSEN ) {
+  } else if ( thstat == ANDERSEN ) {
     if ( t % 10 == 0 ) {
       int i, j;
       double s;
@@ -309,7 +360,7 @@ int main(void)
   for ( t = 1; t <= nsteps; t++ ) {
     polymer_thermostat(p);
     polymer_vv(p, mddt);
-    if ( thtype != LANGEVIN && thtype != ANDERSEN
+    if ( thstat != LANGEVIN && thstat != ANDERSEN
       && t % 10 == 0 ) {
       /* need to regularly remove COM motion */
       polymer_rmcom(p, p->x, p->v);
