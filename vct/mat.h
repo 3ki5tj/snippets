@@ -587,7 +587,8 @@ __inline static void mrotvv(double rot[D][D], double *v1, double *v2)
  * by solving a cubic equation */
 __inline static double *meigval(double v[3], double a[3][3])
 {
-  double m, p, q, pr, pr3, a00, a11, a22;
+  double m, p, q, pr, pr3, a00, a11, a22, t, del;
+  const double tol = 1e-7;
 
   m = (a[0][0] + a[1][1] + a[2][2])/3;
   a00 = a[0][0] - m;
@@ -598,23 +599,43 @@ __inline static double *meigval(double v[3], double a[3][3])
       + a[0][2] * (a[1][0]*a[2][1] - a11*a[2][0]) ) / 2.0;
   p = (a00*a00 + a11*a11 + a22*a22) / 6.0
     + (a[0][1]*a[1][0] + a[1][2]*a[2][1] + a[2][0]*a[0][2]) / 3.0;
-  /* solve x^3 - 3 p x  - 2 q = 0 */
-  pr = sqrt(p);
-  pr3 = p * pr;
-  if ( pr3 <= fabs(q) ) {
-    if (q < 0.) { /* choose phi = pi/3 */
-      v[1] = v[0] = m + pr;
-      v[2] = m - 2.0 * pr;
-    } else { /* phi = 0 */
-      v[0] = m + 2.0 * pr;
-      v[2] = v[1] = m - pr;
+  /* solve x^3 - 3 p x - 2 q = 0 */
+  if ( p >= 0 ) {
+    /* with x = 2 sqrt(p) cos(t)
+     * 4 cos^3(t) - 3 cos(t) = q/p^(3/2) = cos(3 t)
+     * or, with x = 2 sqrt(p) sin(t)
+     * 3 sin(t) - 4 sin^3(t) = -q/p^(3/2) = sin(3 t)
+     * this solution holds if |q/p^(3/2)| <= 1, or if |p|^3 >= q^2 */
+    pr = sqrt(p);
+    pr3 = p * pr;
+    t = q / pr3;
+    /* allow some error to include degenerate cases
+     * such as x^3 - 3 x + 2 = (x + 2) (x - 1)^2 = 0
+     * or x^3 - 3 x - 2 = (x - 2) (x + 1)^2 = 0 */
+    if ( t < 1 + tol ) t = 1;
+    else if ( t > -1 - tol ) t = -1;
+    if ( fabs(t) <= 1 ) {
+      t = acos(t) / 3; /* 0 < t < pi/3 */
+      v[0] = m + 2.0 * pr * cos(t);  /* largest */
+      v[1] = m + 2.0 * pr * cos(t - 2*M_PI/3); /* second largest */
+      v[2] = m + 2.0 * pr * cos(t + 2*M_PI/3); /* smallest */
+    } else {
+      /* Cardano's formula */
+      del = sqrt(q*q - p*p*p);
+      v[0] = v[1] = v[2] = m + pow(q + del, 1./3) + pow(q - del, 1./3);
     }
   } else {
-    double phi = acos(q/pr3)/3.0; /* 0 < phi < pi/3 */
-
-    v[0] = m + 2.0 * pr * cos(phi);  /* largest */
-    v[1] = m + 2.0 * pr * cos(phi - 2*M_PI/3); /* second largest */
-    v[2] = m + 2.0 * pr * cos(phi + 2*M_PI/3); /* smallest */
+    p = -p;
+    pr = sqrt(p);
+    pr3 = p * pr;
+    t = q / pr3;
+    /* only a single real root exists
+     * solve x^3 + 3 p x = 2 q
+     * with x = 2 sqrt(p) sinh(t)
+     * 4 sinh^3(t) + 3 sinh(t) = q/p^(3/2) = sinh(3 t) */
+    t = log( sqrt(1 + t*t) + t ) / 3;
+    t = exp(t);
+    v[0] = v[1] = v[2] = m + (t - 1/t)/2;
   }
   return v;
 }

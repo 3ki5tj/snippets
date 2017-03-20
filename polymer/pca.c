@@ -84,6 +84,7 @@ pca_t *pca_load(const char *fn, long skip)
     if ( ++lines <= skip ) continue;
     /* read in the coordinates */
     sscanf(buf, "%ld%n", &time, &next);
+    //next = 0;
     for ( p = buf + next, i = 0; i < n; i++ ) {
       sscanf(p, "%lf%n", &pca->x[i], &next);
       p += next;

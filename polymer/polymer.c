@@ -8,8 +8,8 @@
 
 const double KB = 0.0019872041; /* kcal/mol/K */
 
-int chainlen = D + 1;
-//int chainlen = 3;
+//int chainlen = D + 1;
+int chainlen = 3;
 double tp = 300;
 long nsteps = 1000000;
 double mddt = 0.002; /* in ps */
@@ -49,6 +49,7 @@ typedef struct {
   double (*f)[D];
   double epot, ekin;
   double (*xt)[D]; /* transformed coordinates */
+  double (*xt2)[D]; /* temporary */
   double (*xref)[D]; /* reference coordinates */
 } polymer_t;
 
@@ -61,6 +62,7 @@ static void polymer_close(polymer_t *p)
   free(p->v);
   free(p->f);
   free(p->xt);
+  free(p->xt2);
   free(p->xref);
   free(p);
 }
@@ -87,6 +89,8 @@ __inline static void polymer_printang(polymer_t *p, const char *flag)
 #endif
 }
 
+static int polymer_write(polymer_t *p, double (*x)[D], const char *fn);
+
 /* remove the center of mass motion as well as overall rotations */
 static void polymer_transform(polymer_t *p, int type)
 {
@@ -97,12 +101,12 @@ static void polymer_transform(polymer_t *p, int type)
     for ( i = 0; i < n; i++ )
       vcopy(p->xt[i], p->x[i]);
   } else if ( type == TRANSFORM_COM ) {
-    for ( i = 0; i < n; i++ ) {
+    /* 1. copy the coordinates */
+    for ( i = 0; i < n; i++ )
       vcopy(p->xt[i], p->x[i]);
-    }
-    /* remove the center of mass motion */
+    /* 2. remove the center of mass motion */
     rmcom(p->xt, p->m, n);
-    /* remove the overall rotational by treating xt as velocity */
+    /* 3. remove the overall rotation by treating xt as velocity */
     //polymer_printang(p, "before");
     shiftangv(p->xref, p->xt, p->m, n);
     //polymer_printang(p, "after"); getchar();
@@ -141,12 +145,34 @@ static void polymer_transform(polymer_t *p, int type)
 #endif
   } else if ( type == TRANSFORM_RMSD ) {
     vrmsd(p->x, p->xt, p->xref, p->m, n, 0, rot, trans);
+#if 0
+    /* the following code is used to compare RMSD fit
+     * to the removal of angular motion */
+    for ( i = 0; i < n; i++ )
+      vcopy(p->xt2[i], p->x[i]);
+    rmcom(p->xt2, p->m, n);
+    shiftangv(p->xref, p->xt2, p->m, n);
+    polymer_write(p, p->xref, "ref.xyz");
+    polymer_write(p, p->xt, "rmsd.xyz");
+    polymer_write(p, p->xt2, "com.xyz");
+    for ( i = 0; i < n; i++ ) {
+      double ax[D], v1[D], v2[D];
+      vnormalize(vcross(ax, p->xt[i], p->xt2[i]));
+      vcross(v1, ax, p->xt[i]);
+      vcross(v2, ax, p->xt2[i]);
+      printf("%d: ang %g, %g: axis %g, %g, %g\n", i,
+          vang(p->xt[i],NULL,p->xt2[i],NULL,NULL,NULL)*180/PI,
+          vang(v1,NULL,v2,NULL,NULL,NULL)*180/PI,
+          ax[0], ax[1], ax[2]);
+    }
+    getchar();
+#endif
   }
 }
 
 /* to use the output:
  * splot "polymer.xyz" w lp pt 7 ps 5 */
-static int polymer_write(polymer_t *p, const char *fn)
+static int polymer_write(polymer_t *p, double (*x)[D], const char *fn)
 {
   FILE *fp;
   int i;
@@ -155,16 +181,21 @@ static int polymer_write(polymer_t *p, const char *fn)
     fprintf(stderr, "cannot open %s\n", fn);
     return -1;
   }
-  polymer_transform(p, transform);
+
+  if ( x == NULL ) {
+    /* by default, write the transformed coordinates */
+    polymer_transform(p, transform);
+    x = p->xt;
+  }
 
   fprintf(fp, "# %d %d\n", p->n, D);
   for ( i = 0; i < p->n; i++ ) {
 #if D == 2
-    fprintf(fp, "%g %g\n", p->xt[i][0], p->xt[i][1]);
+    fprintf(fp, "%g %g\n", x[i][0], x[i][1]);
 #else
-    fprintf(fp, "%g %g %g\n", p->xt[i][0], p->xt[i][1], p->xt[i][2]);
+    fprintf(fp, "%g %g %g\n", x[i][0], x[i][1], x[i][2]);
 #endif
-    //if ( i > 0 && i < p->n - 1 ) printf("i %d: %g\n", i, vang(p->xt[i-1], p->xt[i], p->xt[i+1],NULL,NULL,NULL)*180/M_PI);
+    //if ( i > 0 && i < p->n - 1 ) printf("i %d: %g\n", i, vang(x[i-1], x[i], x[i+1],NULL,NULL,NULL)*180/M_PI);
   }
   fclose(fp);
   return 0;
@@ -195,7 +226,7 @@ void polymer_logpos(polymer_t *p, FILE *fp, long t, int header)
     for ( j = 0; j < D; j++ )
       fprintf(fp, " %.6f", p->xt[i][j]);
   }
-  fprintf(fp, " %g %g\n", p->epot, p->ekin);
+  fprintf(fp, "\n");
 }
 
 /* compute the force and energy */
@@ -256,6 +287,7 @@ polymer_t *polymer_open(int n, double tp0)
   xnew(p->v, n);
   xnew(p->f, n);
   xnew(p->xt, n);
+  xnew(p->xt2, n);
   xnew(p->xref, n);
 
   for ( i = 0; i < n; i++ ) {
@@ -368,32 +400,14 @@ int main(void)
       polymer_rmcom(p, p->x, p->v);
     }
     polymer_thermostat(p);
-#if 0
-    if ( t % 1000 == 0 ) {
-      double sx = p->x[0][0]+p->x[1][0]+p->x[2][0]+p->x[3][0];
-      double sv = p->v[0][0]+p->v[1][0]+p->v[2][0]+p->v[3][0];
-      double sf = p->f[0][0]+p->f[1][0]+p->f[2][0]+p->f[3][0];
-      printf("%ld %g %g %g\n", t, sx, sv, sf);
-      if (fabs(sx) > 1.1 || fabs(sv) > 0.1 || fabs(sf) > 0.1 ) {
-        int i;
-        polymer_write(p, "fail.xyz");
-        for ( i = 0; i < p->n; i++ ) {
-          printf("%d: %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f %8.3f\n", i,
-              p->x[i][0], p->x[i][1], p->x[i][2],
-              p->v[i][0], p->v[i][1], p->v[i][2],
-              p->f[i][0], p->f[i][1], p->f[i][2]);
-        }
-        exit(1);
-      }
-    }
-#endif
 
     if ( t % nstlog == 0 ) {
       polymer_logpos(p, fplog, t, 0);
+      fclose(fplog); exit(1);
     }
     //printf("%ld %g %g %g\n", t, p->epot, p->ekin, p->epot + p->ekin);
   }
-  polymer_write(p, "polymer.xyz");
+  polymer_write(p, NULL, "polymer.xyz");
   fclose(fplog);
   polymer_close(p);
   return 0;

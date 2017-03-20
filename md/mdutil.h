@@ -68,7 +68,9 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
    * and multiply the rotated velocity by -u[0]
    * the total angular momentum would be zero
    * this is equivalent to a rotation with
-   * cos(theta) = u[1] and sin(theta) = -u[0] */
+   * cos(theta) = u[1] and sin(theta) = -u[0]
+   * This choice of sign (instead of sin(theta) = -u[1], cos(theta) = u[0])
+   * would ensure (v.x) is positive after the rotation */
   for ( i = 0; i < n; i++ ) {
     newv    =  u[1] * v[i][0] + u[0] * v[i][1];
     v[i][1] = -u[0] * v[i][0] + u[1] * v[i][1];
@@ -114,7 +116,8 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
 {
   int i, j, k, round;
   double xc[D], xi[D], ang[D], am[D], z[D], th, rot[D][D];
-  double wt, wdot, mat[D][D], vi[D], ama;
+  double wt, wdot, mat[D][D], vi[D], ama, aml;
+  //double swd = 0;
   double tol = DBL_EPSILON * 1e3;
 
   /* compute the center of mass */
@@ -134,6 +137,8 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
       vdiff(xi, x[i], xc);
       vcross(ang, xi, v[i]);
       vsinc(am, ang, wt);
+      /* this sum is used to estimate the magnitude of the
+       * the angular momentum to establish an error threshold */
       ama += wt * vnorm(ang);
       wdot = wt * vdot(v[i], xi);
       for ( j = 0; j < D; j++ ) {
@@ -142,23 +147,23 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
           mat[j][k] -= wt * v[i][j] * xi[k];
         }
       }
+      //swd += wdot;
     }
-    wdot = vnorm(am);
-    if ( wdot < ama * tol ) break;
+    aml = vnorm(am);
+    if ( aml < ama * tol ) break;
     msolve(mat, am);
+    /* now the direction of `am` reprensent the axis of rotation,
+     * omega, around which an 90-degree rotation (omega x vi) with 
+     * a scaling of |am| will produce the same angular momentum
+     * as the initial velocity, vi.
+     * which means the ratio of the old and new velocity field
+     * should be 1 to -|am| */
     th = atan2(-vnorm(am), 1);
-    //printf("round %d, th %g, am %g, ama %g, |L| %g\n", round, th, vnorm(am), ama, wdot);
+    //printf("round %d, th %g, am %g, ama %g, |L| %g, x.v %g\n", round, th, vnorm(am), ama, aml, swd);
     vnormalize(vcopy(z, am));
 
-    /* now the direction of `am` reprensent the axis of rotation,
-     * around with an 90-degree rotation (omega x vi) will produce
-     * the same angular momentum as the initial velocity, vi
-     * which means if `am` is normalized, the resulting angular
-     * momentum is L/|am|. */
     mrota(rot, z, th); 
 
-    /* compute the total angular momentum
-     * from the 90-degree rotated velocities */
     for ( i = 0; i < n; i++ ) {
       mmxv(vi, rot, v[i]);
       vcopy(v[i], vi);

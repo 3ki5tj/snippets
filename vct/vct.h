@@ -202,8 +202,9 @@ __inline static double vdist(const double *a, const double *b)
 /* normalize the vector */
 __inline static double *vnormalize(double *v)
 {
-  double s = sqrt( vsqr(v) );
-  return vsmul(v, 1.0 / s);
+  double s = vsqr(v);
+  s = ( s >= 0 ) ? 1./sqrt(s) : 1;
+  return vsmul(v, s);
 }
 
 
@@ -212,8 +213,14 @@ __inline static double *vnormalize(double *v)
 __inline static double vang(const double *xi, const double *xj, const double *xk,
     double *gi, double *gj, double *gk)
 {
-  double xij[D], xkj[D], ri, rk, dot, ang;
+  double xj_[D], xij[D], xkj[D], ri, rk, dot, ang;
   const double eps = DBL_EPSILON;
+
+  if ( xj == NULL ) {
+    /* use the origin as the default xj */
+    vzero(xj_);
+    xj = xj_;
+  }
 
   ri = vdistx(xij, xi, xj);
   vsmul(xij, 1.0/ri);
