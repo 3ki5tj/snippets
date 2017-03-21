@@ -169,6 +169,31 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
       vcopy(v[i], vi);
     }
   }
+
+  /* additional 180-degree to maximize mi(ri.vi) */
+  {
+    double val[D], tr;
+    mzero(mat);
+    for ( i = 0; i < n; i++ ) {
+      wt = ( m != NULL ) ? m[i] : 1.0;
+      vdiff(xi, x[i], xc);
+      for ( j = 0; j < D; j++ ) {
+        for ( k = 0; k < D; k++ ) {
+          mat[j][k] += wt * xi[j] * v[i][k];
+        }
+      }
+    }
+    for ( tr = 0, j = 0; j < D; j++ ) tr += mat[j][j];
+    meigsys(val, rot, mat, 1);
+    if ( val[0] > tr ) {
+      /* rotate around rot[0] for 180 degrees */
+      for ( i = 0; i < n; i++ ) {
+        double dot = vdot(v[i], rot[0]);
+        vsinc(v[i], rot[0], -2*dot);
+        vneg(v[i]);
+      }
+    }
+  }
 }
 
 

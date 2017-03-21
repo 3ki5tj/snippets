@@ -461,7 +461,7 @@ __inline static void msort2(double s[D],
 
 
 
-/* rotation matrix for angle theta */
+/* construct rotation matrix for angle theta */
 __inline static void mrot(double rot[D][D], double theta)
 {
   double c = cos(theta), s = sin(theta);
@@ -532,7 +532,7 @@ __inline static int meigsys_(double vals[D], double vecs[D][D], double mat[D][D]
 
 
 
-/* rotation matrix around axis z for angle theta */
+/* construct rotation matrix around axis z for angle theta */
 __inline static void mrota(double rot[D][D], double *z, double theta)
 {
   double x[D], y[D], nx[D], ny[D], c, s;
@@ -564,7 +564,7 @@ __inline static void mrota(double rot[D][D], double *z, double theta)
 
 
 
-/* rotation matrix that bring v1 to v2 */
+/* construct rotation matrix that bring v1 to v2 */
 __inline static void mrotvv(double rot[D][D], double *v1, double *v2)
 {
   double x[D], y[D], z[D], nx[D], ny[D];
@@ -585,6 +585,27 @@ __inline static void mrotvv(double rot[D][D], double *v1, double *v2)
       rot[i][j] = z[i] * z[j] + nx[i] * x[j] + ny[i] * y[j];
     }
   }
+}
+
+
+
+/* get the axis of a rotation matrix */
+__inline static double maxisrot(double z[D], double rot[D][D])
+{
+  double v[D][D], x[D], y[D], nx[D], dot, ang;
+
+  /* the axis of rotation is an eigenvector of eigenvalue 1 */
+  meigvecs_(v, rot, 1.0, meig_reltol, 1);
+  vcopy(z, v[0]);
+  vgetperp(x, z);
+  vcross(y, z, x);
+  mmxv(nx, rot, x);
+  dot = vdot(nx, x);
+  if ( dot > 1 ) dot = 1;
+  else if ( dot < -1 ) dot = -1;
+  ang = acos(dot);
+  if ( vdot(nx, y) < 0 ) ang = -ang;
+  return ang;
 }
 
 

@@ -24,9 +24,9 @@ double langdt = 0.1;
 int nstlog = 20;
 
 enum { TRANSFORM_NONE, TRANSFORM_COM, TRANSFORM_HEAD, TRANSFORM_RMSD };
-//int transform = TRANSFORM_COM;
+int transform = TRANSFORM_COM;
 //int transform = TRANSFORM_HEAD;
-int transform = TRANSFORM_RMSD;
+//int transform = TRANSFORM_RMSD;
 
 #define NNHC 5
 double nhc_zeta[NNHC];
@@ -40,7 +40,7 @@ double ktheta = 58.35;
 //double theta0 = 120 * PI / 180;
 //double ktheta = 1000;
 double phi0 = PI;
-double kdih1 = 0.1;
+double kdih1 = 100;
 double kdih3 = 0.0;
 
 typedef struct {
@@ -148,28 +148,6 @@ static void polymer_transform(polymer_t *p, int type)
 #endif
   } else if ( type == TRANSFORM_RMSD ) {
     vrmsd(p->x, p->xt, p->xref, p->m, n, 0, rot, trans);
-#if 0
-    /* the following code is used to compare RMSD fit
-     * to the removal of angular motion */
-    for ( i = 0; i < n; i++ )
-      vcopy(p->xt2[i], p->x[i]);
-    rmcom(p->xt2, p->m, n);
-    shiftangv(p->xref, p->xt2, p->m, n);
-    polymer_write(p, p->xref, "ref.xyz");
-    polymer_write(p, p->xt, "rmsd.xyz");
-    polymer_write(p, p->xt2, "com.xyz");
-    for ( i = 0; i < n; i++ ) {
-      double ax[D], v1[D], v2[D];
-      vnormalize(vcross(ax, p->xt[i], p->xt2[i]));
-      vcross(v1, ax, p->xt[i]);
-      vcross(v2, ax, p->xt2[i]);
-      printf("%d: ang %g, %g: axis %g, %g, %g\n", i,
-          vang(p->xt[i],NULL,p->xt2[i],NULL,NULL,NULL)*180/PI,
-          vang(v1,NULL,v2,NULL,NULL,NULL)*180/PI,
-          ax[0], ax[1], ax[2]);
-    }
-    getchar();
-#endif
   }
 }
 

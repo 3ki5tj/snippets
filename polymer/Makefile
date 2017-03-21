@@ -15,7 +15,7 @@ $(bins2d): %_2d : %.c $(deps)
 	$(CC) -DD=2 $< -o $@ $(LM)
 
 clean:
-	rm -rf $(bins) $(bin2ds) a.out *~ .*.un~ */*~ */.*.un~ *.dat *.pos *.xyz
+	rm -rf $(bins) $(bins2d) a.out *~ .*.un~ */*~ */.*.un~ *.dat *.pos *.xyz
 	rstrip.py -Rlv
 
 Dropbox: clean
