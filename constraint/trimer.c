@@ -1,6 +1,8 @@
 /* molecular dynamics of the trimer model by Frenkel
  * with or without constraints */
+#ifndef D
 #define D 3
+#endif
 #include "mtrand.h"
 #include "vct.h"
 #include "mdutil.h"

@@ -1,4 +1,6 @@
+#ifndef D
 #define D 3
+#endif
 #include "vct.h"
 #include "mat.h"
 #include "mdutil.h"
@@ -8,13 +10,14 @@
 
 const double KB = 0.0019872041; /* kcal/mol/K */
 
-//int chainlen = D + 1;
-int chainlen = 3;
+int chainlen = D + 1;
+//int chainlen = 3;
 double tp = 300;
-long nsteps = 1000000;
+long nsteps = 10000000;
 double mddt = 0.002; /* in ps */
 enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN};
-int thstat = ANDERSEN;
+int thstat = LANGEVIN;
+//int thstat = ANDERSEN;
 //int thstat = VRESCALE;
 double thdt = 0.1; /* time step for velocity rescaling or NH-chain */
 double langdt = 0.1;
@@ -32,10 +35,10 @@ double nhc_zmass[NNHC] = {1, 1, 1, 1, 1};
 double mass = 12 / 418.4;
 double bond0 = 3.79;
 double kbond = 222.5;
-double theta0 = 113 * PI / 180;
-double ktheta = 58.35;
-//double theta0 = 180 * PI / 180;
-//double ktheta = 1000;
+//double theta0 = 113 * PI / 180;
+//double ktheta = 58.35;
+double theta0 = 120 * PI / 180;
+double ktheta = 1000;
 double phi0 = PI;
 double kdih1 = 100.;
 double kdih3 = 0.0;
@@ -265,6 +268,7 @@ double polymer_force(polymer_t *p)
 /* remove center of mass motion, linear and angular */
 static void polymer_rmcom(polymer_t *p, double (*x)[D], double (*v)[D])
 {
+  rmcom(x, p->m, p->n);
   rmcom(v, p->m, p->n);
   shiftang(x, v, p->m, p->n);
 }
@@ -394,16 +398,18 @@ int main(void)
   for ( t = 1; t <= nsteps; t++ ) {
     polymer_thermostat(p);
     polymer_vv(p, mddt);
-    if ( thstat != LANGEVIN && thstat != ANDERSEN
-      && t % 10 == 0 ) {
-      /* need to regularly remove COM motion */
-      polymer_rmcom(p, p->x, p->v);
+    if ( t % 10 == 0 ) {
+      if ( thstat != LANGEVIN && thstat != ANDERSEN ) {
+        /* need to regularly remove COM motion */
+        polymer_rmcom(p, p->x, p->v);
+      } else {
+        rmcom(p->x, p->m, p->n);
+      }
     }
     polymer_thermostat(p);
 
     if ( t % nstlog == 0 ) {
       polymer_logpos(p, fplog, t, 0);
-      fclose(fplog); exit(1);
     }
     //printf("%ld %g %g %g\n", t, p->epot, p->ekin, p->epot + p->ekin);
   }

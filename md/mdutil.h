@@ -309,15 +309,15 @@ __inline static double md_langevin(double (*v)[D],
     const double *m, int n, double tp, double dt)
 {
   int i, k;
-  double s, v0, wt, ek = 0;
+  double s, v0, vi, wt, ek = 0;
 
   s = exp(-dt);
   v0 = sqrt( tp * (1 - s * s) );
   for ( i = 0; i < n; i++ ) {
     wt = ( m != NULL ) ? m[i] : 1;
-    v0 /= sqrt( wt );
+    vi = v0 / sqrt( wt );
     for ( k = 0; k < D; k++ ) {
-      v[i][k] = v[i][k] * s + v0 * randgaus();
+      v[i][k] = v[i][k] * s + vi * randgaus();
     }
     ek += 0.5 * wt * vsqr(v[i]);
   }

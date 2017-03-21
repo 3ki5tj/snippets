@@ -612,8 +612,8 @@ __inline static double *meigval(double v[3], double a[3][3])
     /* allow some error to include degenerate cases
      * such as x^3 - 3 x + 2 = (x + 2) (x - 1)^2 = 0
      * or x^3 - 3 x - 2 = (x - 2) (x + 1)^2 = 0 */
-    if ( t < 1 + tol ) t = 1;
-    else if ( t > -1 - tol ) t = -1;
+    if ( t > 1 && t < 1 + tol ) t = 1;
+    else if ( t < -1 && t > -1 - tol ) t = -1;
     if ( fabs(t) <= 1 ) {
       t = acos(t) / 3; /* 0 < t < pi/3 */
       v[0] = m + 2.0 * pr * cos(t);  /* largest */
