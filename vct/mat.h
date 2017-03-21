@@ -427,15 +427,21 @@ __inline static int meigvecs_(double (*vecs)[D], double mat[D][D],
 
 
 /* sort `s' to descending order, order `u' and `v' correspondingly */
-__inline static void msort2(double s[D], double (*u)[D], double (*v)[D])
+__inline static void msort2(double s[D],
+    double (*u)[D], double (*v)[D], int absval)
 {
-  double t;
+  double t, jval, kval;
   int i, j, k;
 
   for ( i = 0; i < D; i ++ ) {
-    for ( k = i, j = i + 1; j < D; j++ )
-      if ( s[j] > s[k] )
+    kval = absval ? fabs(s[i]) : s[i];
+    for ( k = i, j = i + 1; j < D; j++ ) {
+      jval = absval ? fabs(s[j]) : s[j];
+      if ( jval > kval ) {
         k = j;
+        kval = jval;
+      }
+    }
 
     if ( k != i ) {
       t = s[i]; s[i] = s[k]; s[k] = t;
@@ -512,7 +518,7 @@ __inline static int meigsys_(double vals[D], double vecs[D][D], double mat[D][D]
     vecs[1][1] =  vecs[0][0];
   }
 
-  msort2(vals, vecs, NULL);
+  msort2(vals, vecs, NULL, 0);
 
   if ( !nt ) {
     mtrans(vecs);
@@ -691,7 +697,7 @@ __inline static int meigsys_(double vals[3], double vecs[3][3], double mat[3][3]
   } else { /* n == 3, and we are done */
   }
 
-  msort2(vals, vecs, NULL);
+  msort2(vals, vecs, NULL, 0);
 
   if ( !nt ) {
     mtrans(vecs);
@@ -725,12 +731,16 @@ __inline static void msvd(double a[D][D],
   } else {
     double tol = msvd_reltol;
 
-    mmxmt(u, v, a); /* U = V^T A^T, currently v = V^T */
+    mmxmt(u, v, a); /* compute V^T A^T, currently v = V^T */
+    mcopy(us, u); /* save a copy before normalizing it */
     for ( i = 0; i < D; i++ ) {
-      vcopy(us[i], u[i]); /* save a copy of V^T A^T before normalizing it */
       s[i] = vnorm(u[i]);
       if ( s[i] > 0 ) vsmul(u[i], 1 / s[i]);
     }
+
+    /* sort eigenvalues by their absolute values */
+    msort2(s, u, v, 1);
+
     rank = 1;
     rank += (fabs( vdot(u[0], u[1]) ) < tol && s[1] > tol);
 #if D == 2
@@ -745,6 +755,7 @@ __inline static void msvd(double a[D][D],
 #elif D == 3
     rank += (fabs( vdot(u[0], u[2]) ) < tol
           && fabs( vdot(u[1], u[2]) ) < tol && s[2] > tol);
+    //printf("rank %d, dot01 %g, dot02 %g, dot12 %g, s1 %g, s2 %g\n", rank, vdot(u[0], u[1]), vdot(u[0], u[2]), vdot(u[1], u[2]), s[1], s[2]);
     if ( rank < D ) {
       if ( rank == 1 ) {
         /* use a vector perpendicular to u[0] as u[1] */
@@ -762,7 +773,7 @@ __inline static void msvd(double a[D][D],
       }
     }
 #endif
-    msort2(s, u, v);
+    msort2(s, u, v, 0);
   }
   mtrans(v);
   mtrans(u);

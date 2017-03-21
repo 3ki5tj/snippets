@@ -153,7 +153,7 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
     if ( aml < ama * tol ) break;
     msolve(mat, am);
     /* now the direction of `am` reprensent the axis of rotation,
-     * omega, around which an 90-degree rotation (omega x vi) with 
+     * omega, around which an 90-degree rotation (omega x vi) with
      * a scaling of |am| will produce the same angular momentum
      * as the initial velocity, vi.
      * which means the ratio of the old and new velocity field
@@ -162,7 +162,7 @@ __inline static void shiftangv(double (*x)[D], double (*v)[D],
     //printf("round %d, th %g, am %g, ama %g, |L| %g, x.v %g\n", round, th, vnorm(am), ama, aml, swd);
     vnormalize(vcopy(z, am));
 
-    mrota(rot, z, th); 
+    mrota(rot, z, th);
 
     for ( i = 0; i < n; i++ ) {
       mmxv(vi, rot, v[i]);

@@ -14,7 +14,7 @@ long nstskip = 10;
 typedef struct {
   int n;
   int dim;
-  int cnt;
+  long cnt; /* number of frames */
   double *mass;
   double *sqrtm;
   double *x;
@@ -100,7 +100,7 @@ pca_t *pca_load(const char *fn, long skip)
     }
     pca->cnt += 1;
   }
-  fprintf(stderr, "Loaded %d frames, skipped %d\n",
+  fprintf(stderr, "Loaded %ld frames, skipped %ld\n",
       pca->cnt, skip);
 
   for ( i = 0; i < n; i++ ) {
@@ -185,7 +185,7 @@ int pca_analyze(pca_t *pca, double kT)
 
   printf("1/omega in fs\n");
   for ( i = 0; i < n; i++ ) {
-    printf("ev %4d: %10.4f: ", i + 1, sqrt(pca->eval[i])*1000);    
+    printf("ev %4d: %10.4f: ", i + 1, sqrt(pca->eval[i])*1000);
     for ( j = 0; j < n; j++ ) {
       printf(" %7.3f", pca->evec[j*n + i]);
     }

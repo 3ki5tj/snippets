@@ -35,12 +35,12 @@ double nhc_zmass[NNHC] = {1, 1, 1, 1, 1};
 double mass = 12 / 418.4;
 double bond0 = 3.79;
 double kbond = 222.5;
-//double theta0 = 113 * PI / 180;
-//double ktheta = 58.35;
-double theta0 = 120 * PI / 180;
-double ktheta = 1000;
+double theta0 = 113 * PI / 180;
+double ktheta = 58.35;
+//double theta0 = 120 * PI / 180;
+//double ktheta = 1000;
 double phi0 = PI;
-double kdih1 = 100.;
+double kdih1 = 0.1;
 double kdih3 = 0.0;
 
 typedef struct {
@@ -194,9 +194,9 @@ static int polymer_write(polymer_t *p, double (*x)[D], const char *fn)
   fprintf(fp, "# %d %d\n", p->n, D);
   for ( i = 0; i < p->n; i++ ) {
 #if D == 2
-    fprintf(fp, "%g %g\n", x[i][0], x[i][1]);
+    fprintf(fp, "%.18f %.18f\n", x[i][0], x[i][1]);
 #else
-    fprintf(fp, "%g %g %g\n", x[i][0], x[i][1], x[i][2]);
+    fprintf(fp, "%.18f %.18f %.18f\n", x[i][0], x[i][1], x[i][2]);
 #endif
     //if ( i > 0 && i < p->n - 1 ) printf("i %d: %g\n", i, vang(x[i-1], x[i], x[i+1],NULL,NULL,NULL)*180/M_PI);
   }
@@ -410,6 +410,12 @@ int main(void)
 
     if ( t % nstlog == 0 ) {
       polymer_logpos(p, fplog, t, 0);
+    }
+
+    /* print out the progress */
+    if ( t % 100000 == 0 ) {
+      printf("t %ld, %g%%      \r", t, 100.*t/nsteps);
+      fflush(stdout);
     }
     //printf("%ld %g %g %g\n", t, p->epot, p->ekin, p->epot + p->ekin);
   }
