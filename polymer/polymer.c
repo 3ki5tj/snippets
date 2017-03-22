@@ -1,19 +1,10 @@
-#ifndef D
-#define D 3
-#endif
-#include "vct.h"
-#include "mat.h"
-#include "mdutil.h"
 #include "mtrand.h"
-
-#define xnew(x, n) if ( (x = calloc((n), sizeof(*(x)))) == NULL ) exit(1);
-
-const double KB = 0.0019872041; /* kcal/mol/K */
+#include "pca.h"
 
 int chainlen = D + 1;
 //int chainlen = 3;
 double tp = 300;
-long nsteps = 10000000;
+long nsteps = 1000000;
 double mddt = 0.002; /* in ps */
 enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN};
 int thstat = LANGEVIN;
@@ -23,10 +14,10 @@ double thdt = 0.1; /* time step for velocity rescaling or NH-chain */
 double langdt = 0.1;
 int nstlog = 20;
 
-enum { TRANSFORM_NONE, TRANSFORM_COM, TRANSFORM_HEAD, TRANSFORM_RMSD };
-int transform = TRANSFORM_COM;
+//int transform = TRANSFORM_NONE;
+//int transform = TRANSFORM_COM;
 //int transform = TRANSFORM_HEAD;
-//int transform = TRANSFORM_RMSD;
+int transform = TRANSFORM_RMSD;
 
 #define NNHC 5
 double nhc_zeta[NNHC];
@@ -35,10 +26,10 @@ double nhc_zmass[NNHC] = {1, 1, 1, 1, 1};
 double mass = 12 / 418.4;
 double bond0 = 3.79;
 double kbond = 222.5;
-double theta0 = 113 * PI / 180;
-double ktheta = 58.35;
-//double theta0 = 120 * PI / 180;
-//double ktheta = 1000;
+//double theta0 = 113 * PI / 180;
+//double ktheta = 58.35;
+double theta0 = 180 * PI / 180;
+double ktheta = 1000;
 double phi0 = PI;
 double kdih1 = 100;
 double kdih3 = 0.0;
@@ -52,7 +43,6 @@ typedef struct {
   double (*f)[D];
   double epot, ekin;
   double (*xt)[D]; /* transformed coordinates */
-  double (*xt2)[D]; /* temporary */
   double (*xref)[D]; /* reference coordinates */
 } polymer_t;
 
@@ -65,7 +55,6 @@ static void polymer_close(polymer_t *p)
   free(p->v);
   free(p->f);
   free(p->xt);
-  free(p->xt2);
   free(p->xref);
   free(p);
 }
@@ -92,65 +81,6 @@ __inline static void polymer_printang(polymer_t *p, const char *flag)
 #endif
 }
 
-static int polymer_write(polymer_t *p, double (*x)[D], const char *fn);
-
-/* remove the center of mass motion as well as overall rotations */
-static void polymer_transform(polymer_t *p, int type)
-{
-  int i, n = p->n;
-  double rot[D][D], trans[D], v[D], newx[D];
-
-  if ( type == TRANSFORM_NONE ) {
-    for ( i = 0; i < n; i++ )
-      vcopy(p->xt[i], p->x[i]);
-  } else if ( type == TRANSFORM_COM ) {
-    /* 1. copy the coordinates */
-    for ( i = 0; i < n; i++ )
-      vcopy(p->xt[i], p->x[i]);
-    /* 2. remove the center of mass motion */
-    rmcom(p->xt, p->m, n);
-    /* 3. remove the overall rotation by treating xt as velocity */
-    //polymer_printang(p, "before");
-    shiftangv(p->xref, p->xt, p->m, n);
-    //polymer_printang(p, "after"); getchar();
-  } else if ( type == TRANSFORM_HEAD ) {
-    /* 1. displace x[0] at the origin */
-    vcopy(trans, p->x[0]);
-    for ( i = 0; i < n; i++ ) {
-      vdiff(p->xt[i], p->x[i], trans);
-    }
-#if D == 2
-    vdiff(v, p->xt[1], p->xt[0]);
-    vnormalize(v);
-    for ( i = 0; i < n; i++ ) {
-      newx[0] =  v[0] * p->xt[i][0] + v[1] * p->xt[i][1];
-      newx[1] = -v[1] * p->xt[i][0] + v[0] * p->xt[i][1];
-      vcopy(p->xt[i], newx);
-    }
-#else
-    {
-      double x[D] = {1, 0, 0}, y[D] = {0, 1, 0}, rot[D][D];
-      /* 2. rotate p->xt[1] to the x axis */
-      mrotvv(rot, p->xt[1], x);
-      for ( i = 1; i < n; i++ ) {
-        mmxv(newx, rot, p->xt[i]);
-        vcopy(p->xt[i], newx);
-      }
-      /* 3. rotate p->xt[2] on to the x-y plane */
-      vdiff(v, p->xt[2], p->xt[1]);
-      v[0] = 0; /* remove the x component */
-      mrotvv(rot, v, y);
-      for ( i = 2; i < n; i++ ) {
-        mmxv(newx, rot, p->xt[i]);
-        vcopy(p->xt[i], newx);
-      }
-    }
-#endif
-  } else if ( type == TRANSFORM_RMSD ) {
-    vrmsd(p->x, p->xt, p->xref, p->m, n, 0, rot, trans);
-  }
-}
-
 /* to use the output:
  * splot "polymer.xyz" w lp pt 7 ps 5 */
 static int polymer_write(polymer_t *p, double (*x)[D], const char *fn)
@@ -165,7 +95,7 @@ static int polymer_write(polymer_t *p, double (*x)[D], const char *fn)
 
   if ( x == NULL ) {
     /* by default, write the transformed coordinates */
-    polymer_transform(p, transform);
+    x_transform(p->x, p->xt, p->xref, p->m, p->n, transform);
     x = p->xt;
   }
 
@@ -184,7 +114,8 @@ static int polymer_write(polymer_t *p, double (*x)[D], const char *fn)
 
 
 
-void polymer_logpos(polymer_t *p, FILE *fp, long t, int header)
+void polymer_logpos(polymer_t *p, FILE *fp,
+    double (*x)[D], long t, int header)
 {
   int i, j, n = p->n;
 
@@ -199,7 +130,7 @@ void polymer_logpos(polymer_t *p, FILE *fp, long t, int header)
     fprintf(fp, "\n");
   }
 
-  polymer_transform(p, transform);
+  x_transform(x, p->xt, p->xref, p->m, p->n, transform);
 
   /* report the transformed positions */
   fprintf(fp, "%ld", t);
@@ -257,7 +188,7 @@ polymer_t *polymer_open(int n, double tp0)
   double dx[2][D] = {{1}, {1}}, s, ang;
   int i, j;
 
-  ang = (PI - theta0)/2;
+  ang = (PI - theta0) / 2;
   dx[0][0] = cos(ang);
   dx[0][1] = sin(ang);
   dx[1][0] = dx[0][0];
@@ -269,7 +200,6 @@ polymer_t *polymer_open(int n, double tp0)
   xnew(p->v, n);
   xnew(p->f, n);
   xnew(p->xt, n);
-  xnew(p->xt2, n);
   xnew(p->xref, n);
 
   for ( i = 0; i < n; i++ ) {
@@ -364,6 +294,7 @@ void polymer_thermostat(polymer_t *p)
 int main(void)
 {
   polymer_t *p;
+  pca_t *pca;
   FILE *fplog;
   long t;
 
@@ -372,7 +303,9 @@ int main(void)
     fprintf(stderr, "cannot open log file\n");
     return -1;
   }
-  polymer_logpos(p, fplog, 0, 1);
+  polymer_logpos(p, fplog, p->xref, 0, 1);
+  pca = pca_open(p->n * D);
+  pca_setxref(pca, (double *) p->xref);
   for ( t = 1; t <= nsteps; t++ ) {
     polymer_thermostat(p);
     polymer_vv(p, mddt);
@@ -387,7 +320,8 @@ int main(void)
     polymer_thermostat(p);
 
     if ( t % nstlog == 0 ) {
-      polymer_logpos(p, fplog, t, 0);
+      polymer_logpos(p, fplog, p->x, t, 0);
+      pca_add(pca, (double *) p->xt, TRANSFORM_NONE);
     }
 
     /* print out the progress */
@@ -397,8 +331,11 @@ int main(void)
     }
     //printf("%ld %g %g %g\n", t, p->epot, p->ekin, p->epot + p->ekin);
   }
+  pca_getave(pca);
+  pca_analyze(pca, KB * tp);
   polymer_write(p, NULL, "polymer.xyz");
   fclose(fplog);
   polymer_close(p);
+  pca_close(pca);
   return 0;
 }

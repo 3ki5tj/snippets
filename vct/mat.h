@@ -595,7 +595,7 @@ __inline static double maxisrot(double z[D], double rot[D][D])
   double v[D][D], x[D], y[D], nx[D], dot, ang;
 
   /* the axis of rotation is an eigenvector of eigenvalue 1 */
-  meigvecs_(v, rot, 1.0, meig_reltol, 1);
+  meigvecs(v, rot, 1.0);
   vcopy(z, v[0]);
   vgetperp(x, z);
   vcross(y, z, x);

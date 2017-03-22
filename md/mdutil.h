@@ -1,4 +1,4 @@
-#ifndef MDTIL_H__
+#ifndef MDUTIL_H__
 #define MDUTIL_H__
 
 
@@ -382,7 +382,7 @@ __inline static double md_vscramble(double (*v)[D],
 
 
 /* bond energy k (r - r0)^2 */
-static double md_potbond(double *a, double *b,
+__inline static double md_potbond(double *a, double *b,
     double r0, double k, double *fa, double *fb)
 {
   double dx[D], r, dr, amp;
@@ -398,7 +398,7 @@ static double md_potbond(double *a, double *b,
 }
 
 /* harmonic angle k (ang - ang0)^2 */
-static double md_potang(double *a, double *b, double *c,
+__inline static double md_potang(double *a, double *b, double *c,
     double ang0, double k, double *fa, double *fb, double *fc)
 {
   double dang, amp, ga[D], gb[D], gc[D];
@@ -417,7 +417,7 @@ static double md_potang(double *a, double *b, double *c,
 
 #if D == 3
 /* 1-3 dihedral: k1 * (1 - cos(dang)) + k3 * (1 - cos(3*dang)) */
-static double md_potdih13(double *a, double *b, double *c, double *d,
+__inline static double md_potdih13(double *a, double *b, double *c, double *d,
     double ang0, double k1, double k3,
     double *fa, double *fb, double *fc, double *fd)
 {
