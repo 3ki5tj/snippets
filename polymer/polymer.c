@@ -26,10 +26,10 @@ double nhc_zmass[NNHC] = {1, 1, 1, 1, 1};
 double mass = 12 / 418.4;
 double bond0 = 3.79;
 double kbond = 222.5;
-//double theta0 = 113 * PI / 180;
-//double ktheta = 58.35;
-double theta0 = 180 * PI / 180;
-double ktheta = 1000;
+double theta0 = 113 * PI / 180;
+double ktheta = 58.35;
+//double theta0 = 180 * PI / 180;
+//double ktheta = 1000;
 double phi0 = PI;
 double kdih1 = 100;
 double kdih3 = 0.0;
@@ -331,7 +331,6 @@ int main(void)
     }
     //printf("%ld %g %g %g\n", t, p->epot, p->ekin, p->epot + p->ekin);
   }
-  pca_getave(pca);
   pca_analyze(pca, KB * tp);
   polymer_write(p, NULL, "polymer.xyz");
   fclose(fplog);

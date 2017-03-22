@@ -567,14 +567,19 @@ __inline static void mrota(double rot[D][D], double *z, double theta)
 /* construct rotation matrix that bring v1 to v2 */
 __inline static void mrotvv(double rot[D][D], double *v1, double *v2)
 {
-  double x[D], y[D], z[D], nx[D], ny[D];
+  double x[D], y[D], z[D], nx[D], ny[D], s;
   int i, j;
 
   /* define the x, y, z axes */
   vnormalize(vcopy(x, v1));
   vnormalize(vcopy(nx, v2));
   vcross(z, x, nx);
-  vnormalize(z);
+  s = vnorm(z);
+  if ( s > 0 ) {
+    vsmul(z, 1.0/s);
+  } else {
+    vgetperp(z, x);
+  }
   vcross(y, z, x);
   vcross(ny, z, nx);
 

@@ -31,8 +31,11 @@ typedef struct {
   double *x;
   double *xt;
   double *xref;
+  double *sx;
+  double *sxx;
   double *ave;
   double *cov;
+  double *sig;
   double *eval;
   double *evec;
 } pca_t;
@@ -49,8 +52,11 @@ static pca_t *pca_open(int n)
   xnew(pca->x, n);
   xnew(pca->xt, n);
   xnew(pca->xref, n);
+  xnew(pca->sx, n);
+  xnew(pca->sxx, n * n);
   xnew(pca->ave, n);
   xnew(pca->cov, n * n);
+  xnew(pca->sig, n);
   xnew(pca->eval, n);
   xnew(pca->evec, n * n);
   for ( i = 0; i < n; i++ ) {
@@ -58,11 +64,11 @@ static pca_t *pca_open(int n)
     pca->sqrtm[i] = sqrt( pca->m[i] );
   }
   for ( i = 0; i < n; i++ ) {
-    pca->ave[i] = 0;
+    pca->sx[i] = 0;
   }
   for ( i = 0; i < n; i++ ) {
     for ( j = 0; j < n; j++ ) {
-      pca->cov[i*n+j] = 0;
+      pca->sxx[i*n+j] = 0;
     }
   }
   pca->cnt = 0;
@@ -76,8 +82,11 @@ static void pca_close(pca_t *pca)
   free(pca->x);
   free(pca->xt);
   free(pca->xref);
+  free(pca->sx);
+  free(pca->sxx);
   free(pca->ave);
   free(pca->cov);
+  free(pca->sig);
   free(pca->eval);
   free(pca->evec);
   free(pca);
@@ -160,32 +169,16 @@ static void pca_add(pca_t *pca, const double *x, int transform)
       pca->m, n / D, transform);
 
   for ( i = 0; i < n; i++ ) {
-    pca->xt[i] *= pca->sqrtm[i];
-    pca->ave[i] += pca->xt[i];
+    pca->sx[i] += pca->xt[i];
   }
 
   for ( i = 0; i < n; i++ ) {
     for ( j = 0; j < n; j++ ) {
-      pca->cov[i*n+j] += pca->xt[i] * pca->xt[j];
+      pca->sxx[i*n+j] += pca->xt[i] * pca->xt[j];
     }
   }
 
   pca->cnt++;
-}
-
-static void pca_getave(pca_t *pca)
-{
-  int i, j, n = pca->n;
-
-  for ( i = 0; i < n; i++ ) {
-    pca->ave[i] /= pca->cnt;
-  }
-  for ( i = 0; i < n; i++ ) {
-    for ( j = 0; j < n; j++ ) {
-      pca->cov[i*n+j] = pca->cov[i*n+j]/pca->cnt
-        - pca->ave[i] * pca->ave[j];
-    }
-  }
 }
 
 __inline static pca_t *pca_load(const char *fn, long skip, int transform)
@@ -242,35 +235,57 @@ __inline static pca_t *pca_load(const char *fn, long skip, int transform)
   return pca;
 }
 
-
-static int pca_analyze(pca_t *pca, double kT)
+/* compute the covariance matrix */
+static void pca_getcov(pca_t *pca, double kT)
 {
-  int i, j, cnt = 0, n = pca->n, nmodes = 0;
-  double del = 0, alpha, entc = 0, entq = 0;
-  double entm = 0;
-  double *sig;
+  int i, j, n = pca->n;
 
-  for ( i = 0; i < n; i++ )
-    for ( j = 0; j < n; j++ )
-      pca->cov[i*n+j] /= kT;
-
-  xnew(sig, n);
   for ( i = 0; i < n; i++ ) {
-    sig[i] = pca->cov[i*n+i] > 0 ? sqrt( pca->cov[i*n+i] ) : 1;
+    pca->ave[i] = pca->sx[i] / pca->cnt;
   }
-
   for ( i = 0; i < n; i++ ) {
-    double ss = pca->cov[i*n+i] > 0 ? 1000*sig[i] : 0;
-    printf("%4d %8.3f: ", i, ss);
     for ( j = 0; j < n; j++ ) {
-      printf(" %8.3f", pca->cov[i*n + j]/sig[i]/sig[j]);
+      pca->cov[i*n+j] = pca->sxx[i*n+j] / pca->cnt
+        - pca->ave[i] * pca->ave[j];
     }
-    printf("\n");
   }
 
-  printf("n %d\n", n);
-  /* determining the shift to improve stability*/
+  if ( kT > 0 ) {
+    for ( i = 0; i < n; i++ ) {
+      pca->ave[i] *= pca->sqrtm[i];
+    }
+    for ( i = 0; i < n; i++ ) {
+      for ( j = 0; j < n; j++ ) {
+        pca->cov[i*n+j] *= pca->sqrtm[i] * pca->sqrtm[j] / kT;
+      }
+    }
+  }
+
   for ( i = 0; i < n; i++ ) {
+    pca->sig[i] = pca->cov[i*n+i] > 0 ? sqrt( pca->cov[i*n+i] ) : 1;
+  }
+}
+
+/* compute the eigenvalues from the covariance matrix */
+static double pca_coveig(pca_t *pca, int mweight, int verbose)
+{
+  double del;
+  int i, j, cnt, n = pca->n;
+
+  if ( verbose ) {
+    for ( i = 0; i < n; i++ ) {
+      double ss = pca->cov[i*n+i] > 0 ? pca->sig[i] : 0;
+      if ( mweight ) ss *= 1000;
+      printf("%4d %8.3f: ", i, ss);
+      for ( j = 0; j < n; j++ ) {
+        printf(" %8.3f", pca->cov[i*n + j]/pca->sig[i]/pca->sig[j]);
+      }
+      printf("\n");
+    }
+  }
+
+  /* determining the shift to improve stability */
+  for ( del = 0, cnt = 0, i = 0; i < n; i++ ) {
     if ( pca->cov[i*n+i] > 0 ) {
       del += pca->cov[i*n+i];
       cnt += 1;
@@ -283,16 +298,9 @@ static int pca_analyze(pca_t *pca, double kT)
     pca->cov[i*n+i] += del;
   }
 
+  /* compute the eigenvalues */
   eigsym(pca->cov, pca->eval, pca->evec, n);
-#if 0
-  /* recover */
-  for ( i = 0; i < n; i++ ) {
-    pca->cov[i*n+i] -= del;
-    for ( j = 0; j < n; j++ ) {
-      pca->cov[i*n+j] *= kT;
-    }
-  }
-#endif
+
   /* unshift the eigenvalues */
   for ( i = 0; i < n; i++ ) {
     pca->eval[i] -= del;
@@ -300,6 +308,71 @@ static int pca_analyze(pca_t *pca, double kT)
       pca->eval[i] = 0;
     }
   }
+
+  if ( mweight > 0 ) {
+    printf("1/omega in fs\n");
+  } else {
+    printf("dx in angstrom\n");
+  }
+
+  for ( i = 0; i < n; i++ ) {
+    double x = sqrt(pca->eval[i]);
+    if ( mweight ) x *= 1000;
+    printf("%4d: %10.4f: ", i + 1, x);
+    for ( j = 0; j < n; j++ ) {
+      printf(" %7.3f", pca->evec[j*n + i]);
+    }
+    printf("\n");
+  }
+
+  return del;
+}
+
+/* compute the spatial entropy from the RMSD fit structure */
+static int pca_entspace(pca_t *pca, double kT)
+{
+  double ents, entm;
+  int nmodes, i, n = pca->n;
+
+  /* unweighted */
+  pca_getcov(pca, 0);
+  /* compute the eigenvalues */
+  pca_coveig(pca, 0, 1);
+
+  /* compute the entropy */
+  nmodes = 0;
+  printf("eval: ");
+  ents = 0;
+  for ( i = 0; i < n - D*(D+1)/2; i++ ) {
+    ents += (1 + log(2*PI*pca->eval[i]))/2;
+    nmodes += 1;
+    printf(" %g", sqrt(pca->eval[i]));
+  }
+  entm = 0;
+  for ( i = 0; i < n - D*(D+1)/2; i++ ) {
+    entm += (1 + log(2*PI*pca->m[i]*kT))/2 - log(2*PI*HBAR);
+  }
+  printf("\nSpatial: %g kcal/mol/K, %g kB, "
+      "momentum: %g kcal/mol/K, %g kB, "
+      "total: %g kcal/mol/K, %g kB, "
+      "%d none-zero modes\n\n",
+      ents * KB, ents, entm * KB, entm,
+      (ents + entm) * KB, ents + entm, nmodes);
+
+  return 0;
+}
+
+
+static int pca_enttotal(pca_t *pca, double kT)
+{
+  int i, n = pca->n, nmodes = 0;
+  double alpha, entc = 0, entq = 0;
+
+  /* get the mass weighted covariance matrix */
+  pca_getcov(pca, kT);
+
+  /* compute the eigenvalues */
+  pca_coveig(pca, 1, 0);
 
   /* compute the entropy */
   nmodes = 0;
@@ -316,16 +389,13 @@ static int pca_analyze(pca_t *pca, double kT)
   printf("\nEntropy: %g kcal/mol/K, %g kB (classical) %g kcal/mol/K, %g kB (quantum); %d none-zero modes\n",
       entc * KB, entc, entq * KB, entq, nmodes);
 
-  printf("1/omega in fs\n");
-  for ( i = 0; i < n; i++ ) {
-    printf("ev %4d: %10.4f: ", i + 1, sqrt(pca->eval[i])*1000);
-    for ( j = 0; j < n; j++ ) {
-      printf(" %7.3f", pca->evec[j*n + i]);
-    }
-    printf("\n");
-  }
-  free(sig);
+  return 0;
+}
 
+static int pca_analyze(pca_t *pca, double kT)
+{
+  pca_entspace(pca, kT);
+  pca_enttotal(pca, kT);
   return 0;
 }
 
