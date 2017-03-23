@@ -150,6 +150,17 @@ static void x_transform(double (*x)[D], double (*xt)[D],
   }
 }
 
+/* set the mass */
+__inline static void pca_setmass(pca_t *pca, const double *m)
+{
+  int i;
+
+  for ( i = 0; i < pca->n; i++ ) {
+    pca->m[i] = m[i/D];
+    pca->sqrtm[i] = sqrt( pca->m[i] );
+  }
+}
+
 /* set the reference structure */
 static void pca_setxref(pca_t *pca, const double *x)
 {
@@ -273,10 +284,10 @@ static double pca_coveig(pca_t *pca, int mweight, int verbose)
   int i, j, cnt, n = pca->n;
 
   if ( verbose ) {
+    printf("Covariance matrix:\n");
     for ( i = 0; i < n; i++ ) {
       double ss = pca->cov[i*n+i] > 0 ? pca->sig[i] : 0;
-      if ( mweight ) ss *= 1000;
-      printf("%4d %8.3f: ", i, ss);
+      printf("%4d %11.7f: ", i, ss);
       for ( j = 0; j < n; j++ ) {
         printf(" %8.3f", pca->cov[i*n + j]/pca->sig[i]/pca->sig[j]);
       }
@@ -331,7 +342,7 @@ static double pca_coveig(pca_t *pca, int mweight, int verbose)
 /* compute the spatial entropy from the RMSD fit structure */
 static int pca_entspace(pca_t *pca, double kT)
 {
-  double ents, entm;
+  double ents, entm, msum, xx, xxsum, mxxsum;
   int nmodes, i, n = pca->n;
 
   /* unweighted */
@@ -348,11 +359,30 @@ static int pca_entspace(pca_t *pca, double kT)
     nmodes += 1;
     printf(" %g", sqrt(pca->eval[i]));
   }
+  printf("\n");
   entm = 0;
-  for ( i = 0; i < n - D*(D+1)/2; i++ ) {
-    entm += (1 + log(2*PI*pca->m[i]*kT))/2 - log(2*PI*HBAR);
+  msum = 0;
+  xxsum = 0;
+  mxxsum = 0;
+  for ( i = 0; i < n; i++ ) {
+    entm += (1 + log(pca->m[i]*kT/2/PI))/2 - log(HBAR);
+    msum += pca->m[i];
+    xx = pca->xref[i] * pca->xref[i];
+    mxxsum += pca->m[i] * xx;
+    xxsum += xx;
   }
-  printf("\nSpatial: %g kcal/mol/K, %g kB, "
+  /* remove the translational motion */
+  entm -= D*((1 + log(msum/n*kT/2/PI))/2 - log(HBAR));
+  /* remove the rotational motion */
+#if D == 2
+  entm /= 2;
+  //entm -= ((1 + log(pca->m[2]*kT/2/PI))/2 - log(HBAR));
+  printf("mav %g, mxxsum/xxsum %g\n", msum/n, mxxsum/xxsum);
+  //entm -= (1 + log(mxxsum/xxsum*kT/2/PI))/2 - log(HBAR);
+#elif D == 3
+  entm -= D*((1 + log(mxxsum/xxsum*kT/2/PI))/2 - log(HBAR));
+#endif
+  printf("Spatial: %g kcal/mol/K, %g kB, "
       "momentum: %g kcal/mol/K, %g kB, "
       "total: %g kcal/mol/K, %g kB, "
       "%d none-zero modes\n\n",
@@ -372,7 +402,7 @@ static int pca_enttotal(pca_t *pca, double kT)
   pca_getcov(pca, kT);
 
   /* compute the eigenvalues */
-  pca_coveig(pca, 1, 0);
+  pca_coveig(pca, 1, 1);
 
   /* compute the entropy */
   nmodes = 0;

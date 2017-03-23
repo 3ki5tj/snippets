@@ -1,10 +1,11 @@
 #include "mtrand.h"
 #include "pca.h"
 
-int chainlen = D + 1;
-//int chainlen = 3;
+//int chainlen = D + 1;
+//int chainlen = 2;
+int chainlen = 3;
 double tp = 300;
-long nsteps = 1000000;
+long nsteps = 10000000;
 double mddt = 0.002; /* in ps */
 enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN};
 int thstat = LANGEVIN;
@@ -205,6 +206,9 @@ polymer_t *polymer_open(int n, double tp0)
   for ( i = 0; i < n; i++ ) {
     p->m[i] = mass;
   }
+  // non-uniform mass
+  p->m[0] /= 10;
+  p->m[n-1] /= 10;
 
   /* generate the initial configuration as a zigzag */
   vzero(p->xref[0]);
@@ -305,6 +309,7 @@ int main(void)
   }
   polymer_logpos(p, fplog, p->xref, 0, 1);
   pca = pca_open(p->n * D);
+  pca_setmass(pca, p->m);
   pca_setxref(pca, (double *) p->xref);
   for ( t = 1; t <= nsteps; t++ ) {
     polymer_thermostat(p);
