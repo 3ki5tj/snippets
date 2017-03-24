@@ -5,7 +5,7 @@
 //int chainlen = 2;
 int chainlen = 3;
 double tp = 300;
-long nsteps = 10000000;
+long nsteps = 1000000;
 double mddt = 0.002; /* in ps */
 enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN};
 int thstat = LANGEVIN;
@@ -207,8 +207,8 @@ polymer_t *polymer_open(int n, double tp0)
     p->m[i] = mass;
   }
   // non-uniform mass
-  p->m[0] /= 10;
-  p->m[n-1] /= 10;
+  //p->m[0] /= 10;
+  //p->m[n-1] /= 10;
 
   /* generate the initial configuration as a zigzag */
   vzero(p->xref[0]);
