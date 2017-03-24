@@ -41,6 +41,7 @@ typedef struct {
   double *eval;
   double *evec;
   double *xin;
+  double *xrefin;
   double *sxin;
   double *sxxin;
   double *avein;
@@ -86,6 +87,7 @@ static pca_t *pca_open(int n)
     }
   }
   xnew(pca->xin, nin);
+  xnew(pca->xrefin, nin);
   xnew(pca->sxin, nin);
   xnew(pca->sxxin, nin * nin);
   xnew(pca->avein, nin);
@@ -121,6 +123,7 @@ static void pca_close(pca_t *pca)
   free(pca->eval);
   free(pca->evec);
   free(pca->xin);
+  free(pca->xrefin);
   free(pca->sxin);
   free(pca->sxxin);
   free(pca->avein);
@@ -204,6 +207,46 @@ __inline static void pca_setmass(pca_t *pca, const double *m)
   }
 }
 
+/* add a multiple of 2*PI to `ang` such that it is closest to `ang0` */
+static double wrapang(double ang, double ang0)
+{
+  ang -= ang0;
+  while ( ang >  PI ) ang -= PI * 2;
+  while ( ang < -PI ) ang += PI * 2;
+  /* now the difference between ang and ang0 should lie in [-PI, PI] */
+  return ang + ang0;
+}
+
+/* compute the internal coordinates */
+static void pca_getxin(pca_t *pca, double (*x)[D],
+    double *xin, double *xrefin)
+{
+  int i, id = 0, np = pca->np;
+  double dx[D], ang, ang0;
+
+  /* bonds */
+  for ( i = 0; i < np - 1; i++ ) {
+    xin[id++] = vnorm( vdiff(dx, x[i], x[i+1]) );
+  }
+
+  /* angles */
+  for ( i = 0; i < np - 2; i++ ) {
+    ang = vang(x[i], x[i+1], x[i+2], NULL, NULL, NULL);
+    ang0 = (xrefin != NULL) ? xrefin[id] : 0;
+    xin[id++] = wrapang(ang, ang0);
+  }
+
+#if D == 3
+  /* dihedrals */
+  for ( i = 0; i < np - 3; i++ ) {
+    ang = vdih(x[i], x[i+1], x[i+2], x[i+3], NULL, NULL, NULL, NULL);
+    ang0 = (xrefin != NULL) ? xrefin[id] : 0;
+    xin[id++] = wrapang(ang, ang0);
+  }
+#endif
+}
+
+
 /* set the reference structure */
 static void pca_setxref(pca_t *pca, const double *x)
 {
@@ -211,12 +254,14 @@ static void pca_setxref(pca_t *pca, const double *x)
 
   for ( i = 0; i < pca->n; i++ )
     pca->xref[i] = x[i];
+  pca_getxin(pca, (vct *) pca->xref, pca->xrefin, NULL);
 }
 
 /* add a frame */
-static void pca_add(pca_t *pca, const double *x, int transform)
+static void pca_add(pca_t *pca, const double *x,
+    int transform)
 {
-  int i, j, n = pca->n;
+  int i, j, n = pca->n, nin = pca->nin;
 
   /* transform coordinates */
   x_transform((vct *) x, (vct *) pca->xt, (vct *) pca->xref,
@@ -233,32 +278,15 @@ static void pca_add(pca_t *pca, const double *x, int transform)
   }
 
   /* compute the internal coordinates */
-  {
-    int id = 0, np = pca->np, nin = pca->nin;
-    double (*x)[D] = (vct *) pca->xt, dx[D];
-    /* bonds */
-    for ( i = 0; i < np - 1; i++ ) {
-      pca->xin[id++] = vnorm( vdiff(dx, x[i], x[i+1]) );
-    }
-    /* angles */
-    for ( i = 0; i < np - 2; i++ ) {
-      pca->xin[id++] = vang(x[i], x[i+1], x[i+2], NULL, NULL, NULL);
-    }
-#if D == 3
-    /* dihedrals */
-    for ( i = 0; i < np - 3; i++ ) {
-      pca->xin[id++] = vdih(x[i], x[i+1], x[i+2], x[i+2], NULL, NULL, NULL, NULL);
-    }
-#endif
+  pca_getxin(pca, (vct *) pca->xt, pca->xin, pca->xrefin);
 
-    for ( i = 0; i < nin; i++ ) {
-      pca->sxin[i] += pca->xin[i];
-    }
+  for ( i = 0; i < nin; i++ ) {
+    pca->sxin[i] += pca->xin[i];
+  }
 
-    for ( i = 0; i < nin; i++ ) {
-      for ( j = 0; j < nin; j++ ) {
-        pca->sxxin[i*nin+j] += pca->xin[i] * pca->xin[j];
-      }
+  for ( i = 0; i < nin; i++ ) {
+    for ( j = 0; j < nin; j++ ) {
+      pca->sxxin[i*nin+j] += pca->xin[i] * pca->xin[j];
     }
   }
 
@@ -439,10 +467,15 @@ static double pca_miner(pca_t *pca, double miner[D][D], double (*x)[D])
     }
     printf("\n");
   }
+#if D == 2
+  return miner[0][0] + miner[1][1];
+#elif D == 3
   return mdet(miner);
+#endif
 }
 
-static int pca_entxyz(pca_t *pca, double kT, double vol)
+/* `vol` in 2D means the area of the simulation box */
+static int pca_entxyz(pca_t *pca, double kT, double vol, int transform)
 {
   int i, n = pca->n, nmodes = 0;
   double alpha, entc = 0, entq = 0;
@@ -455,14 +488,37 @@ static int pca_entxyz(pca_t *pca, double kT, double vol)
   pca_coveig(pca, kT, 1);
 
   /* we compute the correction factor from the reference structure
-   * but ideal it should be computed from the average of each frame */
-  // TODO: D == 2, and HEAD align case
+   * but ideally it should be computed from the average of each frame */
   for ( smass = 0, i = 0; i < pca->np; i++ ) {
     smass += pca->mass[i];
   }
   det = pca_miner(pca, miner, (vct *) pca->xref);
-  enttr = log(8*PI*PI*vol) + D*log(2*PI*kT) + D*0.5*log(smass) + 0.5*log(fabs(det));
-  enttr -= D*(D+1)/2*log(2*PI*HBAR);
+#if D == 2
+  enttr = log(2*PI*vol);
+#elif D == 3
+  enttr = log(8*PI*PI*vol);
+#endif
+  if ( transform == TRANSFORM_HEAD ) {
+    double (*x)[D] = (vct *) pca->xref, b;
+    enttr += 0.5*D*log(pca->mass[0]);
+#if D >= 2
+    b = vdist(x[0], x[1]);
+    enttr += 0.5*(D-1)*log(pca->mass[1]*b*b);
+#endif
+#if D == 3
+    {
+      double ang;
+      b = vdist(x[1], x[2]);
+      ang = vang(x[0], x[1], x[2], NULL, NULL, NULL);
+      enttr += 0.5*log(pca->mass[2]) + log(b*sin(ang));
+    }
+#endif
+  } else {
+    enttr += 0.5*(D*log(smass) + log(det));
+  }
+  /* The first 0.5 term in the following formula is from the kinetic
+   * energetic of the overall linear and angular momenta */
+  enttr += D*(D+1)/2*(0.5 + 0.5*log(kT/(2*PI)) - log(HBAR));
 
   /* compute the entropy */
   nmodes = 0;
@@ -476,7 +532,7 @@ static int pca_entxyz(pca_t *pca, double kT, double vol)
     nmodes += 1;
     printf(" %g", alpha);
   }
-  printf("\nEntropy (%d modes, volume %g, det %g):\n", nmodes, vol, det);
+  printf("\nEntropy from Cartesian coordinates PCA (%d modes, volume %g, detI %g):\n", nmodes, vol, det);
   printf("Classical: %12.7f kcal/mol/K = %10.6f kB | corrected %12.7f kcal/mol/K = %10.6f kB\n",
       entc * KB, entc, (entc + enttr) * KB, entc + enttr);
   printf("Quantum:   %12.7f kcal/mol/K = %10.6f kB | corrected %12.7f kcal/mol/K = %10.6f kB\n",
@@ -508,18 +564,22 @@ static void pca_getcovin(pca_t *pca)
 }
 
 /* compute the eigenvalues from the covariance matrix */
-static double pca_covineig(pca_t *pca, int verbose)
+static void pca_covineig(pca_t *pca, int verbose)
 {
-  double del;
-  int i, j, cnt, nin = pca->nin;
+  int i, j, nin = pca->nin;
+
+  /* normalize the covariance matrix by the standard deviations */
+  for ( i = 0; i < nin; i++ ) {
+    for ( j = 0; j < nin; j++ ) {
+      pca->covin[i*nin + j] /= pca->sigin[i] * pca->sigin[j];
+    }
+  }
 
   if ( verbose ) {
     printf("Covariance matrix:\n");
     for ( i = 0; i < nin; i++ ) {
-      double ss = pca->covin[i*nin+i] > 0 ? pca->sigin[i] : 0;
-      printf("%4d %11.7f: ", i, ss);
+      printf("%4d %11.7f: ", i, pca->sigin[i]);
       for ( j = 0; j < nin; j++ ) {
-        pca->covin[i*nin + j] /= pca->sigin[i]*pca->sigin[j];
         printf(" %8.3f", pca->covin[i*nin+j]);
       }
       printf("\n");
@@ -530,31 +590,29 @@ static double pca_covineig(pca_t *pca, int verbose)
   eigsym(pca->covin, pca->evalin, pca->evecin, nin);
 
   for ( i = 0; i < nin; i++ ) {
-    pca->evalin[i] *= pca->sigin[i];
     if ( pca->evalin[i] < 0 ) {
       pca->evalin[i] = 0;
     }
   }
 
-  printf("eigenvalue:\n");
-  for ( i = 0; i < nin; i++ ) {
-    double x = sqrt(pca->evalin[i]);
-    x *= 1000;
-    printf("%4d: %10g: ", i + 1, x);
-    for ( j = 0; j < nin; j++ ) {
-      printf(" %7.3f", pca->evecin[j*nin + i]);
+  if ( verbose ) {
+    printf("Eigenvalues x 1000: eigenvectors\n");
+    for ( i = 0; i < nin; i++ ) {
+      printf("%4d %10g: ", i + 1, sqrt(pca->evalin[i]) * 1000);
+      for ( j = 0; j < nin; j++ ) {
+        printf(" %7.3f", pca->evecin[j*nin + i]);
+      }
+      printf("\n");
     }
-    printf("\n");
   }
-
-  return del;
 }
 
 
+/* entropy from internal coordinates */
 static int pca_entint(pca_t *pca, double kT, double vol)
 {
   int i, nin = pca->nin, nmodes = 0;
-  double entc = 0;
+  double detcov, entc = 0;
   double mprod, enttr = 0;
 
   /* get the mass weighted covariance matrix */
@@ -564,46 +622,61 @@ static int pca_entint(pca_t *pca, double kT, double vol)
   pca_covineig(pca, 1);
 
   /* we compute the correction factor from the reference structure
-   * but ideal it should be computed from the average of each frame */
-  // TODO: D == 2, and HEAD align case
+   * but ideally it should be computed from the average of each frame */
   for ( mprod = 1, i = 0; i < pca->np; i++ ) {
     mprod *= pca->mass[i];
   }
-  enttr = log(8*PI*PI*vol) + 0.5*D*pca->np*log(2*PI*kT)
-        + D*0.5*log(mprod);
-  enttr -= D*pca->np*log(2*PI*HBAR);
+  /* note: pca->n == pca->np * D */
+#if D == 2
+  enttr = log(2*PI*vol);
+#else
+  enttr = log(8*PI*PI*vol);
+#endif
+  enttr += 0.5*D*log(mprod);
+  /* The first 0.5 term in the following formula is from the kinetic energetic
+   * contribution from all momenta */
+  enttr += pca->n * (0.5 + 0.5 * log(kT/(2*PI)) - log(HBAR));
 
   {
-    double (*x)[D] = (vct *) pca->xref, dx[D], ang;
+    double (*x)[D] = (vct *) pca->xref;
+#if D == 2
     for ( i = 0; i < pca->np - 1; i++ ) {
-      enttr += log( vsqr(vdiff(dx, x[i], x[i+1])) );
+      enttr += 0.5 * log( vdist2(x[i], x[i+1]) );
+    }
+#else
+    for ( i = 0; i < pca->np - 1; i++ ) {
+      enttr += log( vdist2(x[i], x[i+1]) );
     }
     for ( i = 0; i < pca->np - 2; i++ ) {
-      ang = vang(x[i], x[i+1], x[i+2], NULL, NULL, NULL);
+      double ang = vang(x[i], x[i+1], x[i+2], NULL, NULL, NULL);
       enttr += log( sin(ang) );
     }
+#endif
   }
 
   /* compute the entropy */
   entc = 0;
   nmodes = 0;
+  detcov = 1;
   for ( i = 0; i < nin; i++ ) {
     double ev = pca->evalin[i];
+    detcov *= pca->sigin[i] * sqrt(ev);
     if ( ev <= 0 ) continue;
-    entc += 0.5 * (1 + log(2*PI*ev));
-    printf(" %g", sqrt(ev));
+    entc += 0.5 * (1 + log(2*PI));
+    printf(" %g/%g", pca->sigin[i], sqrt(ev));
     nmodes += 1;
   }
-  printf("\nEntropy (%d modes, volume %g):\n", nmodes, vol);
+  entc += log(detcov);
+  printf("\nEntropy from internal coordinates PCA (%d modes, volume %g, det(oov) = %g):\n", nmodes, vol, detcov);
   printf("Classical: %12.7f kcal/mol/K = %10.6f kB | corrected %12.7f kcal/mol/K = %10.6f kB\n",
       entc * KB, entc, (entc + enttr) * KB, entc + enttr);
 
   return 0;
 }
 
-static int pca_analyze(pca_t *pca, double kT)
+static int pca_analyze(pca_t *pca, double kT, int transform)
 {
-  pca_entxyz(pca, kT, 1.0);
+  pca_entxyz(pca, kT, 1.0, transform);
   pca_entint(pca, kT, 1.0);
   return 0;
 }

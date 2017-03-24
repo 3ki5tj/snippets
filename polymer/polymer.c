@@ -2,10 +2,11 @@
 #include "pca.h"
 
 //int chainlen = D + 1;
-//int chainlen = 2;
-int chainlen = 3;
+//int chainlen = 3;
+int chainlen = 4;
+//int chainlen = 5;
 double tp = 300;
-long nsteps = 1000000;
+long nsteps = 10000000;
 double mddt = 0.002; /* in ps */
 enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN};
 int thstat = LANGEVIN;
@@ -28,11 +29,12 @@ double mass = 12 / 418.4;
 double bond0 = 3.79;
 double kbond = 222.5;
 double theta0 = 113 * PI / 180;
-double ktheta = 58.35;
+//double ktheta = 58.35;
+//double theta0 = 90 * PI / 180;
 //double theta0 = 180 * PI / 180;
-//double ktheta = 1000;
+double ktheta = 1000;
 double phi0 = PI;
-double kdih1 = 100;
+double kdih1 = 1000;
 double kdih3 = 0.0;
 
 typedef struct {
@@ -301,6 +303,7 @@ int main(void)
   pca_t *pca;
   FILE *fplog;
   long t;
+  double sumep = 0, sumek = 0;
 
   p = polymer_open(chainlen, tp);
   if ( (fplog = fopen("polymer.log", "w")) == NULL ) {
@@ -324,6 +327,8 @@ int main(void)
     }
     polymer_thermostat(p);
 
+    sumep += p->epot;
+    sumek += p->ekin;
     if ( t % nstlog == 0 ) {
       polymer_logpos(p, fplog, p->x, t, 0);
       pca_add(pca, (double *) p->xt, TRANSFORM_NONE);
@@ -336,7 +341,8 @@ int main(void)
     }
     //printf("%ld %g %g %g\n", t, p->epot, p->ekin, p->epot + p->ekin);
   }
-  pca_analyze(pca, KB * tp);
+  printf("T %g, epot %g, ekin %g, etot %g\n", tp, sumep/nsteps, sumek/nsteps, (sumep+sumek)/nsteps);
+  pca_analyze(pca, KB * tp, transform);
   polymer_write(p, NULL, "polymer.xyz");
   fclose(fplog);
   polymer_close(p);
