@@ -22,6 +22,8 @@ enum {
   TRANSFORM_COUNT
 };
 
+const char *transforms[] = {"none", "COM", "head", "RMSD", "count"};
+
 typedef struct {
   int n;
   int np;
@@ -619,7 +621,7 @@ static int pca_entint(pca_t *pca, double kT, double vol)
   pca_getcovin(pca);
 
   /* compute the eigenvalues */
-  pca_covineig(pca, 1);
+  pca_covineig(pca, 0);
 
   /* we compute the correction factor from the reference structure
    * but ideally it should be computed from the average of each frame */

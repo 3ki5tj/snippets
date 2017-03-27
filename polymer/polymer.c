@@ -1,14 +1,16 @@
 #include "mtrand.h"
 #include "pca.h"
+#include "argopt.h"
 
-//int chainlen = D + 1;
+int chainlen = D + 1;
 //int chainlen = 3;
-int chainlen = 4;
+//int chainlen = 4;
 //int chainlen = 5;
 double tp = 300;
-long nsteps = 10000000;
+long nsteps = 1000000;
 double mddt = 0.002; /* in ps */
-enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN};
+enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN, THERMOSTAT_COUNT };
+const char *thermostats[] = {"none", "v-rescale", "Langevin", "NHChain", "Andersen", "count"};
 int thstat = LANGEVIN;
 //int thstat = ANDERSEN;
 //int thstat = VRESCALE;
@@ -297,13 +299,40 @@ void polymer_thermostat(polymer_t *p)
   }
 }
 
-int main(void)
+static void doargs(int argc, char **argv)
+{
+  argopt_t *ao;
+  ao = argopt_open(0);
+  argopt_add(ao, "-n", "%d", &chainlen, "number of particles");
+  argopt_addx(ao, "--trans", "%list", &transform, "coordinate transformation for PCA", transforms, TRANSFORM_COUNT);
+  argopt_add(ao, "-t", "%ld", &nsteps, "number of MD steps");
+  argopt_add(ao, "-T", "%lf", &tp, "temperature in K");
+  argopt_add(ao, "--dt", "%lf", &mddt, "MD time step");
+  argopt_addx(ao, "--th", "%list", &thstat, "thermostat type", thermostats, THERMOSTAT_COUNT);
+  argopt_add(ao, "--thdt", "%lf", &thdt, "thermostat time step");
+  argopt_add(ao, "--langdt", "%lf", &langdt, "Langevin damping rate");
+  argopt_add(ao, "-l", "%d", &nstlog, "logging period");
+  argopt_add(ao, "-b", "%lf", &bond0, "equilibrium bond length");
+  argopt_add(ao, "--Kb", "%lf", &kbond, "spring constant of bonds");
+  argopt_add(ao, "-a", "%lf", &theta0, "equilibrium angle in radians");
+  argopt_add(ao, "--Ka", "%lf", &ktheta, "spring constant of angles");
+  argopt_add(ao, "-d", "%lf", &phi0, "equilibrium dihedral in radians");
+  argopt_add(ao, "--Kd", "%lf", &kdih1, "spring constant of angles");
+  argopt_parse(ao, argc, argv);
+  argopt_dump(ao);
+  argopt_close(ao);
+}
+
+
+int main(int argc, char **argv)
 {
   polymer_t *p;
   pca_t *pca;
   FILE *fplog;
   long t;
   double sumep = 0, sumek = 0;
+
+  doargs(argc, argv);
 
   p = polymer_open(chainlen, tp);
   if ( (fplog = fopen("polymer.log", "w")) == NULL ) {
