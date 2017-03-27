@@ -437,18 +437,19 @@ static double pca_coveig(pca_t *pca, double kT, int verbose)
 }
 
 /* compute the moment of inertia */
-static double pca_miner(pca_t *pca, double miner[D][D], double (*x)[D])
+static double mominer(double miner[D][D], double (*x)[D],
+    const double *mass, int np, int verbose)
 {
   int i, j, k;
   double sxy[D][D], tr;
 
   /* compute the correction factor for the overall translation and rotation */
-  /* compute the moment of inertia */
+  /* compute the moments */
   mzero(sxy);
-  for ( i = 0; i < pca->np; i++ ) {
+  for ( i = 0; i < np; i++ ) {
     for ( j = 0; j < D; j++ ) {
       for ( k = 0; k < D; k++ ) {
-        sxy[j][k] += pca->mass[i] * x[i][j] * x[i][k];
+        sxy[j][k] += mass[i] * x[i][j] * x[i][k];
       }
     }
   }
@@ -462,13 +463,16 @@ static double pca_miner(pca_t *pca, double miner[D][D], double (*x)[D])
     miner[j][j] += tr;
   }
 
-  printf("Moment of inertia:\n");
-  for ( j = 0; j < D; j++ ) {
-    for ( k = 0; k < D; k++ ) {
-      printf(" %10.6f", miner[j][k]);
+  if ( verbose ) {
+    printf("Moment of inertia:\n");
+    for ( j = 0; j < D; j++ ) {
+      for ( k = 0; k < D; k++ ) {
+        printf(" %10.6f", miner[j][k]);
+      }
+      printf("\n");
     }
-    printf("\n");
   }
+
 #if D == 2
   return miner[0][0] + miner[1][1];
 #elif D == 3
@@ -481,7 +485,7 @@ static int pca_entxyz(pca_t *pca, double kT, double vol, int transform)
 {
   int i, n = pca->n, nmodes = 0;
   double alpha, entc = 0, entq = 0;
-  double smass, miner[D][D], det, enttr = 0;
+  double smass, miner[D][D], detmi, enttr = 0;
 
   /* get the mass weighted covariance matrix */
   pca_getcov(pca);
@@ -491,10 +495,9 @@ static int pca_entxyz(pca_t *pca, double kT, double vol, int transform)
 
   /* we compute the correction factor from the reference structure
    * but ideally it should be computed from the average of each frame */
-  for ( smass = 0, i = 0; i < pca->np; i++ ) {
+  for ( smass = 0, i = 0; i < pca->np; i++ )
     smass += pca->mass[i];
-  }
-  det = pca_miner(pca, miner, (vct *) pca->xref);
+  detmi = mominer(miner, (vct *) pca->xref, pca->mass, pca->np, 1);
 #if D == 2
   enttr = log(2*PI*vol);
 #elif D == 3
@@ -516,7 +519,7 @@ static int pca_entxyz(pca_t *pca, double kT, double vol, int transform)
     }
 #endif
   } else {
-    enttr += 0.5*(D*log(smass) + log(det));
+    enttr += 0.5*(D*log(smass) + log(detmi));
   }
   /* The first 0.5 term in the following formula is from the kinetic
    * energetic of the overall linear and angular momenta */
@@ -534,7 +537,7 @@ static int pca_entxyz(pca_t *pca, double kT, double vol, int transform)
     nmodes += 1;
     printf(" %g", alpha);
   }
-  printf("\nEntropy from Cartesian coordinates PCA (%d modes, volume %g, detI %g):\n", nmodes, vol, det);
+  printf("\nEntropy from Cartesian coordinates PCA (%d modes, volume %g, detI %g):\n", nmodes, vol, detmi);
   printf("Classical: %12.7f kcal/mol/K = %10.6f kB | corrected %12.7f kcal/mol/K = %10.6f kB\n",
       entc * KB, entc, (entc + enttr) * KB, entc + enttr);
   printf("Quantum:   %12.7f kcal/mol/K = %10.6f kB | corrected %12.7f kcal/mol/K = %10.6f kB\n",

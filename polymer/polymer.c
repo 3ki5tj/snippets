@@ -16,7 +16,10 @@ int thstat = LANGEVIN;
 //int thstat = VRESCALE;
 double thdt = 0.1; /* time step for velocity rescaling or NH-chain */
 double langdt = 0.1;
-int nstlog = 20;
+int nstlog = 10;
+const char *fnlog = "polymer.log";
+const char *fnpos = "polymer.xyz";
+const char *fnhis = "rad.his";
 
 //int transform = TRANSFORM_NONE;
 //int transform = TRANSFORM_COM;
@@ -31,10 +34,10 @@ double mass = 12 / 418.4;
 double bond0 = 3.79;
 double kbond = 222.5;
 double theta0 = 113 * PI / 180;
-//double ktheta = 58.35;
+double ktheta = 58.35;
 //double theta0 = 90 * PI / 180;
 //double theta0 = 180 * PI / 180;
-double ktheta = 1000;
+//double ktheta = 1000;
 double phi0 = PI;
 double kdih1 = 1000;
 double kdih3 = 0.0;
@@ -119,10 +122,14 @@ static int polymer_write(polymer_t *p, double (*x)[D], const char *fn)
 
 
 
-void polymer_logpos(polymer_t *p, FILE *fp,
+static void polymer_logpos(polymer_t *p, FILE *fp,
     double (*x)[D], long t, int header)
 {
   int i, j, n = p->n;
+
+  x_transform(x, p->xt, p->xref, p->m, p->n, transform);
+
+  if ( fp == NULL ) return;
 
   if ( header ) {
     /* report the masses */
@@ -134,8 +141,6 @@ void polymer_logpos(polymer_t *p, FILE *fp,
     }
     fprintf(fp, "\n");
   }
-
-  x_transform(x, p->xt, p->xref, p->m, p->n, transform);
 
   /* report the transformed positions */
   fprintf(fp, "%ld", t);
@@ -318,26 +323,71 @@ static void doargs(int argc, char **argv)
   argopt_add(ao, "--Ka", "%lf", &ktheta, "spring constant of angles");
   argopt_add(ao, "-d", "%lf", &phi0, "equilibrium dihedral in radians");
   argopt_add(ao, "--Kd", "%lf", &kdih1, "spring constant of angles");
+  argopt_add(ao, "--log", NULL, &fnlog, "log file name");
+  argopt_add(ao, "--pos", NULL, &fnpos, "position file name");
+  argopt_add(ao, "--his", NULL, &fnhis, "histogram file");
   argopt_parse(ao, argc, argv);
   argopt_dump(ao);
   argopt_close(ao);
 }
 
+static double polymer_getrad(polymer_t *p, double (*x)[D])
+{
+  double miner[D][D], detmi, smass = 0;
+  int i;
+
+  detmi = mominer(miner, x, p->m, p->n, 0);
+  for ( i = 0; i < p->n; i++ )
+    smass += p->m[i];
+#if D == 2
+  return sqrt(detmi / smass);
+#elif D == 3
+  return sqrt(1.5 * pow(detmi, 1./3) / smass);
+#endif
+}
+
+#define HIST_N  10000
+#define HIST_DX 0.002
+#define HIST_XMAX (HIST_N * HIST_DX)
+double hist[HIST_N+1];
+
+static int hist_save(double *h, int n, double dx, const char *fn)
+{
+  int i;
+  double s = 0, norm;
+  FILE *fp;
+
+  for ( i = 0; i < n; i++ ) s += h[i];
+  norm = 1/(s*dx);
+  if ((fp = fopen(fn, "w")) == NULL) {
+    fprintf(stderr, "cannot open %s\n", fn);
+    return -1;
+  }
+  for ( i = 0; i < n; i++ ) {
+    if ( h[i] > 0 ) {
+      fprintf(fp, "%g %g %g\n", (i+.5)*dx, h[i]*norm, h[i]);
+    }
+  }
+  fclose(fp);
+  return 0;
+}
 
 int main(int argc, char **argv)
 {
   polymer_t *p;
   pca_t *pca;
-  FILE *fplog;
+  FILE *fplog = NULL;
   long t;
   double sumep = 0, sumek = 0;
 
   doargs(argc, argv);
 
   p = polymer_open(chainlen, tp);
-  if ( (fplog = fopen("polymer.log", "w")) == NULL ) {
-    fprintf(stderr, "cannot open log file\n");
-    return -1;
+  if ( strcmpfuzzy(fnlog, "null") != 0 ) {
+    if ( (fplog = fopen("polymer.log", "w")) == NULL ) {
+      fprintf(stderr, "cannot open log file\n");
+      return -1;
+    }
   }
   polymer_logpos(p, fplog, p->xref, 0, 1);
   pca = pca_open(p->n * D);
@@ -359,8 +409,13 @@ int main(int argc, char **argv)
     sumep += p->epot;
     sumek += p->ekin;
     if ( t % nstlog == 0 ) {
+      double rad;
       polymer_logpos(p, fplog, p->x, t, 0);
       pca_add(pca, (double *) p->xt, TRANSFORM_NONE);
+      rad = polymer_getrad(p, p->xt);
+      if ( rad < HIST_XMAX ) {
+        hist[(int)(rad/HIST_DX)] += 1;
+      }
     }
 
     /* print out the progress */
@@ -373,7 +428,8 @@ int main(int argc, char **argv)
   printf("T %g, epot %g, ekin %g, etot %g\n", tp, sumep/nsteps, sumek/nsteps, (sumep+sumek)/nsteps);
   pca_analyze(pca, KB * tp, transform);
   polymer_write(p, NULL, "polymer.xyz");
-  fclose(fplog);
+  hist_save(hist, HIST_N, HIST_DX, fnhis);
+  if ( fplog != NULL ) fclose(fplog);
   polymer_close(p);
   pca_close(pca);
   return 0;
