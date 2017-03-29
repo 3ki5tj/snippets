@@ -506,10 +506,8 @@ static int pca_entxyz(pca_t *pca, double kT, double vol, int transform)
   if ( transform == TRANSFORM_HEAD ) {
     double (*x)[D] = (vct *) pca->xref, b;
     enttr += 0.5*D*log(pca->mass[0]);
-#if D >= 2
     b = vdist(x[0], x[1]);
     enttr += 0.5*(D-1)*log(pca->mass[1]*b*b);
-#endif
 #if D == 3
     {
       double ang;
@@ -634,7 +632,7 @@ static int pca_entint(pca_t *pca, double kT, double vol)
   /* note: pca->n == pca->np * D */
 #if D == 2
   enttr = log(2*PI*vol);
-#else
+#elif D == 3
   enttr = log(8*PI*PI*vol);
 #endif
   enttr += 0.5*D*log(mprod);
@@ -648,7 +646,7 @@ static int pca_entint(pca_t *pca, double kT, double vol)
     for ( i = 0; i < pca->np - 1; i++ ) {
       enttr += 0.5 * log( vdist2(x[i], x[i+1]) );
     }
-#else
+#elif D == 3
     for ( i = 0; i < pca->np - 1; i++ ) {
       enttr += log( vdist2(x[i], x[i+1]) );
     }

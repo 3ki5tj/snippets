@@ -30,17 +30,22 @@ int transform = TRANSFORM_RMSD;
 double nhc_zeta[NNHC];
 double nhc_zmass[NNHC] = {1, 1, 1, 1, 1};
 
-double mass = 12 / 418.4;
+double mass_u = 12;
+double mass; /* to be computed from mass_u */
 double bond0 = 3.79;
 double kbond = 222.5;
-double theta0 = 113 * PI / 180;
+double theta0_deg = 113;
+//double theta0_deg = 90;
+//double theta0_deg = 180;
+double theta0; /* to be computed from theta0_deg */
 double ktheta = 58.35;
-//double theta0 = 90 * PI / 180;
-//double theta0 = 180 * PI / 180;
 //double ktheta = 1000;
-double phi0 = PI;
+double phi0_deg = 180;
+double phi0; /* to be computed from phi0_deg */
 double kdih1 = 1000;
 double kdih3 = 0.0;
+
+
 
 typedef struct {
   int n;
@@ -78,7 +83,7 @@ __inline static void polymer_printang(polymer_t *p, const char *flag)
     ang += p->m[i] * vcross(p->xref[i], p->xt[i]);
   }
   printf("%s: %g\n", flag, ang);
-#else
+#elif D == 3
   double x[D], ang[D];
   vzero(ang);
   for ( i = 0; i < n; i++ ) {
@@ -111,7 +116,7 @@ static int polymer_write(polymer_t *p, double (*x)[D], const char *fn)
   for ( i = 0; i < p->n; i++ ) {
 #if D == 2
     fprintf(fp, "%.18f %.18f\n", x[i][0], x[i][1]);
-#else
+#elif D == 3
     fprintf(fp, "%.18f %.18f %.18f\n", x[i][0], x[i][1], x[i][2]);
 #endif
     //if ( i > 0 && i < p->n - 1 ) printf("i %d: %g\n", i, vang(x[i-1], x[i], x[i+1],NULL,NULL,NULL)*180/M_PI);
@@ -312,17 +317,19 @@ static void doargs(int argc, char **argv)
   argopt_addx(ao, "--trans", "%list", &transform, "coordinate transformation for PCA", transforms, TRANSFORM_COUNT);
   argopt_add(ao, "-t", "%ld", &nsteps, "number of MD steps");
   argopt_add(ao, "-T", "%lf", &tp, "temperature in K");
+  argopt_add(ao, "-m", "%lf", &mass_u, "mass in atomic mass unit (u)");
   argopt_add(ao, "--dt", "%lf", &mddt, "MD time step");
   argopt_addx(ao, "--th", "%list", &thstat, "thermostat type", thermostats, THERMOSTAT_COUNT);
   argopt_add(ao, "--thdt", "%lf", &thdt, "thermostat time step");
   argopt_add(ao, "--langdt", "%lf", &langdt, "Langevin damping rate");
-  argopt_add(ao, "-l", "%d", &nstlog, "logging period");
+  argopt_add(ao, "-g", "%d", &nstlog, "logging period");
   argopt_add(ao, "-b", "%lf", &bond0, "equilibrium bond length");
   argopt_add(ao, "--Kb", "%lf", &kbond, "spring constant of bonds");
-  argopt_add(ao, "-a", "%lf", &theta0, "equilibrium angle in radians");
+  argopt_add(ao, "-a", "%lf", &theta0_deg, "equilibrium angle in degrees");
   argopt_add(ao, "--Ka", "%lf", &ktheta, "spring constant of angles");
-  argopt_add(ao, "-d", "%lf", &phi0, "equilibrium dihedral in radians");
-  argopt_add(ao, "--Kd", "%lf", &kdih1, "spring constant of angles");
+  argopt_add(ao, "-d", "%lf", &phi0_deg, "equilibrium dihedral in degrees");
+  argopt_add(ao, "--Kd", "%lf", &kdih1, "spring constant of angles for the cos(phi-phi0) term");
+  argopt_add(ao, "--Kt", "%lf", &kdih3, "spring constant of angles for the cos(3*(phi-phi0)) term");
   argopt_add(ao, "--log", NULL, &fnlog, "log file name");
   argopt_add(ao, "--pos", NULL, &fnpos, "position file name");
   argopt_add(ao, "--his", NULL, &fnhis, "histogram file");
@@ -381,10 +388,13 @@ int main(int argc, char **argv)
   double sumep = 0, sumek = 0;
 
   doargs(argc, argv);
+  mass = mass_u / 418.4;
+  theta0 = theta0_deg * PI / 180;
+  phi0 = phi0_deg * PI / 180;
 
   p = polymer_open(chainlen, tp);
   if ( strcmpfuzzy(fnlog, "null") != 0 ) {
-    if ( (fplog = fopen("polymer.log", "w")) == NULL ) {
+    if ( (fplog = fopen(fnlog, "w")) == NULL ) {
       fprintf(stderr, "cannot open log file\n");
       return -1;
     }
@@ -425,10 +435,11 @@ int main(int argc, char **argv)
     }
     //printf("%ld %g %g %g\n", t, p->epot, p->ekin, p->epot + p->ekin);
   }
-  printf("T %g, epot %g, ekin %g, etot %g\n", tp, sumep/nsteps, sumek/nsteps, (sumep+sumek)/nsteps);
   pca_analyze(pca, KB * tp, transform);
-  polymer_write(p, NULL, "polymer.xyz");
+  polymer_write(p, NULL, fnpos);
   hist_save(hist, HIST_N, HIST_DX, fnhis);
+  printf("T %g, kT %g, epot %g, ekin %g, etot %g\n", tp, KB * tp, sumep/nsteps, sumek/nsteps, (sumep+sumek)/nsteps);
+
   if ( fplog != NULL ) fclose(fplog);
   polymer_close(p);
   pca_close(pca);

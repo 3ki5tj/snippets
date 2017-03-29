@@ -16,10 +16,18 @@ const char *type_names[] = { "solid sphere", "hollow sphere", "Gaussian" };
 int type = SOLID_SPHERE;
 
 
-static double ewald(double r, int km)
+static double ewald(double rB, int km)
 {
   int i, j, l, nz;
-  double k2, elimit, erecip = 0, etot, mul, del, x, rhok;
+  double r, k2, elimit, erecip = 0, etot, mul, del, x, rhok;
+
+  if ( type == SOLID_SPHERE ) {
+    r = rB * sqrt(5./3);
+  } else if ( type == HOLLOW_SPHERE ) {
+    r = rB;
+  } else {
+    r = rB * sqrt(2./3);
+  }
 
   /* reciprocal-space sum */
   for ( i = 0; i <= km; i++ ) {
