@@ -11,6 +11,7 @@
 
 double r = 0.2; /* radius of the cloud charge */
 int kterms = 200;
+int xterms = 50;
 
 enum { HOLLOW_SPHERE, SOLID_SPHERE, GAUSSIAN, EXPONENTIAL };
 const char *type_names[] = { "hollow sphere", "solid sphere", "Gaussian", "exponential" };
@@ -19,11 +20,11 @@ int type = SOLID_SPHERE;
 
 /* compute the finite size correction of
  * twice the electrostatic energy of an ion in a unit cubic box */
-static double ewald(double rB, int km)
+static double ewald(int type, double rB, int km, int xm)
 {
   int i, j, l, nz;
-  double r, rr, k2, mul, del, x, rhok, xx, ci, si;
-  double erecip = 0, elimit, etail = 0, ediff;
+  double r, rr, k2, mul, del, x, rhok, xx, ci, si, dis, y;
+  double erecip = 0, elimit, etail = 0, ereal = 0, ediff;
   const double PI = 3.1415926535897932385;
 
   x = km * 2 * PI; /* maximal wave vector */
@@ -70,12 +71,12 @@ static double ewald(double rB, int km)
           mul = 8;
         }
         x = sqrt(k2) * 2 * PI * r;
-        if ( type == SOLID_SPHERE ) {
-          rhok = 3 * (sin(x) - x * cos(x)) / (x * x * x);
-          // approximately exp(-x*x/10)
-        } else if ( type == HOLLOW_SPHERE ) {
+        if ( type == HOLLOW_SPHERE ) {
           rhok = sin(x) / x;
           // approximately exp(-x*x/6)
+        } else if ( type == SOLID_SPHERE ) {
+          rhok = 3 * (sin(x) - x * cos(x)) / (x * x * x);
+          // approximately exp(-x*x/10)
         } else if ( type == GAUSSIAN ) {
           rhok = exp(-x*x/4);
         } else if ( type == EXPONENTIAL ) {
@@ -91,12 +92,58 @@ static double ewald(double rB, int km)
 
   erecip += etail;
 
+  /* real-space sum for the screened potential */
+  ereal = 0;
+  for ( i = 0; i <= xm; i++ ) {
+    for ( j = 0; j <= xm; j++ ) {
+      for ( l = 0; l <= xm; l++ ) {
+        k2 = i*i + j*j + l*l;
+        if ( k2 > km * km ) continue;
+        nz = (i == 0) + (j == 0) + (l == 0);
+        if ( nz == 3 ) {
+          continue;
+        } else if ( nz == 2 ) {
+          mul = 2;
+        } else if ( nz == 1 ) {
+          mul = 4;
+        } else {
+          mul = 8;
+        }
+        dis = sqrt(k2);
+        x = dis / r;
+        if ( type == HOLLOW_SPHERE ) {
+          if ( dis > 2*r ) {
+            y = 0;
+          } else {
+            /* (1 - 0.5*dis/r)^2 */
+            y = 1 - 0.5*x;
+            y *= y;
+          }
+        } else if ( type == SOLID_SPHERE ) {
+          if ( dis > 2*r ) {
+            y = 0;
+          } else {
+            /* (1 - 0.5*dis/r)^4 (1 + 0.8*dis/r + 0.1*(dis/r)^2) */
+            y = 1 - 0.5*x;
+            y *= y*y*y;
+            y *= 1 + 0.8*x + 0.1*x*x;
+          }
+        } else if ( type == GAUSSIAN ) {
+          y = erfc(x / sqrt(2));
+        } else if ( type == EXPONENTIAL ) {
+          y = (1 + 0.5*x) * exp(-x);
+        }
+        ereal += mul * y / dis;
+      }
+    }
+  }
+
   /* continuous limit */
   elimit = 1./rB;
   ediff = erecip - elimit;
-  del = (ediff + 2.8372974794806)/(rr*PI);
-  printf("%12s: diff %.14f, elimit %.14f, recip %.14f, del %8.6f pi, tail %.6f*pi, r %8.6f, <r^2> %8.6f, kmax %d\n",
-      type_names[type], ediff, elimit, erecip, del, etail/rr/PI, r, rr, km);
+  del = (ediff + ereal + 2.8372974794806)/(rr*PI);
+  printf("%12s: diff %.12f, elimit %.12f, recip %.12f, real %.12f, del %8.6f pi, tail %.6f*pi, r %8.6f, <r^2> %8.6f, kmax %d\n",
+      type_names[type], ediff, elimit, erecip, ereal, del, etail/rr/PI, r, rr, km);
   return erecip;
 }
 
@@ -106,7 +153,8 @@ int main(int argc, char **argv)
 {
   if ( argc > 1 ) type = atoi(argv[1]);
   if ( argc > 2 ) r = atof(argv[2]);
-  if ( argc > 3 ) kterms = atof(argv[3]);
-  ewald(r, kterms);
+  if ( argc > 3 ) kterms = atoi(argv[3]);
+  if ( argc > 4 ) xterms = atoi(argv[4]);
+  ewald(type, r, kterms, xterms);
   return 0;
 }
