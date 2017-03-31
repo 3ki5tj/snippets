@@ -10,7 +10,7 @@ double tp = 300;
 long nsteps = 1000000;
 double mddt = 0.002; /* in ps */
 enum { NONE, VRESCALE, LANGEVIN, NHCHAIN, ANDERSEN, THERMOSTAT_COUNT };
-const char *thermostats[] = {"none", "v-rescale", "Langevin", "NHChain", "Andersen", "count"};
+const char *thermostats[] = {"none", "v-rescale", "Langevin", "NHChain", "Andersen", "thermostat_count"};
 int thstat = LANGEVIN;
 //int thstat = ANDERSEN;
 //int thstat = VRESCALE;
