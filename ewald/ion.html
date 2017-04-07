@@ -42,6 +42,21 @@
   Electrostatic free energy of an ion in uniform compensating background
 </h2>
 
+<div class="col-xs-12" style="margin:15px; font-size: 120%">
+  The following form determines the correction
+  to the solvation free energy obtained from MD simulation packages
+  for a charged system.
+  The most important parameter is <b>Ewald coef., <i>&kappa;</i></b>.
+  For NAMD users, the preferred way is to deduce this value
+  from the <b>cutoff</b> distance and <b>PMETolerance</b>,
+  which can also be computed from the NAMD configuration file.
+  Once the form is filled,
+  the correction will be displayed in the Energy-Pressure table.
+  Usually, the correction to use is on either the <b>Correction</b>
+  or <b>Correction 2</b> row, and
+  a likely guess will be highlighted.
+</div>
+
 <form>
   <div class="col-xs-3">
     <label for="qtot">Total net charge:</label>
@@ -51,10 +66,26 @@
   <div class="col-xs-3">
     <label for="kappa">
       <span style="border-bottom: 1px dotted #000000;"
-        title="In the Ewald sum method, the electric potential of the screened charge will take the form of erfc(-&kappa;r)/r, the value 0 means the default value. You can use the NAMD configuration box to automatically compute this value (please include 'cutoff' and optionally 'PMETolerance').">
+        title='In the Ewald sum method, the electric potential of the screened charge will take the form of erfc(-&kappa;r)/r, the value 0 means the best value. Alternatively, you can set it to "auto" and automatically compute it from "Cutoff" and "PMETolerance," both can be filled by NAMD configuration file.'>
         Ewald coef.</span>,
       <i>&kappa;</i><span id="invl_1"> (&#x212B;<sup>&minus;1</sup>)</span>:</label>
     <input type="text" value="auto" id="kappa" class="form-control" onchange="paint()">
+  </div>
+
+  <div class="col-xs-3">
+    <label for="cutoff">
+      <span style="border-bottom: 1px dotted #000000;"
+            title="Cutoff distance">
+        Cutoff</span><span id="l_4"> (&#x212B;)</span>:</label>
+    <input type="text" value="12.0" id="cutoff" class="form-control" onchange="paint()">
+  </div>
+
+  <div class="col-xs-3">
+    <label for="PMETolerance">
+      <span style="border-bottom: 1px dotted #000000;"
+        title="The value of PMETolerance in the NAMD configuration file">
+        PMETolerance</span><span id="invl_2"> (&#x212B;<sup>&minus;1</sup>)</span>:</label>
+    <input type="text" value="1e-6" id="PMETolerance" class="form-control" onchange="paint()">
   </div>
 
   <div class="col-xs-3">
@@ -70,8 +101,16 @@
   </div>
 
   <div class="col-xs-3">
-    <label for="tol">Error tolerance:</label>
+    <label for="tol"
+      title="Internal precision goal as relative error">
+      <span style="border-bottom: 1px dotted #000000;">
+      Internal precision</span>:</label>
     <input type="text" value="1e-15" id="tol" class="form-control" onchange="paint()">
+  </div>
+
+  <div class="col-xs-3">
+    <label for="dummy1">&nbsp;</label>
+    <input type="text" id="dummy1" class="form-control" style="visibility:hidden">
   </div>
 
   <div class="col-xs-3">
@@ -154,7 +193,7 @@
 
   <div class="col-xs-4">
     <label for="alchDecouple"
-      title="Whether the free energy value to correct excludes solute-solute interaction. In NAMD, it means if alchDecouple is turned on."
+      title="Whether the raw free energy value from MD simulation excludes solute-solute interaction. In NAMD, it means if alchDecouple is turned on."
       style="border-bottom: 1px dotted #000000">
       Solute-solvent free energy?</label>
     <input type="checkbox" id="alchDecouple" class="form-control" onchange="paint()">
@@ -216,8 +255,9 @@
         <td id="efin"></td>
         <td id="pfin"></td>
         <td style="text-align:left">
-          Potential energy of placing a point ion in the lattice
-          with uniform compensating background charge in vacuum.
+          Electric energy of a point ion
+          and a uniform compensating background
+          in the lattice in vacuum.
           For a cubic box of side <i>L</i>,
           the value is given by
           &minus;&frac12; 2.837297 <i>q</i><sup>2</sup> / <i>L</i>.
@@ -228,7 +268,7 @@
         <td id="eBorn"></td>
         <td id="pBorn"></td>
         <td style="text-align:left">
-          Interaction energy between a finite-size ion of Born radius <i>R<sub>B</i>
+          Interaction energy between a finite-size ion of Born radius <i>R<sub>B</sub></i>
           and the uniform compensating background
           less the interaction energy between a point charge
           and the background,
@@ -293,12 +333,13 @@
         <td id="preal"></td>
         <td style="text-align:left">
           Interaction energy of a point charge
-          and the cloud charges of other point charges
+          and the screened charges of other ions
           (periodic images),
           &frac12; &Sigma;<sub>(<i>i</i>, <i>j</i>)</sub> erfc(<i>&kappa;r<sub>ij</sub></i>)/<i>r<sub>ij</sub></i>.
           <br>
           With the usual half-box cutoff scheme,
-          this contribution may also be missing from MD results.
+          this contribution is often ignored
+          in MD simulation packages.
         </td>
       </tr>
       <tr>
@@ -306,11 +347,17 @@
         <td id="erecip"></td>
         <td id="precip"></td>
         <td style="text-align:left">
-          Interaction energy of all point charges
-          with the uniform compensating background
-          and all cloud charges with the uniform
-          compensating background,
-          1/(2<i>&pi;V</i>) &Sigma;<sub>(<b>k</b>)</sub> exp[&minus;<i>k</i><sup>2</sup>/(4<i>&kappa;</i><sup>2</sup>)]/<i>k</i><sup>2</sup>.
+          Interaction energy of the point charges (ions)
+          and the background
+          with the electric potential created by
+          cloud charges and the background,
+          <br>
+          &frac12; <span style="font-size:120%">&int;</span>
+          <i>&rho;</i><sub>ion+background</sub>(<b>r</b>)
+          <i>&phi;</i><sub>cloud+background</sub>(<b>r</b>) d<b>r</b>
+          <br>
+          =
+          1/(2<i>&pi;V</i>) &Sigma;<sub>(<b>k &ne; 0</b>)</sub> exp[&minus;<b>k</b><sup>2</sup>/(4<i>&kappa;</i><sup>2</sup>)]/<b>k</b><sup>2</sup>.
         </td>
       </tr>
       <tr>

@@ -221,7 +221,9 @@ function ewald(kappa, tol, mat)
   // background energy
   ebg = -0.5 * Math.PI / (sqrta * sqrta * vol);
   //console.log(xm, km, ereal, erecip, eself, ebg);
-  return [ereal, erecip, eself, ebg, sqrta, xm, km];
+  var etot = ereal + erecip + eself + ebg;
+  var madelung = 2 * etot * Math.pow(vol, 1./3);
+  return [ereal, erecip, eself, ebg, sqrta, xm, km, madelung];
 }
 
 // format number in HTML format
@@ -308,10 +310,12 @@ function changelunit()
   var lunit = document.getElementById("lunit").value;
   if ( lunit !== "" ) {
     document.getElementById("invl_1").innerHTML = " (" + lunit + "<sup>&minus;1</sup>)";
+    document.getElementById("invl_2").innerHTML = " (" + lunit + "<sup>&minus;1</sup>)";
     document.getElementById("l_0").innerHTML = " (" + lunit + ")";
     document.getElementById("l_1").innerHTML = " (" + lunit + ")";
     document.getElementById("l_2").innerHTML = " (" + lunit + ")";
     document.getElementById("l_3").innerHTML = " (" + lunit + ")";
+    document.getElementById("l_4").innerHTML = " (" + lunit + ")";
   }
   return lunit;
 }
@@ -324,7 +328,7 @@ function readNAMDconf()
   document.getElementById("punit").selectedIndex = 1;
   document.getElementById("lunit").selectedIndex = 1;
   changelunit();
-  var cutoff = 12, pmetolerance = 1e-6;
+  var cutoff = NaN, PMETolerance = 1e-6, xc, xp;
   var lines = conf.split("\n"), i, line;
   var x = [0, 0, 0], y = [0, 0, 0], z = [0, 0, 0];
   var haslattice = false;
@@ -353,12 +357,17 @@ function readNAMDconf()
     } else if ( key === "cutoff" ) {
       cutoff = parseFloat( arr[1] );
     } else if ( key === "pmetolerance" ) {
-      pmetolerance = parseFloat( arr[1] );
+      PMETolerance = parseFloat( arr[1] );
     } else if ( key === "alchdecouple" ) {
       var val = arr[1].toLowerCase();
       alchDecouple = ( val === "on" || val === "yes" || val === "true" );
     }
   }
+
+  if ( !isNaN(cutoff) ) {
+    document.getElementById("cutoff").value = cutoff;
+  }
+  document.getElementById("PMETolerance").value = PMETolerance;
 
   if ( haslattice ) {
     // update the lattice type
@@ -381,22 +390,6 @@ function readNAMDconf()
     document.getElementById("z2").value = z[2];
   }
 
-  // find the default ewaldcoef
-  // code adapted from SimParameters.C
-  var ewaldcof = 1.0;
-  while ( erfc(ewaldcof*cutoff)/cutoff >= pmetolerance ) {
-    ewaldcof *= 2.0;
-  }
-  var ewaldcof_lo = 0, ewaldcof_hi = ewaldcof;
-  for ( i = 0; i < 100; ++i ) {
-    ewaldcof = 0.5 * ( ewaldcof_lo + ewaldcof_hi );
-    if ( erfc(ewaldcof*cutoff)/cutoff >= pmetolerance ) {
-      ewaldcof_lo = ewaldcof;
-    } else {
-      ewaldcof_hi = ewaldcof;
-    }
-  }
-  document.getElementById("kappa").value = ewaldcof;
   document.getElementById("alchDecouple").checked = alchDecouple;
   document.getElementById("hasvcorr").checked = false;
   document.getElementById("hasvreal").checked = false;
@@ -458,19 +451,45 @@ function paint()
 {
   var mat = update();
   var vol = getvol(mat);
+  var lunit = changelunit();
   if ( vol <= 0 ) {
     return;
   }
   mousescale = parseFloat( document.getElementById("scaleinput").value );
   drawbox(mat, "animationbox", mousescale);
-  var kappa = parseFloat( document.getElementById("kappa").value );
+
+  // find the default ewaldcoef
+  var cutoff = parseFloat( document.getElementById("cutoff").value );
+  var PMETolerance = parseFloat( document.getElementById("PMETolerance").value );
+  var kappa = document.getElementById("kappa").value;
+  if ( !isNaN(cutoff) && cutoff > 0
+    && !isNaN(PMETolerance) && PMETolerance > 0
+    && kappa === "auto" ) {
+    // code adapted from NAMD SimParameters.C
+    var ewaldcof = 1.0;
+    while ( erfc(ewaldcof*cutoff)/cutoff >= PMETolerance ) {
+      ewaldcof *= 2.0;
+    }
+    var ewaldcof_lo = 0, ewaldcof_hi = ewaldcof;
+    for ( var i = 0; i < 100; ++i ) {
+      ewaldcof = 0.5 * ( ewaldcof_lo + ewaldcof_hi );
+      if ( erfc(ewaldcof*cutoff)/cutoff >= PMETolerance ) {
+        ewaldcof_lo = ewaldcof;
+      } else {
+        ewaldcof_hi = ewaldcof;
+      }
+    }
+    //document.getElementById("kappa").value = ewaldcof;
+    kappa = ewaldcof;
+  } else {
+    kappa = parseFloat( kappa );
+  }
   if ( isNaN(kappa) ) kappa = 0;
   var tol = parseFloat( document.getElementById("tol").value );
   if ( isNaN(tol) ) tol = 1e-15;
   var ene = ewald(kappa, tol, mat);
   var K0 = 1, P0 = 1, L0 = 1;
   //var lunit = document.getElementById("lunit").value;
-  var lunit = changelunit();
   if ( lunit === "\u212B" ) {
     L0 = 1e-10;
   } else if ( lunit === "nm" ) {
@@ -579,9 +598,10 @@ function paint()
     + "Ewald coefficient: <i>&kappa;</i> = " + numformat(kappa)
     + (lunit !== "" ? " " + lunit + "<sup>&minus;1</sup>" : "") + ","
     + " as in erfc(&minus;<i>&kappa;<sub> </sub>r</i>) / <i>r</i>.<br>"
-    + "Number of neighboring cells in each dimension: "
+    + "Madelung constant: " + numformat(ene[7], 14) + ".<br>"
+    + "Real-space lattice: number of neighboring cells in each dimension: "
     + xm[0] + " (<i>x</i>), " + xm[1] + " (<i>y</i>), " + xm[2] + " (<i>z</i>).<br>"
-    + "Number of wave vectors in each dimension: "
+    + "Reciprocal-space lattice: number of wave vectors in each dimension: "
     + km[0] + " (<i>x</i>), " + km[1] + " (<i>y</i>), " + km[2] + " (<i>z</i>).<br>";
 }
 
