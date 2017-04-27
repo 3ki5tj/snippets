@@ -20,7 +20,7 @@ It will produce the two text files
 
 IsingDOSnxm.txt, for integer density of states.
 
-islogdosnxm.txt, for logarithm density of states.
+is2lndosnxm.txt, for logarithm density of states.
 
 The density of states will contain `n * m + 1` lines.
 Each contains (the logarithm of) the density of states

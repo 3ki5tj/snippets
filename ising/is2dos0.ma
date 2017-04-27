@@ -3,7 +3,7 @@
   Or manually call the function easydos[10, 8];
   It will produce the two text files
   IsingDOS10x8.txt: for integer density of states
-  islogdos10x8.txt: for logarithm density of states
+  is2lndos10x8.txt: for logarithm density of states
 *)
 
 
@@ -30,21 +30,21 @@ IsingDOS[m_, n_] := Module[
   Take[Round[Chop[CoefficientList[xp, x]]], {1, -1, 2}]];
 
 (* save the array `ls` into file *)
-savels[fn_, ls_] := Module[{fp = OpenWrite[fn], i},
-  For[i = 1, i <= Length[ls], i++, Write[fp, ls[[i]]]]; Close[fp]];
+savels[fn_, ls_, nm_] := Module[{fp = OpenWrite[fn, FormatType -> StandardForm, LineBreakWithin->False], i},
+  For[i = 1, i <= Length[ls], i++, Write[fp, -2*nm+4*(i-1), " ", ls[[i]]]]; Close[fp]];
 
 (* save the density of states in two formats
    IsingDOSnxm.txt gives the integer density of states
-   islogdosnxm.txt gives the logarithm density of states
+   is2lndosnxm.txt gives the logarithm density of states
    The energy levels are
    -2*n*m, -2*n*m + 4, ..., 2*n*m - 4, 2*n*m
 *)
 easydos[n_, m_] := Module[
-  {dos = IsingDOS[n, m], logdos = Table[0, {n m + 1}], i},
-  savels["IsingDOS" <> ToString[n] <> "x" <> ToString[m] <> ".txt", dos];
+  {dos = IsingDOS[n, m], lndos = Table[0, {n m + 1}], i},
+  savels["IsingDOS" <> ToString[n] <> "x" <> ToString[m] <> ".txt", dos, n m];
   For[i = 1, i <= n m + 1, i++,
-    logdos[[i]] = If[dos[[i]] == 0, -10000, N[Log[dos[[i]]], 17]]];
-  savels["islogdos" <> ToString[n] <> "x" <> ToString[m] <> ".txt", logdos]];
+    lndos[[i]] = If[dos[[i]] == 0, -10000, N[Log[dos[[i]]], 17]]];
+  savels["is2lndos" <> ToString[n] <> "x" <> ToString[m] <> ".txt", lndos, n m]];
 
 (* below is a driver *)
 n = 32;
