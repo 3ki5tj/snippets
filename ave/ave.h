@@ -25,6 +25,7 @@ __inline static double av_getave(av_t *a, double *var)
   double ave = (a->cnt > 0) ? a->sum / a->cnt : 0;
   if ( var != NULL )
     *var = (a->cnt > 0) ? a->sqr / a->cnt - ave * ave : 0;
+  return ave;
 }
 
 
