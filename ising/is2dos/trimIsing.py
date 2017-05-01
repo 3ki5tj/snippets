@@ -11,4 +11,4 @@ def inttrim(fn):
         open(fn, "w").write(s1)
 
 for fn in glob.glob("Ising*.txt"):
-    inttrim(fn) 
+    inttrim(fn)

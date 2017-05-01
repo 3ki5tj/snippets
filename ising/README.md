@@ -24,7 +24,7 @@ is2lndosnxm.txt, for logarithm density of states.
 
 The density of states will contain `n * m + 1` lines.
 Each contains (the logarithm of) the density of states
-of an energy level.  This is a discrete model, 
+of an energy level.  This is a discrete model,
 so the energy levels are integers, and they are given by
 ```
 -2*n*m,

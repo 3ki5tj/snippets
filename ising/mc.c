@@ -1,55 +1,42 @@
 #define IS2_LB 5
-#define L (1 << IS2_LB)
+#define L IS2_L
 #include "is2.h"
+#include "ave.h"
 
 
-static void runmetro(is2_t *is, double tp)
+
+static void run(is2_t *is, double tp, int method, long nsteps)
 {
   int id, h;
-  double beta = 1/tp;
-  unsigned long t, nsteps = 100000000L;
-  double sE = 0, sEE = 0, eavref, cvref;
-
-  is2_setuproba(beta, is->uproba);
-  for ( t = 0; t < nsteps; t++ ) {
-    //id = is2_pick(is, &h);
-    IS2_PICK(is, id, h);
-    if ( h <= 0 || mtrand() <= is->uproba[h] ) {
-      //is2_flip(is, id, h);
-      IS2_FLIP(is, id, h);
-    }
-    sE += is->E;
-    sEE += is->E * is->E;
-  }
-  is2_exact(is->l, is->l, beta, &eavref, &cvref);
-  h = is->E;
-  sE /= nsteps;
-  sEE = sEE / nsteps - sE * sE;
-  printf("E: average %g vs. %g; final %d vs %d; Cv %g vs. %g\n",
-      sE, eavref, h, is2_em(is), sEE*(beta*beta), cvref);
-}
-
-
-
-static void runwolff(is2_t *is, double tp)
-{
-  int h;
   double beta = 1/tp, padd;
-  unsigned long t, nsteps = 50000L;
-  double sE = 0, sEE = 0, eavref, cvref;
+  long t;
+  double aveE, varE, eavref, cvref;
+  av_t avE[1];
 
-  padd = 1 - exp(-2*beta);
+  av_clear(avE);
+  if ( method == 0 ) {
+    is2_setuproba(beta, is->uproba);
+  } else {
+    padd = 1 - exp(-2*beta);
+  }
   for ( t = 0; t < nsteps; t++ ) {
-    is2_wolff(is, padd);
-    sE += is->E;
-    sEE += 1.0 * is->E * is->E;
+    if ( method == 0 ) { /* Metropolis algorithm */
+      //id = is2_pick(is, &h);
+      IS2_PICK(is, id, h);
+      if ( h <= 0 || mtrand() <= is->uproba[h] ) {
+        //is2_flip(is, id, h);
+        IS2_FLIP(is, id, h);
+      }
+    } else { /* Wolff cluster algorithm */
+      is2_wolff(is, padd);
+    }
+    av_add(avE, is->E);
   }
   is2_exact(is->l, is->l, beta, &eavref, &cvref);
   h = is->E;
-  sE /= nsteps;
-  sEE = sEE / nsteps - sE * sE;
-  printf("E: average %g vs. %g; final %d vs %d; Cv %g vs. %g\n",
-      sE, eavref, h, is2_em(is), sEE*(beta*beta), cvref);
+  aveE = av_getave(avE, &varE);
+  printf("E: average %g vs. %g; final %d vs %d; Cv %g vs. %g, stdE %g\n",
+      aveE, eavref, h, is2_em(is), varE*(beta*beta), cvref, sqrt(varE));
 }
 
 
@@ -58,21 +45,17 @@ int main(int argc, char **argv)
 {
   is2_t *is;
   int method = 0;
+  long nsteps = 0;
   double tp = 2.269;
 
-  if ( argc > 1 ) {
-    method = atoi( argv[1] );
-  }
-  if ( argc > 2 ) {
-    tp = atof( argv[2] );
-  }
+  if ( argc > 1 ) method = atoi( argv[1] );
+  if ( argc > 2 ) tp = atof( argv[2] );
+  if ( argc > 3 ) nsteps = atol( argv[3] );
+  if ( nsteps <= 0 )
+    nsteps = ( method == 0 ) ? 100000000L : 50000;
 
   is = is2_open(L);
-  if ( method == 0 ) {
-    runmetro(is, tp);
-  } else {
-    runwolff(is, tp);
-  }
+  run(is, tp, method, nsteps);
   is2_close(is);
   return 0;
 }
