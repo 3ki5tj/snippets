@@ -17,7 +17,7 @@ static void run(potts2_t *pt, double tp, int method, long nsteps)
   if ( method == 0 ) {
     potts2_setuproba(beta, pt->uproba);
   } else {
-    padd = 1 - exp(-2*beta);
+    padd = 1 - exp(-beta);
   }
   for ( t = 0; t < nsteps; t++ ) {
     if ( method == 0 ) { /* Metropolis algorithm */
@@ -48,7 +48,7 @@ int main(int argc, char **argv)
   potts2_t *pt;
   int method = 0, q = 10;
   long nsteps = 0;
-  double tp = 1.45;
+  double tp = 0.7;
 
   if ( argc > 1 ) q = atoi( argv[1] );
   if ( argc > 2 ) method = atoi( argv[2] );

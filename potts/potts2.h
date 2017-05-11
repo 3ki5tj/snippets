@@ -203,9 +203,8 @@ __inline static int potts2_wolff(potts2_t *pt, double padd)
   so = pt->s[id];
   sn = (so + 1 + (int) (rand01() * pt->q)) % pt->q;
   pt->queue[ cnt++ ] = id;
-  for ( i = 0; i < n; i++ ) {
+  for ( i = 0; i < n; i++ )
     pt->used[i] = 0;
-  }
   pt->used[id] = (char) 1;
 
   /* go through spins in the queue */
