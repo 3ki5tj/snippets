@@ -1,4 +1,5 @@
-CC = gcc -O3 -Wall -Wextra
+#CC = gcc -O3 -Wall -Wextra
+CC = icc -Wall -Wremarks
 LM = -lm
 
 srcs = $(wildcard *.c)
@@ -11,7 +12,7 @@ $(bins): % : %.c $(deps)
 	$(CC) $< -o $@ $(LM)
 
 clean:
-	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~ *.dat *.pos
+	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~ *.dat *.pos vgcore.*
 	rstrip.py -Rlv
 
 Dropbox: clean

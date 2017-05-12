@@ -1,3 +1,10 @@
+File           | Description
+---------------|--------------------
+is2dos0.ma     | exact density of states (Mathematica)
+is2dosex.c     | exact density of states (C)
+
+
+
 # Simulation of the Ising model
 
 ## Compilation

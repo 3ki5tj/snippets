@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
+#include <limits.h>
+#include <float.h>
 
 const double ln0 = -10000;
 
@@ -41,18 +43,15 @@ __inline static lnum_t *lnum_add(lnum_t *z, lnum_t *x, lnum_t *y)
   int sgn = x->sgn * y->sgn;
   double lnx = x->ln, lny = y->ln, del = lny - lnx;
 
-  if ( del < 0 ) {
-    z->sgn = x->sgn;
-    z->ln = lnx + log(1 + sgn * exp(del));
-  } else if ( del > 0 ) {
-    z->sgn = y->sgn;
-    z->ln = lny + log(1 + sgn * exp(-del));
-  } else if ( sgn < 0 ) { /* x = y */
+  if ( fabs(del) < 1e-10 && sgn < 0 ) {
     z->sgn = 1;
     z->ln = ln0;
-  } else { /* x = y */
+  } else if ( del < 0 ) {
     z->sgn = x->sgn;
-    z->ln = x->ln + log(2);
+    z->ln = lnx + log(1 + sgn * exp(del));
+  } else {
+    z->sgn = y->sgn;
+    z->ln = lny + log(1 + sgn * exp(-del));
   }
   return z;
 }
@@ -94,9 +93,7 @@ static void lpoly_close(lpoly_t *p)
   free(p);
 }
 
-#define lpoly_print(p) lpoly_fprint(p, stdout)
-
-static void lpoly_fprint(lpoly_t *p, FILE *fp)
+static void lpoly_print(lpoly_t *p)
 {
   int i, n = p->n;
   double x;
@@ -104,14 +101,14 @@ static void lpoly_fprint(lpoly_t *p, FILE *fp)
   for ( i = 0; i < n; i++ ) {
     if ( p->a[i].ln < -10 ) continue;
     x = lnum_get(p->a + i);
-    if ( i == 0 ) fprintf(fp, "%g", x);
-    else if ( i == 1 ) fprintf(fp, "%+gx", x);
-    else fprintf(fp, "%+gx^%d", x, i);
+    if ( i == 0 ) printf("%g", x);
+    else if ( i == 1 ) printf("%+gx", x);
+    else printf("%+gx^%d", x, i);
   }
-  fprintf(fp, "\n");
+  printf("\n");
 }
 
-/* resize */
+/* resize and clear content */
 static lpoly_t *lpoly_resize(lpoly_t *p, int n)
 {
   int i;
@@ -126,6 +123,7 @@ static lpoly_t *lpoly_resize(lpoly_t *p, int n)
   return p;
 }
 
+/* q = p */
 static lpoly_t *lpoly_copy(lpoly_t *q, const lpoly_t *p)
 {
   int i, n = p->n;
@@ -165,14 +163,6 @@ static void lpoly_mullnum(lpoly_t *p, lpoly_t *q, lnum_t *ls)
   }
 }
 
-/* p = q * s */
-static void lpoly_mulnum(lpoly_t *p, lpoly_t *q, double s)
-{
-  lnum_t ls[1];
-  lnum_set(ls, s);
-  lpoly_mullnum(p, q, ls);
-}
-
 /* p *= s */
 static void lpoly_imulnum(lpoly_t *p, double s)
 {
@@ -204,8 +194,6 @@ static void lpoly_add(lpoly_t *r, lpoly_t *p, lpoly_t *q)
     }
   }
 }
-
-#define lpoly_sub(r, p, q) lpoly_sadd(r, p, q, -1)
 
 /* r = p + s * q */
 static void lpoly_sadd(lpoly_t *r, lpoly_t *p, lpoly_t *q, double s)
@@ -266,10 +254,10 @@ static lpoly_t *lpoly_pow(lpoly_t *y, const lpoly_t *x, int n, lpoly_t *t)
 
 static lpoly_t *is2dos(int n, int m)
 {
-  lpoly_t *beta, *bm, *p1, *p2, *p3, *ak, *x1p, *x1m;
+  lpoly_t *beta, *bm, *p1, *p2, *p3, *t, *ak, *x1p, *x1m;
   lpoly_t *c0, *s0, *cn, *sn, **csqr, **ssqr;
   lpoly_t **abpow, **akpow, *Z1, *Z2, *Z3, *Z4, *Z;
-  lnum_t mfac[1], pow2m[1];
+  lnum_t mfac[1], pow2m[1], tmp[1];
   int i, j, k = 1;
 
   beta = lpoly_open();
@@ -278,6 +266,7 @@ static lpoly_t *is2dos(int n, int m)
   p1 = lpoly_open();
   p2 = lpoly_open();
   p3 = lpoly_open();
+  t = lpoly_open();
   x1p = lpoly_open();
   x1m = lpoly_open();
   c0 = lpoly_open();
@@ -320,19 +309,20 @@ static lpoly_t *is2dos(int n, int m)
   lpoly_mul(p2, p1, x1p); /* p2 = x^m (1 + x)^m */
   lpoly_mul(p3, p1, x1m); /* p3 = x^m (1 - x)^m */
   lpoly_add(c0, x1m, p2);
-  lpoly_sub(s0, x1m, p2);
+  lpoly_sadd(s0, x1m, p2, -1); /* s0 = (1-x)^m - x^m (1+x)^m */
   lpoly_add(cn, x1p, p3);
-  lpoly_sub(sn, x1p, p3);
+  lpoly_sadd(sn, x1p, p3, -1); /* sn = (1+x)^m - x^m (1-x)^m */
 
   for ( k = 1; k < n; k++ ) {
-    lpoly_mulnum(p1, beta, -cos(M_PI*k/n));
-    lpoly_set(p2, 5, 1.0, 0.0, 2.0, 0.0, 1.0); /* (1+x^2)^2 */
+    lnum_set(tmp, -cos(M_PI*k/n));
+    lpoly_mullnum(p1, beta, tmp); /* p1 = beta*cos(pi*k/n) */
+    lpoly_set(p2, 5, 1.0, 0.0, 2.0, 0.0, 1.0); /* p2 = (1+x^2)^2 */
     lpoly_add(ak, p2, p1); /* ak = (1+x^2)^2 - beta*cos(pi*k/n) */
 
     /* abpow[j] = (ak^2 - beta^2)^j/(2j)! */
     lpoly_pow(p1, ak, 2, t);
     lpoly_pow(p2, beta, 2, t);
-    lpoly_sub(p3, p1, p2);
+    lpoly_sadd(p3, p1, p2, -1); /* p3 = ak^2 - beta^2 */
     lpoly_set(abpow[0], 1, 1.0);
     for ( j = 1; j <= m/2; j++ ) {
       lpoly_mul(abpow[j], abpow[j-1], p3);
@@ -346,7 +336,7 @@ static lpoly_t *is2dos(int n, int m)
       lpoly_imulnum(akpow[j], 1./j);
     }
 
-    /* ck^2 = bm + Sum_{j=0~m/2} abpow[j]*akpow[m-2j] */
+    /* ck^2 = bm + Sum_{j=0 to m/2} abpow[j]*akpow[m-2j] */
     lpoly_copy(p2, bm);
     for ( j = 0; j <= m/2; j++ ) {
       lpoly_mul(p1, abpow[j], akpow[m-2*j]);
@@ -358,16 +348,29 @@ static lpoly_t *is2dos(int n, int m)
     lpoly_sadd(ssqr[k], csqr[k], bm, -2.0);
   }
 
-  lpoly_set(Z1, 1, 1.0);
-  lpoly_set(Z2, 1, 1.0);
-  lpoly_mul(Z3, c0, cn);
-  lpoly_mul(Z4, s0, sn);
-  for ( k = 0; k <= n/2 - 1; k++ ) {
-    lpoly_imul(Z1, csqr[2*k+1], p1);
-    lpoly_imul(Z2, ssqr[2*k+1], p1);
-    if ( k > 0 ) {
-      lpoly_imul(Z3, csqr[2*k], p1);
-      lpoly_imul(Z4, ssqr[2*k], p1);
+  if ( n % 2 == 0 ) { /* n is even */
+    lpoly_set(Z1, 1, 1.0);
+    lpoly_set(Z2, 1, 1.0);
+    lpoly_mul(Z3, c0, cn);
+    lpoly_mul(Z4, s0, sn);
+    for ( k = 0; k < n/2; k++ ) {
+      lpoly_imul(Z1, csqr[2*k+1], p1);
+      lpoly_imul(Z2, ssqr[2*k+1], p1);
+      if ( k > 0 ) {
+        lpoly_imul(Z3, csqr[2*k], p1);
+        lpoly_imul(Z4, ssqr[2*k], p1);
+      }
+    }
+  } else { /* n is odd */
+    lpoly_copy(Z1, cn);
+    lpoly_copy(Z2, sn);
+    lpoly_copy(Z3, c0);
+    lpoly_copy(Z4, s0);
+    for ( k = 0; k < (n-1)/2; k++ ) {
+      lpoly_imul(Z1, csqr[2*k+1], p1);
+      lpoly_imul(Z2, ssqr[2*k+1], p1);
+      lpoly_imul(Z3, csqr[2*k+2], p1);
+      lpoly_imul(Z4, ssqr[2*k+2], p1);
     }
   }
   lpoly_add(p1, Z1, Z2);
@@ -380,6 +383,7 @@ static lpoly_t *is2dos(int n, int m)
   lpoly_close(p1);
   lpoly_close(p2);
   lpoly_close(p3);
+  lpoly_close(t);
   lpoly_close(ak);
   lpoly_close(x1p);
   lpoly_close(x1m);
@@ -406,6 +410,33 @@ static lpoly_t *is2dos(int n, int m)
   return Z;
 }
 
+static int is2dos_save(lpoly_t *p, int n, int m)
+{
+  char fn[32];
+  FILE *fp;
+  int i, digs;
+  double x, lnimax;
+
+  sprintf(fn, "is2lndos%dx%d.dat", n, m);
+  if ( (fp = fopen(fn, "w")) == NULL ) {
+    fprintf(stderr, "cannot write %s\n", fn);
+    return -1;
+  }
+  lnimax = log((double) ULONG_MAX);
+  digs = (int)(-log10(p->a[p->n/2].ln*DBL_EPSILON));
+  if ( digs < 0 ) digs = 0;
+  printf("digs %d\n", digs);
+  for ( i = 0; i < p->n; i+= 2 ) {
+    x = p->a[i].ln;
+    if ( x < 0 ) x = ln0;
+    else if ( x < lnimax ) /* round to nearest integer */
+      x = log((unsigned long) (exp(x)+.5));
+    fprintf(fp, "%d %.*f\n", -2*n*m+2*i, digs, x);
+  }
+  fclose(fp);
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
   int n = 4, m = 4;
@@ -418,7 +449,8 @@ int main(int argc, char **argv)
     m = atoi(argv[2]);
   }
   p = is2dos(n, m);
-  lpoly_print(p);
+  if ( n*m <= 32 ) lpoly_print(p);
+  is2dos_save(p, n, m);
   lpoly_close(p);
   return 0;
 }
