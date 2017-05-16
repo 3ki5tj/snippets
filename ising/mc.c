@@ -1,5 +1,6 @@
+#ifndef IS2_LB
 #define IS2_LB 5
-#define L IS2_L
+#endif
 #include "is2.h"
 #include "ave.h"
 
@@ -54,7 +55,7 @@ int main(int argc, char **argv)
   if ( nsteps <= 0 )
     nsteps = ( method == 0 ) ? 100000000L : 50000;
 
-  is = is2_open(L);
+  is = is2_open(IS2_L);
   run(is, tp, method, nsteps);
   is2_close(is);
   return 0;

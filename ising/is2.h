@@ -326,10 +326,11 @@ __inline static double lnaddn(double a, double b)
 
 
 
-/* exact solution of ising model */
+/* exact partition function, internal energy and heat capacity of
+ * nxm Ising model */
 __inline static double is2_exact(int lx, int ly, double beta, double *eav, double *cv)
 {
-  double lxh, n, ex, f, th, sech, bet2, bsqr, log2, x;
+  double lxh, nm, ex, f, th, sech, bet2, bsqr, log2, x;
   double lnz, lnz1, lnz2, lnz3, lnz4, dz, ddz;
   double z21, z31, z41, za1;
   double dr1, dr2, dr3, dr4, ddr1, ddr2, ddr3, ddr4;
@@ -339,7 +340,7 @@ __inline static double is2_exact(int lx, int ly, double beta, double *eav, doubl
   int r, sgn4 = 1;
 
   lxh = .5*lx;
-  n = lx * ly;
+  nm = lx * ly;
   log2 = log(2.0);
   bet2 = 2.*beta;
   bsqr = beta*beta;
@@ -354,11 +355,11 @@ __inline static double is2_exact(int lx, int ly, double beta, double *eav, doubl
     if (cv) *cv = bsqr * 384. * exp(lnaddn(lnc, 2./3) - 2.0*lnd); /* 64*(1+3cosh(8*b))/(3+cosh(8*b))^2 */
     return lnz;
   } else if (fabs(beta) < 1e-6) { /* high T approx. normal branch unstable if beta < 1e-6 */
-    lnz = n * (2.*lnadd(beta, -beta) - log2);
+    lnz = nm * (2.*lnadd(beta, -beta) - log2);
     x = 1. + xn2b;
-    if (eav) *eav = -2. * n * (1. - xn2b)/x;
-    if (cv) *cv = bsqr * 8.*n*xn2b/(x*x);
-    return lnz; /* +n*tanh(beta)^4 */
+    if (eav) *eav = -2. * nm * (1. - xn2b)/x;
+    if (cv) *cv = bsqr * 8.*nm*xn2b/(x*x);
+    return lnz; /* +nm*tanh(beta)^4 */
   }
 
   lnz1 = lnz2 = lnz3 = lnz4 = 0;
@@ -434,15 +435,15 @@ __inline static double is2_exact(int lx, int ly, double beta, double *eav, doubl
   z41 = sgn4*exp(lnz4 - lnz1);
   za1 = 1.0 + z21 + z31 + z41;
   lnz = lnz1 + log(za1);
-  lnz += .5*n*log(2.*sh2b) - log2;
+  lnz += .5*nm*log(2.*sh2b) - log2;
   dz = (dr1 + z21*dr2 + z31*dr3 + z41*dr4)/za1;
-  if (eav) *eav = - n*coth2b - dz;
+  if (eav) *eav = - nm*coth2b - dz;
   ddr1 += dr1*dr1;
   ddr2 += dr2*dr2;
   ddr3 += dr3*dr3;
   ddr4 += dr4*dr4;
   ddz = (ddr1 + z21*ddr2 + z31*ddr3 + z41*ddr4)/za1;
-  if (cv) *cv = bsqr * (-2.*n/(sh2b*sh2b) + ddz - dz*dz);
+  if (cv) *cv = bsqr * (-2.*nm/(sh2b*sh2b) + ddz - dz*dz);
   return lnz;
 }
 

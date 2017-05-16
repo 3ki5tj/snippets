@@ -7,12 +7,147 @@
 
 const double ln0 = -10000;
 
+/* log(exp(a) + exp(b)) */
+__inline static double lnadd(double a, double b)
+{
+  double c;
+  if (a < b) { c = a; a = b; b = c; } /* ensure a >= b */
+  return ((c = b - a) < ln0) ? a : a + log(1 + exp(c));
+}
+
+/* log(exp(a) - exp(b)), only works for a > b */
+__inline static double lndif(double a, double b)
+{
+  double c;
+  return ((c = b - a) < ln0) ? a : a + log(1 - exp(c));
+}
+
+/* log(exp(a)+b) */
+__inline static double lnaddn(double a, double b)
+{
+  return (a > -ln0) ? a : a + log(1 + b*exp(-a));
+}
+
+/* the exact logarithm of the partition function, Z
+ * the average energy and heat capacity of the Ising model */
+__inline static double is2exact(int n, int m, double beta, double *eav, double *cv)
+{
+  double mh, nm, ex, f, th, sech, bet2, bsqr, log2, x;
+  double lnz, lnz1, lnz2, lnz3, lnz4, dz, ddz;
+  double z21, z31, z41, za1;
+  double dr1, dr2, dr3, dr4, ddr1, ddr2, ddr3, ddr4;
+  double g, g0, dg, ddg, dg0;
+  double xn2b, sh2b, coth2b;
+  double lnch2b, lncc2b, lncl, lnsl, cd, cdsqr, lnddcl;
+  int k, sgn4 = 1;
+
+  mh = .5*m;
+  nm = m * n;
+  log2 = log(2.0);
+  bet2 = 2.*beta;
+  bsqr = beta*beta;
+  xn2b = exp(-bet2);
+
+  lnz1 = lnz2 = lnz3 = lnz4 = 0;
+  dr1 = dr2 = dr3 = dr4 = 0;
+  ddr1 = ddr2 = ddr3 = ddr4 = 0;
+  lnch2b = lnadd(bet2, -bet2) - log2;
+  coth2b = 2./(1. - xn2b*xn2b) - 1.;
+  lncc2b = lnch2b + log(coth2b); /* ln[ cosh(2b) * coth(2b) ] */
+  g0 = bet2 + log(2./(1. + xn2b) - 1.);
+  sgn4 = (g0 >= 0) ? 1 : -1;
+
+  sh2b = 0.5*(1./xn2b - xn2b);
+  dg0 = 2. + 2./sh2b;
+  x = sh2b*sh2b;
+  cd = 2. - 2./x; /* cl' = cd * cosh(2b) */
+  cdsqr = cd*cd;
+  lnddcl = lnaddn(lncc2b, 2.0/(x * sh2b)) + 2.*log2; /* log(cl'') */
+
+  for ( k = 0; k < n; k++ ) { /* for odd number */
+    /* cosh(gamma_k) = cosh^2(2K)/sinh(2K) - cos(pi*k/n) */
+    lncl = lnaddn(lncc2b, -cos((2*k + 1)*M_PI/n));
+    lnsl = lncl + 0.5*log(1. - exp(-2.*lncl));
+    g = lnadd(lncl, lnsl); /* gamma_{2k+1} */
+    f = mh * g;
+    lnz1 += lnadd(f, -f);
+    lnz2 += lndif(f, -f);
+
+    dg = exp(lnch2b - lnsl)*cd; /* g' = cl'/sl; */
+    ex = exp(-f);
+    th = 2./(1. + ex*ex) - 1.;
+    x = mh*dg;
+    dr1 += x*th;
+    dr2 += x/th;
+    printf("dg %g, th %g\n", dg, th);
+
+    /* g''=cl''/sl - cl' ^2 *cl/sl^3; */
+    ddg = exp(lnddcl - lnsl);
+    ddg -= exp(lnch2b*2. + lncl - 3.*lnsl)*cdsqr;
+    sech = 2.0*dg/(ex + 1.0/ex); /* g' * sech(0.5*m*g) */
+    ddr1 += mh*(ddg*th + mh*(sech*sech));
+    sech = 2.0*dg/(ex - 1.0/ex); /* g' * csch(0.5*m*g) */
+    ddr2 += mh*(ddg/th - mh*(sech*sech));
+
+    if ( k == 0 ) {
+      g = g0;
+    } else {
+      lncl = lnaddn(lncc2b, -cos(2.0*M_PI*k/n));
+      lnsl = lncl+0.5*log(1-exp(-2*lncl));
+      g = lnadd(lncl, lnsl);
+    }
+    f = mh*g;
+    lnz3 += lnadd(f, -f); /* log [2 cosh(f)] */
+    lnz4 += (f < 0) ? lndif(-f, f) : lndif(f, -f); /* avoid neg. g0 */
+
+    ex = exp(-f);
+    th = 2./(1. + ex*ex) - 1.;
+    dg = (k == 0) ? dg0 : exp(lnch2b - lnsl)*cd;
+    dr3 += mh*dg*th;
+    dr4 += mh*dg/th;
+
+    if ( k == 0 ) {
+      ddg = -4*coth2b*coth2b*exp(-lnch2b);
+    } else {
+      ddg = exp(lnddcl - lnsl);
+      ddg -= exp(lnch2b*2. + lncl - 3.*lnsl)*cdsqr;
+    }
+    sech = 2.0*dg/(ex + 1.0/ex);
+    ddr3 += mh*(ddg*th + mh*(sech*sech));
+    sech = 2.0*dg/(ex - 1.0/ex);
+    ddr4 += mh*(ddg/th - mh*(sech*sech));
+  }
+
+  z21 = exp(lnz2 - lnz1);
+  z31 = exp(lnz3 - lnz1);
+  z41 = sgn4*exp(lnz4 - lnz1);
+  za1 = 1.0 + z21 + z31 + z41;
+  lnz = lnz1 + log(za1);
+  lnz += .5*nm*log(2.*sh2b) - log2;
+  dz = (dr1 + z21*dr2 + z31*dr3 + z41*dr4)/za1;
+  printf("%g %g %g; %g %g %g %g\n",
+      z21, z31, z41, dr1, dr2, dr3, dr4);
+  if ( eav != NULL ) {
+    *eav = - nm*coth2b - dz;
+  }
+  ddr1 += dr1 * dr1;
+  ddr2 += dr2 * dr2;
+  ddr3 += dr3 * dr3;
+  ddr4 += dr4 * dr4;
+  ddz = (ddr1 + z21*ddr2 + z31*ddr3 + z41*ddr4)/za1;
+  if ( cv != NULL ) {
+    *cv = bsqr * (-2.*nm/(sh2b*sh2b) + ddz - dz*dz);
+  }
+  return lnz;
+}
+
+
 typedef struct {
   double ln;
   int sgn;
 } lnum_t;
 
-__inline static void lnum_set(lnum_t *x, double num)
+__inline static lnum_t *lnum_set(lnum_t *x, double num)
 {
   if ( num > 0 ) {
     x->ln = log(num);
@@ -24,6 +159,14 @@ __inline static void lnum_set(lnum_t *x, double num)
     x->ln = ln0;
     x->sgn = 1;
   }
+  return x;
+}
+
+__inline static lnum_t *lnum_setln(lnum_t *x, double ln)
+{
+  x->ln = ln;
+  x->sgn = 1;
+  return x;
 }
 
 __inline static double lnum_get(lnum_t *x)
@@ -56,12 +199,33 @@ __inline static lnum_t *lnum_add(lnum_t *z, lnum_t *x, lnum_t *y)
   return z;
 }
 
+__inline static lnum_t *lnum_sub(lnum_t *z, lnum_t *x, lnum_t *y)
+{
+  lnum_t ny = {y->ln, -y->sgn};
+  return lnum_add(z, x, &ny);
+}
+
 __inline static lnum_t *lnum_mul(lnum_t *z, lnum_t *x, lnum_t *y)
 {
   z->sgn = x->sgn * y->sgn;
   z->ln = x->ln + y->ln;
   return z;
 }
+
+__inline static void lnum_imul(lnum_t *y, lnum_t *x)
+{
+  lnum_t z[1];
+  lnum_mul(z, y, x);
+  lnum_copy(y, z);
+}
+
+__inline static lnum_t *lnum_div(lnum_t *z, lnum_t *x, lnum_t *y)
+{
+  z->sgn = x->sgn * y->sgn;
+  z->ln = x->ln - y->ln;
+  return z;
+}
+
 
 
 
@@ -109,7 +273,7 @@ static void lpoly_print(lpoly_t *p)
 }
 
 /* resize and clear content */
-static lpoly_t *lpoly_resize(lpoly_t *p, int n)
+static void lpoly_resize(lpoly_t *p, int n)
 {
   int i;
 
@@ -120,7 +284,6 @@ static lpoly_t *lpoly_resize(lpoly_t *p, int n)
   p->n = n;
   for ( i = 0; i < p->ncap; i++ )
     lnum_set(p->a + i, 0);
-  return p;
 }
 
 /* q = p */
@@ -135,7 +298,7 @@ static lpoly_t *lpoly_copy(lpoly_t *q, const lpoly_t *p)
 }
 
 /* p = a[0] + a[1]*x + a[2]*x^2 + ... */
-static lpoly_t *lpoly_set(lpoly_t *p, int n, ...)
+static void lpoly_set(lpoly_t *p, int n, ...)
 {
   int i;
   va_list vl;
@@ -148,7 +311,6 @@ static lpoly_t *lpoly_set(lpoly_t *p, int n, ...)
     lnum_set(p->a + i, x);
   }
   va_end(vl);
-  return p;
 }
 
 /* p = q * s */
@@ -425,28 +587,135 @@ static int is2dos_save(lpoly_t *p, int n, int m)
   lnimax = log((double) ULONG_MAX);
   digs = (int)(-log10(p->a[p->n/2].ln*DBL_EPSILON));
   if ( digs < 0 ) digs = 0;
-  printf("digs %d\n", digs);
   for ( i = 0; i < p->n; i+= 2 ) {
     x = p->a[i].ln;
     if ( x < 0 ) x = ln0;
     else if ( x < lnimax ) /* round to nearest integer */
-      x = log((unsigned long) (exp(x)+.5));
+      x = log((double)((unsigned long) (exp(x)+.5)));
     fprintf(fp, "%d %.*f\n", -2*n*m+2*i, digs, x);
   }
   fclose(fp);
   return 0;
 }
 
+
+__inline static double is2_exact(int n, int m, double beta, double *eav, double *cv)
+{
+  lnum_t t1[1], t2[1], t3[1], t4[1], sh[1], ccs[1];
+  lnum_t dg[1], ddg[1], *cg, *sg;
+  lnum_t Y[1], Y1[1], Y2[1], Y3[1], Y4[1];
+  double xp, gamk, *dgam, *ddgam, *tg, log2, ish2, r2, r3, r4;
+  double dlnY1, dlnY2, dlnY3, dlnY4;
+  double ddlnY1, ddlnY2, ddlnY3, ddlnY4;
+  int k;
+
+  log2 = log(2);
+  /* sh = sinh(2*K) = exp(2*beta)(1-exp(-4*beta)/2); */
+  xp = exp(-2*beta);
+  lnum_set(t1, (1 - xp*xp)/2);
+  lnum_imul(lnum_setln(sh, 2*beta), t1);
+  lnum_copy(t3, sh);
+  t3->ln = -t3->ln; /* t3 = 1/sinh(2*K); */
+  lnum_add(ccs, sh, t3); /* ccs = sinh(2*K) + 1/sinh(2*K) */
+  ish2 = exp(2*t3->ln); /* 1/sinh^2(2*K) */
+  /* dg = ccs' = 2*cosh(2*K)*(1 - 1/sinh^2(2*K)) */
+  lnum_set(t4, (1 + xp*xp)*(1 - ish2));
+  lnum_imul(lnum_setln(dg, 2*beta), t4);
+  /* ddg = ccs'' */
+  lnum_setln(ddg, sh->ln + log(4*(1 + ish2 + ish2*ish2)));
+  cg = calloc(2*n, sizeof(*cg));
+  sg = calloc(2*n, sizeof(*sg));
+  tg = calloc(2*n, sizeof(*tg));
+  dgam = calloc(2*n, sizeof(*dgam));
+  ddgam = calloc(2*n, sizeof(*ddgam));
+  for ( k = 0; k < n * 2; k++ ) {
+    if ( k == 0 ) {
+      gamk = 2*beta + log((1 - xp)/(1 + xp));
+      dgam[k] = 2 + 4*xp/(1 - xp*xp);
+    } else {
+      lnum_add(t2, ccs, lnum_set(t4, -cos(M_PI*k/n))); /* t2 = cosh(gamk) */
+      /* gamk = arccosh(t2) = ln(t2 + sqrt(t2^2-1)) = ln(t2) + ln(1+sqrt(1-t2^(-2))) */
+      xp = sqrt(1 - exp(-2*t2->ln));
+      gamk = t2->ln + log(1 + xp);
+      /* ln sinh(gamk) = ln(t2) + ln sqrt(1 - t2^(-2)); */
+      t3->sgn = t2->sgn;
+      t3->ln = t2->ln + log(xp);
+      dgam[k] = lnum_get( lnum_div(t1, dg, t3) ); /* dg/sinh(gamk) */
+      lnum_imul(lnum_set(t3, -dgam[k]*dgam[k]), t2);
+      lnum_add(t4, ddg, t3); /* t4 = ddg - cosh(gamk)*dgam[k]^2 */
+      ddgam[k] = t4->sgn * exp(t4->ln - t2->ln)/xp;
+      printf("k %d, dgam %g, ddgam %g\n", k, dgam[k], ddgam[k]);
+      /* (exp(ddg)-cosh(gammak)*exp(2*dgam[k]))/sinh(gammak) */
+    }
+    t1->sgn = t2->sgn = 1;
+    t1->ln = m * gamk * 0.5; /* t1 = exp(m*gamk/2) */
+    t2->ln = -t1->ln; /* t2 = exp(-m*gamk/2) */
+    lnum_add(cg + k, t1, t2); /* cg[k] = 2 cosh(m*gamk/2) */
+    lnum_sub(sg + k, t1, t2); /* sg[k] = 2 sinh(m*gamk/2) */
+    tg[k] = lnum_get( lnum_div(t3, sg + k, cg + k) );
+    //printf("k %d, gamk %g, dgamk %g, c %g, s %g, tanh %g\n",
+    //    k, gamk, dgam[k], exp(cg[k].ln), exp(sg[k].ln), exp(sg[k].ln-cg[k].ln));
+    printf("k %d, dgam %g, tg %g\n", k, dgam[k], tg[k]);
+  }
+
+  lnum_set(Y1, 1);
+  lnum_set(Y2, 1);
+  lnum_set(Y3, 1);
+  lnum_set(Y4, 1);
+  dlnY1 = dlnY2 = dlnY3 = dlnY4 = 0;
+  ddlnY1 = ddlnY2 = ddlnY3 = ddlnY4 = 0;
+  for ( k = 0; k < n; k++ ) {
+    lnum_imul(Y1, &cg[2*k+1]);
+    lnum_imul(Y2, &sg[2*k+1]);
+    lnum_imul(Y3, &cg[2*k]);
+    lnum_imul(Y4, &sg[2*k]);
+    dlnY1 += dgam[2*k+1] * tg[2*k+1] * m/2;
+    dlnY2 += dgam[2*k+1] / tg[2*k+1] * m/2;
+    dlnY3 += dgam[2*k] * tg[2*k] * m/2;
+    dlnY4 += dgam[2*k] / tg[2*k] * m/2;
+    ddlnY1 += ddgam[2*k+1] * tg[2*k+1] * m/2;
+    ddlnY2 += ddgam[2*k+1] / tg[2*k+1] * m/2;
+    ddlnY3 += ddgam[2*k] * tg[2*k] * m/2;
+    ddlnY4 += ddgam[2*k] / tg[2*k] * m/2;
+  }
+  //printf("dlnY %g, %g, %g, %g\n", dlnY1, dlnY2, dlnY3, dlnY4);
+  lnum_add(Y, lnum_add(t2, lnum_add(t1, Y1, Y2), Y3), Y4); /* Y = Y1 + Y2 + Y3 + Y4 */
+  Y->ln += (sh->ln + log2)*n*m*0.5 - log2;
+  r2 = lnum_get( lnum_div(t1, Y2, Y1) ); /* r2 = Y2/Y1 */
+  r3 = lnum_get( lnum_div(t1, Y3, Y1) ); /* r3 = Y3/Y1 */
+  r4 = lnum_get( lnum_div(t1, Y4, Y1) ); /* r4 = Y4/Y1 */
+  printf("r2 %g, %g, %g; dlnY %g %g %g %g\n", r2, r3, r4, dlnY1, dlnY2, dlnY3, dlnY4);
+  xp = exp(-4*beta);
+  *eav = -n*m*(1+xp)/(1-xp)-(dlnY1 + dlnY2*r2 + dlnY3*r3 + dlnY4*r4)/(1 + r2 + r3 + r4);
+  //*eav = n*m*(1 - 2/(1 - xp*xp));
+  //*eav += -(dlnY1 + dlnY2*r2 + dlnY3*r3 + dlnY4*r4)/(1 + r2 + r3 + r4);
+  free(cg);
+  free(sg);
+  free(tg);
+  free(dgam);
+  free(ddgam);
+  return Y->ln;
+}
+
+
 int main(int argc, char **argv)
 {
   int n = 4, m = 4;
+  double tp = 2.3;
   lpoly_t *p;
 
   if ( argc == 2 ) {
     n = m = atoi(argv[1]);
-  } else if ( argc == 3 ) {
+  } else if ( argc >= 3 ) {
     n = atoi(argv[1]);
     m = atoi(argv[2]);
+    if ( argc >= 4 ) tp = atof(argv[3]);
+  }
+  {
+    double lnz1, eav1, cv1, lnz2 = 0, eav2 = 0, cv2 = 0;
+    lnz1 = is2exact(n, m, 1./tp, &eav1, &cv1);
+    lnz2 = is2_exact(n, m, 1./tp, &eav2, &cv2);
+    printf("lnz %g,%g, eav %g,%g, cv %g,%g\n", lnz1, lnz2, eav1, eav2, cv1, cv2);
   }
   p = is2dos(n, m);
   if ( n*m <= 32 ) lpoly_print(p);
