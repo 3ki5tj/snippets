@@ -132,9 +132,85 @@ __inline static double is2exact(int n, int m, double beta, double *eav, double *
 
 
 
+/* return the exact logarithmic partition function
+ * also compute the average energy and heat capacity */
+__inline static double is2_exact(int n, int m, double beta, double *eav, double *cv)
+{
+  lnum_t a, b, c, d, ch, sh, ccs, dg, ddg, cg, sg, z[4];
+  double mh, xp, den, th, gam, dgam, ddgam, tg, ln2, ish2;
+  double dlnz[4], ddlnz[4], r[4], rt = 0, dz = 0, ddz = 0;
+  int k, i;
+
+  mh = m * 0.5;
+  ln2 = log(2);
+  /* sh = sinh(2*K) = exp(2*beta)(1-exp(-4*beta)/2); */
+  xp = exp(-2*beta);
+  lnum_set(&a, (1 - xp*xp)/2);
+  lnum_imul(lnum_setln(&sh, 2*beta), &a);
+  lnum_copy(&c, &sh);
+  c.ln = -c.ln; /* c = 1/sinh(2*K); */
+  lnum_add(&ccs, &sh, &c); /* ccs = sinh(2*K) + 1/sinh(2*K) */
+  ish2 = exp(2*c.ln); /* 1/sinh^2(2*K) */
+  /* dg = ccs' = 2*cosh(2*K)*(1 - 1/sinh^2(2*K)) */
+  lnum_set(&d, (1 + xp*xp)*(1 - ish2));
+  lnum_imul(lnum_setln(&dg, 2*beta), &d);
+  /* ddg = ccs'' */
+  lnum_setln(&ddg, sh.ln + ln2*2 + log(1 + ish2 + 2*ish2*ish2));
+  for ( i = 0; i < 4; i++ ) {
+    lnum_set(&z[i], 1);
+    dlnz[i] = ddlnz[i] = 0;
+  }
+  for ( k = 0; k < n * 2; k++ ) {
+    if ( k == 0 ) {
+      gam = 2*beta + log((1 - xp)/(1 + xp));
+      den = 1 - xp*xp;
+      dgam = 2 + 4*xp/den;
+      ddgam = -8*xp*(1+xp*xp)/(den*den);
+    } else {
+      lnum_add(&ch, &ccs, lnum_set(&d, -cos(M_PI*k/n))); /* ch = cosh(gam) */
+      /* gam = arccosh(ch) = ln(ch + sh) + ln(ch) + ln(1+th) */
+      th = sqrt(1 - exp(-2*ch.ln)); /* th = tanh(gam) */
+      gam = ch.ln + log(1 + th);
+      /* sinh(gam) = cosh(gam) * tanh(gam); */
+      lnum_mul(&sh, &ch, lnum_set(&a, th));
+      dgam = lnum_get( lnum_div(&a, &dg, &sh) ); /* dg/sinh(gam) */
+      lnum_imul(lnum_set(&c, dgam*dgam), &ch);
+      lnum_sub(&d, &ddg, &c); /* d = ddg - cosh(gam)*dgam^2 */
+      ddgam = lnum_get( lnum_div(&b, &d, &sh) ); /* dg/sinh(gam) */
+    }
+    lnum_setln(&a,  m * gam * 0.5); /* a = exp(m*gam/2) */
+    lnum_setln(&b, -m * gam * 0.5); /* b = exp(-m*gam/2) */
+    lnum_add(&cg, &a, &b); /* cg = 2 cosh(m*gam/2) */
+    lnum_sub(&sg, &a, &b); /* sg = 2 sinh(m*gam/2) */
+    tg = lnum_get( lnum_div(&c, &sg, &cg) );
+    i = (k % 2) * 2;
+    lnum_imul(&z[i],   &cg);
+    lnum_imul(&z[i+1], &sg);
+    dlnz[i]   += dgam * tg * mh;
+    dlnz[i+1] += dgam / tg * mh;
+    ddlnz[i]   += ( dgam*dgam*4*exp(-2*cg.ln)*mh + ddgam*tg) * mh;
+    ddlnz[i+1] += (-dgam*dgam*4*exp(-2*sg.ln)*mh + ddgam/tg) * mh;
+  }
+
+  lnum_add(&d, lnum_add(&b, lnum_add(&a, &z[0], &z[1]), &z[2]), &z[3]);
+  lnum_setln(&a, 2*beta);
+  lnum_sub(&sh, &a, lnum_setln(&b, -2*beta));
+  for ( i = 0; i < 4; i++ ) {
+    r[i] = lnum_get( lnum_div(&a, &z[i], &z[0]) );
+    rt += r[i];
+    dz += r[i] * dlnz[i];
+    ddz += r[i] * (ddlnz[i] + dlnz[i] * dlnz[i]);
+  }
+  dz /= rt;
+  *eav = n*m*(1 - 2/(1 - xp*xp)) - dz;
+  *cv = beta * beta * (ddz/rt - dz * dz - 2*n*m*ish2);
+  return d.ln + sh.ln*n*m*0.5 - ln2;
+}
+
+
 __inline static double *is2dos(int n, int m)
 {
-  lpoly_t *beta, *bm, *p1, *p2, *p3, *t, *ak, *x1p, *x1m;
+  lpoly_t *beta, *bm, *p1, *p2, *p3, *ak, *x1p, *x1m;
   lpoly_t *csqr, *ssqr, **abpow, **akpow, *Z1, *Z2, *Z3, *Z4;
   lnum_t mfac[1], pow2m[1], tmp[1];
   double *lndos, x, lnimax;
@@ -146,7 +222,6 @@ __inline static double *is2dos(int n, int m)
   p1 = lpoly_open();
   p2 = lpoly_open();
   p3 = lpoly_open();
-  t = lpoly_open();
   x1p = lpoly_open();
   x1m = lpoly_open();
   Z1 = lpoly_open();
@@ -162,7 +237,7 @@ __inline static double *is2dos(int n, int m)
     akpow[i] = lpoly_open();
   }
   lpoly_set(beta, 4, 0.0, 2.0, 0.0, -2.0); /* 2x(1-x^2) */
-  lpoly_pow(p1, beta, m, t); /* beta^m */
+  lpoly_pow(p1, beta, m, p2); /* beta^m */
   lnum_set(pow2m, 1.0);
   pow2m->ln = (m - 1)*log(0.5); /* 0.5^(m-1) */
   lpoly_mullnum(bm, p1, pow2m);
@@ -171,18 +246,18 @@ __inline static double *is2dos(int n, int m)
   for ( i = 2; i <= m; i++ )
     mfac->ln += log(i * 0.5);
 
-  lpoly_set(p1, 2, 1.0, 1.0);
-  lpoly_pow(x1p, p1, m, t); /* x1p = (1+x)^m */
-  lpoly_set(p1, 2, 1.0, -1.0);
-  lpoly_pow(x1m, p1, m, t); /* x1m = (1-x)^m */
+  lpoly_set(p1, 2, 1.0, 1.0); /* p1 = 1 + x */
+  lpoly_pow(x1p, p1, m, p2); /* x1p = (1+x)^m */
+  lpoly_set(p1, 2, 1.0, -1.0); /* p1 = 1 - x */
+  lpoly_pow(x1m, p1, m, p2); /* x1m = (1-x)^m */
   lpoly_resize(p1, m + 1);
   lnum_set(p1->a + m, 1); /* p1 = x^m */
   lpoly_mul(p2, p1, x1p); /* p2 = x^m (1 + x)^m */
   lpoly_mul(p3, p1, x1m); /* p3 = x^m (1 - x)^m */
   lpoly_add(Z3, x1m, p2); /* Z3 = c0 = (1-x)^m + x^m (1+x)^m */
-  lpoly_sadd(Z4, x1m, p2, -1); /* Z4 = s0 = (1-x)^m - x^m (1+x)^m */
+  lpoly_sub(Z4, x1m, p2); /* Z4 = s0 = (1-x)^m - x^m (1+x)^m */
   lpoly_add(Z1, x1p, p3); /* Z1 = cn = (1+x)^m + x^m (1-x)^m */
-  lpoly_sadd(Z2, x1p, p3, -1); /* Z2 = sn = (1+x)^m - x^m (1-x)^m */
+  lpoly_sub(Z2, x1p, p3); /* Z2 = sn = (1+x)^m - x^m (1-x)^m */
 
   if ( n % 2 == 0 ) { /* n is even */
     lpoly_imul(Z3, Z1, p1);
@@ -198,9 +273,9 @@ __inline static double *is2dos(int n, int m)
     lpoly_add(ak, p2, p1); /* ak = (1+x^2)^2 - beta*cos(pi*k/n) */
 
     /* abpow[j] = (ak^2 - beta^2)^j/(2j)! */
-    lpoly_pow(p1, ak, 2, t);
-    lpoly_pow(p2, beta, 2, t);
-    lpoly_sadd(p3, p1, p2, -1); /* p3 = ak^2 - beta^2 */
+    lpoly_pow(p1, ak, 2, p3);
+    lpoly_pow(p2, beta, 2, p3);
+    lpoly_sub(p3, p1, p2); /* p3 = ak^2 - beta^2 */
     lpoly_set(abpow[0], 1, 1.0);
     for ( j = 1; j <= m/2; j++ ) {
       lpoly_mul(abpow[j], abpow[j-1], p3);
@@ -215,13 +290,11 @@ __inline static double *is2dos(int n, int m)
     }
 
     /* ck^2 = bm + Sum_{j=0 to m/2} abpow[j]*akpow[m-2j] */
-    lpoly_copy(p2, bm);
+    lpoly_copy(csqr, bm);
     for ( j = 0; j <= m/2; j++ ) {
       lpoly_mul(p1, abpow[j], akpow[m-2*j]);
-      lpoly_add(p3, p2, p1);
-      lpoly_copy(p2, p3);
+      lpoly_iadd(csqr, p1, p2); /* csqr += p1 */
     }
-    lpoly_copy(csqr, p2);
     /* sk^2 = ck^2 - 2*(beta^m/2^(m-1)) */
     lpoly_sadd(ssqr, csqr, bm, -2.0);
     if ( k % 2 ) {
@@ -232,16 +305,16 @@ __inline static double *is2dos(int n, int m)
       lpoly_imul(Z4, ssqr, p1);
     }
   }
-  lpoly_add(p1, Z1, Z2);
-  lpoly_add(p2, p1, Z3);
-  lpoly_add(p3, p2, Z4);
-  lpoly_imulnum(p3, 0.5);
+  lpoly_iadd(Z1, Z2, p1);
+  lpoly_iadd(Z1, Z3, p1);
+  lpoly_iadd(Z1, Z4, p1);
+  lpoly_imulnum(Z1, 0.5);
 
   /* export to a 1D array */
   lnimax = log((double) ULONG_MAX);
   lndos = calloc(n*m + 1, sizeof(*lndos));
-  for ( i = 0; i < p3->n; i+= 2 ) {
-    x = p3->a[i].ln;
+  for ( i = 0; i < Z1->n; i+= 2 ) {
+    x = Z1->a[i].ln;
     if ( x < 0 ) x = ln0;
     else if ( x < lnimax ) /* round to nearest integer */
       x = log((double)((unsigned long) (exp(x)+.5)));
@@ -253,7 +326,6 @@ __inline static double *is2dos(int n, int m)
   lpoly_close(p1);
   lpoly_close(p2);
   lpoly_close(p3);
-  lpoly_close(t);
   lpoly_close(ak);
   lpoly_close(x1p);
   lpoly_close(x1m);
@@ -290,82 +362,6 @@ __inline static int is2dos_save(double *lndos, int n, int m)
   }
   fclose(fp);
   return 0;
-}
-
-
-__inline static double is2_exact(int n, int m, double beta, double *eav, double *cv)
-{
-  lnum_t t1[1], t2[1], t3[1], t4[1], ch[1], sh[1], ccs[1];
-  lnum_t dg[1], ddg[1], cg, sg, z[4];
-  double mh, xp, den, th, gam, dgam, ddgam, tg, ln2, ish2;
-  double dlnz[4], ddlnz[4], r[4], rt = 0, dz = 0, ddz = 0;
-  int k, i;
-
-  mh = m * 0.5;
-  ln2 = log(2);
-  /* sh = sinh(2*K) = exp(2*beta)(1-exp(-4*beta)/2); */
-  xp = exp(-2*beta);
-  lnum_set(t1, (1 - xp*xp)/2);
-  lnum_imul(lnum_setln(sh, 2*beta), t1);
-  lnum_copy(t3, sh);
-  t3->ln = -t3->ln; /* t3 = 1/sinh(2*K); */
-  lnum_add(ccs, sh, t3); /* ccs = sinh(2*K) + 1/sinh(2*K) */
-  ish2 = exp(2*t3->ln); /* 1/sinh^2(2*K) */
-  /* dg = ccs' = 2*cosh(2*K)*(1 - 1/sinh^2(2*K)) */
-  lnum_set(t4, (1 + xp*xp)*(1 - ish2));
-  lnum_imul(lnum_setln(dg, 2*beta), t4);
-  /* ddg = ccs'' */
-  lnum_setln(ddg, sh->ln + ln2*2 + log(1 + ish2 + 2*ish2*ish2));
-  for ( i = 0; i < 4; i++ ) {
-    lnum_set(&z[i], 1);
-    dlnz[i] = ddlnz[i] = 0;
-  }
-  for ( k = 0; k < n * 2; k++ ) {
-    if ( k == 0 ) {
-      gam = 2*beta + log((1 - xp)/(1 + xp));
-      den = 1 - xp*xp;
-      dgam = 2 + 4*xp/den;
-      ddgam = -8*xp*(1+xp*xp)/(den*den);
-    } else {
-      lnum_add(ch, ccs, lnum_set(t4, -cos(M_PI*k/n))); /* ch = cosh(gam) */
-      /* gam = arccosh(ch) = ln(ch + sh) + ln(ch) + ln(1+th) */
-      th = sqrt(1 - exp(-2*ch->ln)); /* th = tanh(gam) */
-      gam = ch->ln + log(1 + th);
-      /* ln sinh(gam) = ln(ch) + ln sqrt(1 - ch^(-2)); */
-      sh->sgn = ch->sgn;
-      sh->ln = ch->ln + log(th);
-      dgam = lnum_get( lnum_div(t1, dg, sh) ); /* dg/sinh(gam) */
-      lnum_imul(lnum_set(t3, dgam*dgam), ch);
-      lnum_sub(t4, ddg, t3); /* t4 = ddg - cosh(gam)*dgam^2 */
-      ddgam = lnum_get( lnum_div(t2, t4, sh) ); /* dg/sinh(gam) */
-    }
-    lnum_setln(t1,  m * gam * 0.5); /* t1 = exp(m*gam/2) */
-    lnum_setln(t2, -m * gam * 0.5); /* t2 = exp(-m*gam/2) */
-    lnum_add(&cg, t1, t2); /* cg = 2 cosh(m*gam/2) */
-    lnum_sub(&sg, t1, t2); /* sg = 2 sinh(m*gam/2) */
-    tg = lnum_get( lnum_div(t3, &sg, &cg) );
-    i = (k % 2) * 2;
-    lnum_imul(&z[i],   &cg);
-    lnum_imul(&z[i+1], &sg);
-    dlnz[i]   += dgam * tg * mh;
-    dlnz[i+1] += dgam / tg * mh;
-    ddlnz[i]   += ( dgam*dgam*4*exp(-2*cg.ln)*mh + ddgam*tg) * mh;
-    ddlnz[i+1] += (-dgam*dgam*4*exp(-2*sg.ln)*mh + ddgam/tg) * mh;
-  }
-
-  lnum_add(t4, lnum_add(t2, lnum_add(t1, &z[0], &z[1]), &z[2]), &z[3]);
-  lnum_setln(t1, 2*beta);
-  lnum_sub(sh, t1, lnum_setln(t2, -2*beta));
-  for ( i = 0; i < 4; i++ ) {
-    r[i] = lnum_get( lnum_div(t1, &z[i], &z[0]) );
-    rt += r[i];
-    dz += r[i] * dlnz[i];
-    ddz += r[i] * (ddlnz[i] + dlnz[i] * dlnz[i]);
-  }
-  dz /= rt;
-  *eav = n*m*(1 - 2/(1 - xp*xp)) - dz;
-  *cv = beta * beta * (ddz/rt - dz * dz - 2*n*m*ish2);
-  return t4->ln + sh->ln*n*m*0.5 - ln2;
 }
 
 

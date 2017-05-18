@@ -1,8 +1,16 @@
 File           | Description
 ---------------|--------------------
 is2dos0.ma     | exact density of states (Mathematica)
-is2dosex.c     | exact density of states (C)
+is2exact.c     | exact density of states and free energy, energy, heat capacity (C)
 
+
+# Exact results
+
+The density of states can be computed in two ways.
+`is2lndosnxm.dat` is the output of C code, `is2exact.c`
+`is2lndosnxm.txt` is the output of the Mathematica script `is2dos0.ma`.
+Note the difference in the extension `.dat` vs. `.txt`,
+but the contents should be the same within numerical error.
 
 
 # Simulation of the Ising model

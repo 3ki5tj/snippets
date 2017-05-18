@@ -18,7 +18,7 @@ int main(int argc, char **argv)
     double lnz1, eav1, cv1, lnz2 = 0, eav2 = 0, cv2 = 0;
     lnz1 = is2exact(n, m, 1./tp, &eav1, &cv1);
     lnz2 = is2_exact(n, m, 1./tp, &eav2, &cv2);
-    printf("lnz %g,%g, eav %g,%g, cv %g,%g\n", lnz1, lnz2, eav1, eav2, cv1, cv2);
+    printf("lnz %g, %g, eav %g, %g, cv %g, %g\n", lnz1, lnz2, eav1, eav2, cv1, cv2);
   }
   p = is2dos(n, m);
   is2dos_save(p, n, m);

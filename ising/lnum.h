@@ -203,8 +203,11 @@ __inline static void lpoly_imulnum(lpoly_t *p, double s)
   }
 }
 
+/* p += q */
+#define lpoly_iadd(p, q, t) lpoly_copy(p, lpoly_add(t, p, q))
+
 /* r = p + q */
-__inline static void lpoly_add(lpoly_t *r, lpoly_t *p, lpoly_t *q)
+__inline static lpoly_t *lpoly_add(lpoly_t *r, lpoly_t *p, lpoly_t *q)
 {
   int i, n = p->n, m = q->n, nmax = ( n > m ) ? n : m;
 
@@ -220,10 +223,13 @@ __inline static void lpoly_add(lpoly_t *r, lpoly_t *p, lpoly_t *q)
       lnum_copy(r->a + i, p->a + i);
     }
   }
+  return r;
 }
 
+#define lpoly_sub(r, p, q) lpoly_sadd(r, p, q, -1)
+
 /* r = p + s * q */
-__inline static void lpoly_sadd(lpoly_t *r, lpoly_t *p, lpoly_t *q, double s)
+__inline static lpoly_t *lpoly_sadd(lpoly_t *r, lpoly_t *p, lpoly_t *q, double s)
 {
   int i, n = p->n, m = q->n, nmax = ( n > m ) ? n : m;
   lnum_t ls[1], t[1];
@@ -242,7 +248,11 @@ __inline static void lpoly_sadd(lpoly_t *r, lpoly_t *p, lpoly_t *q, double s)
       lnum_copy(r->a + i, p->a + i);
     }
   }
+  return r;
 }
+
+/* y *= x */
+#define lpoly_imul(y, x, t) lpoly_copy(y, lpoly_mul(t, y, x))
 
 /* z = x * y */
 __inline static lpoly_t *lpoly_mul(lpoly_t *z, const lpoly_t *x, const lpoly_t *y)
@@ -259,14 +269,6 @@ __inline static lpoly_t *lpoly_mul(lpoly_t *z, const lpoly_t *x, const lpoly_t *
     }
   }
   return z;
-}
-
-/* y *= x */
-__inline static lpoly_t *lpoly_imul(lpoly_t *y, const lpoly_t *x, lpoly_t *t)
-{
-  lpoly_mul(t, y, x);
-  lpoly_copy(y, t);
-  return y;
 }
 
 /* y = x^n */

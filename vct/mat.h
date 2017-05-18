@@ -654,7 +654,9 @@ __inline static double *meigval(double v[3], double a[3][3])
     } else {
       /* Cardano's formula */
       del = sqrt(q*q - p*p*p);
-      v[0] = v[1] = v[2] = m + pow(q + del, 1./3) + pow(q - del, 1./3);
+      v[2] = m + pow(q + del, 1./3);
+      v[2] += pow(q - del, 1./3);
+      v[0] = v[1] = v[2];
     }
   } else {
     p = -p;
