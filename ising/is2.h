@@ -649,139 +649,138 @@ __inline static double is2_exact(int n, int m, double beta, double *eav, double 
   return d.ln + sh.ln*n*m*0.5 - ln2;
 }
 
+/* exact density of states */
 __inline static double *is2dos(int n, int m)
 {
-  lpoly_t *beta, *bm, *p1, *p2, *p3, *ak, *x1p, *x1m;
-  lpoly_t *csqr, *ssqr, **abpow, **akpow, *Z1, *Z2, *Z3, *Z4;
-  lnum_t mfac[1], pow2m[1], tmp[1];
-  double *lndos, x, lnimax;
-  int i, j, k = 1;
+  lpoly_t *a, *b, *c, *s, *bm, *u, *v, *w, *xp, *xm;
+  lpoly_t **p, **q, *Z1, *Z2, *Z3, *Z4;
+  lnum_t tmp;
+  double *lndos, lnmfac, lnimax;
+  int i, k;
 
-  beta = lpoly_open();
+  a = lpoly_open();
+  b = lpoly_open();
+  c = lpoly_open();
+  s = lpoly_open();
+  u = lpoly_open();
+  v = lpoly_open();
+  w = lpoly_open();
   bm = lpoly_open();
-  ak = lpoly_open();
-  p1 = lpoly_open();
-  p2 = lpoly_open();
-  p3 = lpoly_open();
-  x1p = lpoly_open();
-  x1m = lpoly_open();
+  xp = lpoly_open();
+  xm = lpoly_open();
   Z1 = lpoly_open();
   Z2 = lpoly_open();
   Z3 = lpoly_open();
   Z4 = lpoly_open();
-  csqr = lpoly_open();
-  ssqr = lpoly_open();
-  abpow = calloc(m + 1, sizeof(*abpow));
-  akpow = calloc(m + 1, sizeof(*akpow));
+  p = calloc(m + 1, sizeof(*p));
+  q = calloc(m + 1, sizeof(*q));
   for ( i = 0; i <= m; i++ ) {
-    abpow[i] = lpoly_open();
-    akpow[i] = lpoly_open();
+    p[i] = lpoly_open();
+    q[i] = lpoly_open();
   }
-  lpoly_set(beta, 4, 0.0, 2.0, 0.0, -2.0); /* 2x(1-x^2) */
-  lpoly_pow(p1, beta, m, p2); /* beta^m */
-  lnum_set(pow2m, 1.0);
-  pow2m->ln = (m - 1)*log(0.5); /* 0.5^(m-1) */
-  lpoly_mullnum(bm, p1, pow2m);
+  lpoly_set(b, 4, 0.0, 2.0, 0.0, -2.0); /* beta = 2x(1-x^2) */
+  lpoly_pow(u, b, m, v); /* beta^m */
+  lnum_setln(&tmp, (m - 1)*log(0.5)); /* tmp = 0.5^(m-1) */
+  lpoly_mullnum(bm, u, &tmp); /* bm = 0.5^(m-1) beta^m */
 
-  lnum_set(mfac, 1.0);
-  for ( i = 2; i <= m; i++ )
-    mfac->ln += log(i * 0.5);
+  for ( lnmfac = 0, i = 2; i <= m; i++ )
+    lnmfac += log(i * 0.5); /* lnmfac = ln(m!/2^(m-1)) */
 
-  lpoly_set(p1, 2, 1.0, 1.0); /* p1 = 1 + x */
-  lpoly_pow(x1p, p1, m, p2); /* x1p = (1+x)^m */
-  lpoly_set(p1, 2, 1.0, -1.0); /* p1 = 1 - x */
-  lpoly_pow(x1m, p1, m, p2); /* x1m = (1-x)^m */
-  lpoly_resize(p1, m + 1);
-  lnum_set(p1->a + m, 1); /* p1 = x^m */
-  lpoly_mul(p2, p1, x1p); /* p2 = x^m (1 + x)^m */
-  lpoly_mul(p3, p1, x1m); /* p3 = x^m (1 - x)^m */
-  lpoly_add(Z3, x1m, p2); /* Z3 = c0 = (1-x)^m + x^m (1+x)^m */
-  lpoly_sub(Z4, x1m, p2); /* Z4 = s0 = (1-x)^m - x^m (1+x)^m */
-  lpoly_add(Z1, x1p, p3); /* Z1 = cn = (1+x)^m + x^m (1-x)^m */
-  lpoly_sub(Z2, x1p, p3); /* Z2 = sn = (1+x)^m - x^m (1-x)^m */
+  lpoly_set(u, 2, 1.0, 1.0); /* u = 1 + x */
+  lpoly_pow(xp, u, m, v); /* xp = (1 + x)^m */
+  lpoly_set(u, 2, 1.0, -1.0); /* u = 1 - x */
+  lpoly_pow(xm, u, m, v); /* xm = (1 - x)^m */
+  lpoly_resize(u, m + 1);
+  lnum_set(u->a + m, 1); /* u = x^m */
+  lpoly_mul(v, u, xp); /* v = x^m (1 + x)^m */
+  lpoly_mul(w, u, xm); /* w = x^m (1 - x)^m */
+  lpoly_add(Z3, xm, v); /* Z3 = c0 = (1 - x)^m + x^m (1 + x)^m */
+  lpoly_sub(Z4, xm, v); /* Z4 = s0 = (1 - x)^m - x^m (1 + x)^m */
+  lpoly_add(Z1, xp, w); /* Z1 = cn = (1 + x)^m + x^m (1 - x)^m */
+  lpoly_sub(Z2, xp, w); /* Z2 = sn = (1 + x)^m - x^m (1 - x)^m */
 
   if ( n % 2 == 0 ) { /* n is even */
-    lpoly_imul(Z3, Z1, p1);
-    lpoly_imul(Z4, Z2, p1);
+    lpoly_imul(Z3, Z1, u);
+    lpoly_imul(Z4, Z2, u);
     lpoly_set(Z1, 1, 1.0);
     lpoly_set(Z2, 1, 1.0);
   }
 
   for ( k = 1; k < n; k++ ) {
-    lnum_set(tmp, -cos(M_PI*k/n));
-    lpoly_mullnum(p1, beta, tmp); /* p1 = beta*cos(pi*k/n) */
-    lpoly_set(p2, 5, 1.0, 0.0, 2.0, 0.0, 1.0); /* p2 = (1+x^2)^2 */
-    lpoly_add(ak, p2, p1); /* ak = (1+x^2)^2 - beta*cos(pi*k/n) */
+    lnum_set(&tmp, -cos(M_PI*k/n));
+    lpoly_mullnum(u, b, &tmp); /* u = beta*cos(pi*k/n) */
+    lpoly_set(v, 5, 1.0, 0.0, 2.0, 0.0, 1.0); /* v = (1+x^2)^2 */
+    lpoly_add(a, v, u); /* ak = (1+x^2)^2 - beta*cos(pi*k/n) */
 
-    /* abpow[j] = (ak^2 - beta^2)^j/(2j)! */
-    lpoly_pow(p1, ak, 2, p3);
-    lpoly_pow(p2, beta, 2, p3);
-    lpoly_sub(p3, p1, p2); /* p3 = ak^2 - beta^2 */
-    lpoly_set(abpow[0], 1, 1.0);
-    for ( j = 1; j <= m/2; j++ ) {
-      lpoly_mul(abpow[j], abpow[j-1], p3);
-      lpoly_imulnum(abpow[j], 1.0/(2.*j*(2*j-1)));
+    /* p[i] = (ak^2 - beta^2)^i/(2i)! */
+    lpoly_pow(u, a, 2, w);
+    lpoly_pow(v, b, 2, w);
+    lpoly_sub(w, u, v); /* w = ak^2 - beta^2 */
+    lpoly_set(p[0], 1, 1.0);
+    for ( i = 1; i <= m/2; i++ ) {
+      lpoly_mul(p[i], p[i-1], w);
+      lpoly_imulnum(p[i], 1.0/(2.*i*(2*i-1)));
     }
-    /* akpow[j] = ak^(m-2j)m!/(m-2j)!/2^(m-1) */
-    lpoly_set(akpow[0], 1, 1.0);
-    lnum_copy(akpow[0]->a, mfac);
-    for ( j = 1; j <= m; j++ ) {
-      lpoly_mul(akpow[j], akpow[j-1], ak);
-      lpoly_imulnum(akpow[j], 1./j);
+    /* q[i] = ak^i m!/i!/2^(m-1) */
+    lpoly_set(q[0], 1, 1.0);
+    lnum_setln(&q[0]->a[0], lnmfac);
+    for ( i = 1; i <= m; i++ ) {
+      lpoly_mul(q[i], q[i-1], a);
+      lpoly_imulnum(q[i], 1./i);
     }
 
-    /* ck^2 = bm + Sum_{j=0 to m/2} abpow[j]*akpow[m-2j] */
-    lpoly_copy(csqr, bm);
-    for ( j = 0; j <= m/2; j++ ) {
-      lpoly_mul(p1, abpow[j], akpow[m-2*j]);
-      lpoly_iadd(csqr, p1, p2); /* csqr += p1 */
+    /* ck^2 = bm + Sum_{i=0 to m/2} p[i]*q[m-2i] */
+    lpoly_copy(c, bm);
+    for ( i = 0; i <= m/2; i++ ) {
+      lpoly_mul(u, p[i], q[m-2*i]);
+      lpoly_iadd(c, u, v); /* c += u */
     }
     /* sk^2 = ck^2 - 2*(beta^m/2^(m-1)) */
-    lpoly_sadd(ssqr, csqr, bm, -2.0);
+    lpoly_sadd(s, c, bm, -2.0);
     if ( k % 2 ) {
-      lpoly_imul(Z1, csqr, p1);
-      lpoly_imul(Z2, ssqr, p1);
+      lpoly_imul(Z1, c, u);
+      lpoly_imul(Z2, s, u);
     } else {
-      lpoly_imul(Z3, csqr, p1);
-      lpoly_imul(Z4, ssqr, p1);
+      lpoly_imul(Z3, c, u);
+      lpoly_imul(Z4, s, u);
     }
   }
-  lpoly_iadd(Z1, Z2, p1);
-  lpoly_iadd(Z1, Z3, p1);
-  lpoly_iadd(Z1, Z4, p1);
+  lpoly_iadd(Z1, Z2, u);
+  lpoly_iadd(Z1, Z3, u);
+  lpoly_iadd(Z1, Z4, u);
   lpoly_imulnum(Z1, 0.5);
 
   /* export to a 1D array */
   lnimax = log((double) ULONG_MAX);
   lndos = calloc(n*m + 1, sizeof(*lndos));
-  for ( i = 0; i <= n*m; i++ ) {
-    x = Z1->a[i*2].ln;
-    if ( x < 0 ) x = ln0;
-    else if ( x < lnimax ) /* round to nearest integer */
-      x = log((double)((unsigned long) (exp(x)+.5)));
-    lndos[i] = x;
+  for ( i = 0; i < Z1->n; i+= 2 ) {
+    double y = Z1->a[i].ln;
+    if ( y < 0 ) y = ln0;
+    else if ( y < lnimax ) /* round to nearest integer */
+      y = log((double)((unsigned long) (exp(y)+.5)));
+    lndos[i/2] = y;
   }
 
-  lpoly_close(beta);
+  lpoly_close(a);
+  lpoly_close(b);
+  lpoly_close(c);
+  lpoly_close(s);
+  lpoly_close(u);
+  lpoly_close(v);
+  lpoly_close(w);
   lpoly_close(bm);
-  lpoly_close(p1);
-  lpoly_close(p2);
-  lpoly_close(p3);
-  lpoly_close(ak);
-  lpoly_close(x1p);
-  lpoly_close(x1m);
+  lpoly_close(xp);
+  lpoly_close(xm);
   lpoly_close(Z1);
   lpoly_close(Z2);
   lpoly_close(Z3);
   lpoly_close(Z4);
-  lpoly_close(csqr);
-  lpoly_close(ssqr);
   for ( i = 0; i <= m; i++ ) {
-    lpoly_close(abpow[i]);
-    lpoly_close(akpow[i]);
+    lpoly_close(p[i]);
+    lpoly_close(q[i]);
   }
-  free(abpow);
-  free(akpow);
+  free(p);
+  free(q);
   return lndos;
 }
 

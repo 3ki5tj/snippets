@@ -6,6 +6,7 @@
 #include <time.h>
 
 
+/* compare two strings ignoring cases */
 __inline static int strcmpnc(const char *s, const char *t)
 {
   int i, cs, ct;
@@ -40,7 +41,7 @@ __inline static int strcmpfuzzy(const char *s, const char *t)
 }
 
 
-enum { OPT_ARGUMENT, OPT_OPTION, OPT_CFG, OPT_COUNT };
+enum { OPT_ARG, OPT_OPT, OPT_CFG, OPT_COUNT };
 
 
 
@@ -50,7 +51,6 @@ typedef struct {
   char ch; /* single letter option flag */
   const char *sflag; /* long string flag */
   const char *key; /* key, for cfg files as in `key = val' */
-
   const char *val; /* raw string from command line */
   const char *desc; /* description */
   const char *fmt; /* sscanf format */
@@ -145,10 +145,10 @@ __inline static void opt_set(opt_t *o, const char *sflag, const char *key,
   if ( key != NULL ) { /* cfg file `key = val', not a command-line argument */
     o->isopt = OPT_CFG;
   } else if ( sflag != NULL ) { /* option */
-    o->isopt = OPT_OPTION;
+    o->isopt = OPT_OPT;
     o->ch = (char) ( sflag[2] ? '\0' : sflag[1] ); /* no ch for a long flag */
   } else { /* argument */
-    o->isopt = OPT_ARGUMENT;
+    o->isopt = OPT_ARG;
   }
   o->sflag = sflag;
   o->key = key;
@@ -321,7 +321,7 @@ __inline static void argopt_help(argopt_t *ao)
   for (i = 0; i < ao->nopt; i++) {
     const char *bra = "", *ket = "";
     o = ao->opts + i;
-    if (o->isopt != OPT_ARGUMENT) continue;
+    if (o->isopt != OPT_ARG) continue;
     if (o->flags & OPT_MUST) {
       if (strchr(o->desc, ' '))
         bra = "[", ket = "]";
@@ -334,13 +334,13 @@ __inline static void argopt_help(argopt_t *ao)
   fprintf(stderr, "OPTIONS:\n") ;
   /* compute the width of the longest option */
   for (maxlen = 0, i = 0; i < ao->nopt; i++) {
-    if (ao->opts[i].isopt == OPT_ARGUMENT) continue;
+    if (ao->opts[i].isopt == OPT_ARG) continue;
     len = strlen(ao->opts[i].sflag);
     if (len > maxlen) maxlen = len;
   }
   for (i = 0; i < ao->nopt; i++) {
     o = ao->opts + i;
-    if (o->isopt == OPT_ARGUMENT) continue;
+    if (o->isopt == OPT_ARG) continue;
     desc = o->desc;
     if (strcmp(desc, "$HELP") == 0)
       desc = sysopt[0];
