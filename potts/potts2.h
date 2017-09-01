@@ -80,7 +80,7 @@ __inline static void potts2_setuproba(double bet, unsigned *p)
 
 
 /* pick a random site, count neighbors with different spins */
-__inline static int potts2_pick(const potts2_t *pt, int *h, int *sn)
+__inline static int potts2_pick(const potts2_t *pt, int *sn, int *h)
 {
   int ix, ixp, ixm, iy, iyp, iym, id, s, so;
   int l = pt->l, n = pt->n;
@@ -104,8 +104,8 @@ __inline static int potts2_pick(const potts2_t *pt, int *h, int *sn)
 
 
 
-/* flip site id, with (-h) pt the energy before the flip */
-__inline static int potts2_flip(potts2_t *pt, int id, int h, int sn)
+/* flip site id, with h being the energy change */
+__inline static int potts2_flip(potts2_t *pt, int id, int sn, int h)
 {
   pt->s[id] = sn;
   return pt->E += h;
@@ -119,7 +119,7 @@ __inline static int potts2_flip(potts2_t *pt, int id, int h, int sn)
 #define POTTS2_L   (1 << POTTS2_LB)
 #define POTTS2_N   (POTTS2_L * POTTS2_L)
 
-#define POTTS2_GETH(pt, id, h, sn) { \
+#define POTTS2_GETH(pt, id, sn, h) { \
   unsigned ix, ixp, ixm, iy, iyp, iym; \
   int s, so; \
   ix = id % POTTS2_L; \
@@ -136,18 +136,18 @@ __inline static int potts2_flip(potts2_t *pt, int id, int h, int sn)
   h += ((s = pt->s[iym +  ix]) == so); h -= (s == sn); }
 #define POTTS2_IRND(pt, id)  id = mtrand() >> (32 - 2*POTTS2_LB);
 /* random picking */
-#define POTTS2_PICK(pt, id, h, sn) { POTTS2_IRND(pt, id); POTTS2_GETH(pt, id, h, sn); }
+#define POTTS2_PICK(pt, id, sn, h) { POTTS2_IRND(pt, id); POTTS2_GETH(pt, id, sn, h); }
 #define POTTS2_ISEQ(pt, id)  id = (id + 1) % POTTS2_N;
 /* sequential picking */
-#define POTTS2_PSEQ(pt, id, h, sn) { POTTS2_ISEQ(pt, id); POTTS2_GETH(pt, id, h, sn); }
+#define POTTS2_PSEQ(pt, id, sn, h) { POTTS2_ISEQ(pt, id); POTTS2_GETH(pt, id, sn, h); }
 
-#define POTTS2_FLIP(pt, id, h, sn) { \
-  pt->E += h; pt->s[id] = sn; }
+#define POTTS2_FLIP(pt, id, sn, h) { \
+  pt->s[id] = sn; pt->E += h; }
 
 #else
 
-#define POTTS2_PICK(pt, id, h, sn)  id = potts2_pick(pt, &h, &sn)
-#define POTTS2_FLIP(pt, id, h, sn)  potts2_flip(pt, id, h, sn)
+#define POTTS2_PICK(pt, id, sn, h)  id = potts2_pick(pt, &sn, &h)
+#define POTTS2_FLIP(pt, id, sn, h)  potts2_flip(pt, id, sn, h)
 
 #endif
 
@@ -193,7 +193,8 @@ __inline static int potts2_addtoqueue(potts2_t *pt, int j,
 
 
 
-/* Wolff algorithm */
+/* Wolff algorithm
+ * padd should be precomputed as 1 - exp(-beta) */
 __inline static int potts2_wolff(potts2_t *pt, double padd)
 {
   int l = pt->l, n = pt->n, i, ix, iy, id, so, sn, cnt = 0, h = 0;
@@ -201,7 +202,7 @@ __inline static int potts2_wolff(potts2_t *pt, double padd)
   /* randomly selected a seed */
   id = (int) ( rand01() * n );
   so = pt->s[id];
-  sn = (so + 1 + (int) (rand01() * pt->q)) % pt->q;
+  sn = (so + 1 + (int) (rand01() * (pt->q - 1))) % pt->q;
   pt->queue[ cnt++ ] = id;
   for ( i = 0; i < n; i++ )
     pt->used[i] = 0;

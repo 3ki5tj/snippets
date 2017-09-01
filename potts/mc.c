@@ -21,11 +21,11 @@ static void run(potts2_t *pt, double tp, int method, long nsteps)
   }
   for ( t = 0; t < nsteps; t++ ) {
     if ( method == 0 ) { /* Metropolis algorithm */
-      //id = potts2_pick(pt, &h, &sn);
-      POTTS2_PICK(pt, id, h, sn);
+      //id = potts2_pick(pt, &sn, &h);
+      POTTS2_PICK(pt, id, sn, h);
       if ( h <= 0 || mtrand() <= pt->uproba[h] ) {
-        //potts2_flip(pt, id, h, sn);
-        POTTS2_FLIP(pt, id, h, sn);
+        //potts2_flip(pt, id, sn, h);
+        POTTS2_FLIP(pt, id, sn, h);
       }
       //printf("%d %d %d %d\n", id, h, sn, pt->E);
       //printf("%d\n", potts2_energy(pt));
@@ -37,8 +37,8 @@ static void run(potts2_t *pt, double tp, int method, long nsteps)
   }
   h = pt->E;
   aveE = av_getave(avE, &varE);
-  printf("E: average %g; final %d vs %d; Cv %g, stdE %g\n",
-      aveE, h, potts2_energy(pt), varE*(beta*beta), sqrt(varE));
+  printf("E: average %g (E/N %g); final %d vs %d; Cv %g, stdE %g\n",
+      aveE, aveE/pt->n, h, potts2_energy(pt), varE*(beta*beta), sqrt(varE));
 }
 
 

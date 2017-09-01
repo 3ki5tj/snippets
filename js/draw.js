@@ -156,9 +156,9 @@ function transpColor(color, transp)
 
 
 
-function randHueColor(cmin, cmax)
+function getHueColor(x, cmin, cmax)
 {
-  var x = Math.random() * 6;
+  x *= 6;
   var i = Math.floor( x ), r = 0, g = 0, b = 0;
 
   if ( cmin === undefined || cmin === null ) {
@@ -168,27 +168,35 @@ function randHueColor(cmin, cmax)
     cmax = 255;
   }
   var cvar = cmax - cmin + 1;
+  var near1 = 1 - 1e-10;
   x -= i;
   if ( i < 1 ) { // red to yellow
     r = cmax;
     g = cmin + Math.floor( cvar * x );
   } else if ( i < 2 ) { // yellow to green
-    r = cmin + Math.floor( cvar * (1 - x) );
+    r = cmin + Math.floor( cvar * (near1 - x) );
     g = cmax;
   } else if ( i < 3 ) { // green to cyan
     g = cmax;
     b = cmin + Math.floor( cvar * x );
   } else if ( i < 4 ) { // cyan to blue
-    g = cmin + Math.floor( cvar * (1 - x) );
+    g = cmin + Math.floor( cvar * (near1 - x) );
     b = cmax;
   } else if ( i < 5 ) { // blue to magenta
     b = cmax;
     r = cmin + Math.floor( cvar * x );
   } else {
-    b = cmin + Math.floor( cvar * (1 - x) );
+    b = cmin + Math.floor( cvar * (near1 - x) );
     r = cmax;
   }
   return rgb2str(r, g, b);
+}
+
+
+
+function randHueColor(cmin, cmax)
+{
+  return getHueColor(Math.random(), cmin, cmax);
 }
 
 
