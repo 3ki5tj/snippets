@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-import re, os, sys
+import re, os, sys, codecs
+from latexify import latexify
 
 fninp = "polygly_solv.tex"
 fnlib = "latex_ref_lib.bib"
@@ -10,8 +11,9 @@ class Ref:
         self.index = int(index)
         self.author = author.strip()
         s = self.author.replace(" and ", ", ")
-        s = re.sub(r"\\[':][a-zA-Z]", ", ", s) # remove LaTeX accent letters, TODO: to improve
-        s = re.sub("[^a-zA-Z]", ", ", s)
+        # replace LaTeX accent letters, such as \'e, \v{a}, and \"{\i} by a space, TODO
+        s = re.sub(r"\\['`\"~\^uv](\\?[a-zA-Z]|\{\\?[a-zA-Z]\})", ", ", s)
+        #s = re.sub("[^a-zA-Z, ]", ", ", s) # replace non-letter words to space
         arr = s.replace("and ", "").replace(".", ", ").split(", ")
         self.author_tokens = []
         for tok in arr:
@@ -43,7 +45,8 @@ def getref(fn):
 
     refstate = 0
     ls = []
-    txt = open(fn).readlines()
+    #txt = open(fn).readlines()
+    txt = codecs.open(fn, encoding="utf-8").readlines()
     refstart = refend = len(txt)
     for i in range(len(txt)):
         s = txt[i]
@@ -53,7 +56,7 @@ def getref(fn):
                 refstart = i
             continue
         else:
-            ln = s.strip()
+            ln = latexify( s.strip() )
             if ln == "": continue
             m = re.match("([0-9]+)\. .*\.", ln) # a loose pattern
             if not m: # reference ended
@@ -78,7 +81,7 @@ def getref(fn):
 
 
 def getlib(fnlib):
-    ''' load the bibtex file '''
+    ''' load the .bib file, assuming it has been latexified  '''
     txt = open(fnlib).readlines()
     n = len(txt)
     i = 0
@@ -193,7 +196,8 @@ def replacecite(fninp, ref, refstart, refend, fnlib):
         ref_tag = []
         for item in newarr:
             r = findref(ref, item)
-            ref_tag += [r.lib.tag]
+            if r.lib:
+                ref_tag += [r.lib.tag]
         ref_tag = ", ".join(ref_tag)
         #print arr, "-->", newarr, "-->", ref_tag
         #raw_input()
@@ -222,7 +226,8 @@ for i in range(len(ref)):
     if ent:
         ref[i].lib = ent
     else:
-        print "Ref. %s is not matched" % ref[i].index
+        ref[i].lib = None
+        print "Ref. %s is not matched: %s" % (ref[i].index, ref[i])
 replacecite(fninp, ref, refstart, refend, fnlib)
 
 

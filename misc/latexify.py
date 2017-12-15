@@ -148,9 +148,9 @@ def latexify(s):
         mc = combine_accents[c]
         while 1:
             p = s.find(c)
-            if p >= 0:
-                print s[p+1]+s[p], "-->", mc + "{" + s[p+1] + "} at position", p
-                s = s[:p] + mc + "{" + s[p+1] + "}" + s[p+2:]
+            if p >= 1:
+                print s[p-1]+s[p], "-->", mc + "{" + s[p-1] + "} at position", p
+                s = s[:p-1] + mc + "{" + s[p-1] + "}" + s[p+1:]
             else:
                 break
 
@@ -160,15 +160,12 @@ def latexify(s):
 
     for c in misc_repl:
         s = s.replace(c, misc_repl[c])
+
+    # remove double braces {{xxx}} --> {xxx}
+    s = re.sub(r"\{\{([^\{\}]*?)\}\}", r"{\1}", s)
+
     return s
 
-    ## use the following loop to detect strange strings
-    # unknown = []
-    #for c in s:
-    #    if ord(c) >= 128 and c not in chmap:
-    #        if c not in unknown:
-    #            unknown += [c,]
-    #            print "%d: [%s] in [%04x]" % (len(unknown), c, ord(c))
 
 
 def rmlanguage(s):
@@ -177,13 +174,14 @@ def rmlanguage(s):
     return s
     
 
-fninp = "ref_lib.bib"
-if len(sys.argv) > 1:
-    fninp = sys.argv[1]
-fnout = "latex_" + fninp
+if __name__ == "__main__":
+    fninp = "ref_lib.bib"
+    if len(sys.argv) > 1:
+        fninp = sys.argv[1]
+    fnout = "latex_" + fninp
 
-s = codecs.open(fninp, encoding="utf-8").read()
-s = latexify(s)
-s = rmlanguage(s)
-codecs.open(fnout, mode="w", encoding="utf-8").write(s)
-print "save file to %s" % fnout
+    s = codecs.open(fninp, encoding="utf-8").read()
+    s = latexify(s)
+    s = rmlanguage(s)
+    codecs.open(fnout, mode="w", encoding="utf-8").write(s)
+    print "save file to %s" % fnout
