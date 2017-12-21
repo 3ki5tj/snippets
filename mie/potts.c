@@ -1,21 +1,41 @@
 #include "potts.h"
-#include <time.h>
+#include "argopt.h"
 
 int q = 6;
 int n = 15;
 double tp = 1.0; // 1.0e40;
 int nsys = 100;
 long nsteps = 1000000000L;
-int nsttraj = 50;
-int nstrep = 20000;
+long nsttraj = 50;
+long nstrep = 20000;
 
-int main(void)
+static void doargs(int argc, char **argv)
+{
+  argopt_t *ao;
+
+  ao = argopt_open(0);
+  ao->desc = "Mutual information expansion for 1D Potts model";
+  argopt_add(ao, "-q", "%d", &q, "number of states in each spin");
+  argopt_add(ao, "-n", "%d", &n, "number of spins");
+  argopt_add(ao, "-T", "%lf", &tp, "temperature");
+  argopt_add(ao, "-M", "%d", &nsys, "number of copies");
+  argopt_add(ao, "-t", "%ld", &nsteps, "number of steps");
+  argopt_add(ao, "-j", "%ld", &nsttraj, "number of steps to deposit state");
+  argopt_add(ao, "-r", "%ld", &nstrep, "number of steps to report");
+  argopt_addhelp(ao, "-h");
+  argopt_parse(ao, argc, argv);
+  argopt_dump(ao);
+  argopt_close(ao);
+}
+
+int main(int argc, char **argv)
 {
   potts_t **p;
   int i;
   long t, t1;
   double ent1, ent2, a1, a2;
 
+  doargs(argc, argv);
   mtscramble(clock());
   xnew(p, nsys);
   for ( i = 0; i < nsys; i++ ) {

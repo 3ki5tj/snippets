@@ -14,5 +14,5 @@ clean:
 	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~ *.dat *.pos vgcore.*
 	rstrip.py -Rlv
 
-Dropbox: clean
-	rsync -avzL --exclude="*~" * ~/Dropbox/code/ising/
+zip:
+	zip mie.zip *.c *.h Makefile

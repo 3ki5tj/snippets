@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "util.h"
 
 
 /* compare two strings ignoring cases */
@@ -23,22 +24,6 @@ __inline static int strcmpnc(const char *s, const char *t)
   return cs - ct;
 }
 
-/* comparison, ignoring cases, spaces and punctuations */
-__inline static int strcmpfuzzy(const char *s, const char *t)
-{
-  int is, it, i;
-  const char cset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789()[]{}";
-
-  for ( i = 0; ; s++, t++, i++ ) {
-    while ( *s != '\0' && strchr(cset, *s) == NULL ) s++;
-    while ( *t != '\0' && strchr(cset, *t) == NULL ) t++;
-    is = tolower( (unsigned char) (*s) );
-    it = tolower( (unsigned char) (*t) );
-    if ( is != it ) return is - it;
-    if ( *s == '\0' ) return 0;
-  }
-  return 0;
-}
 
 
 enum { OPT_ARG, OPT_OPT, OPT_CFG, OPT_COUNT };
