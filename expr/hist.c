@@ -5,9 +5,9 @@
 #include <math.h>
 #include <time.h>
 
-enum { TYPE_INVALID, NUMBER, OPERATOR, FUNCTION, DATA, VARIABLE };
+enum { NULLTYPE, NUMBER, OPERATOR, FUNCTION, DATA, VARIABLE };
 
-const char *ops = "+-*/^()";
+const char *ops = ",+-*/%^_()";
 
 #define VARNAME_MAX 128
 
@@ -26,8 +26,8 @@ static char *gettoken(token_t *t, char *s)
   char *p;
   int i;
 
-  /* skip leading spaces and comma */
-  while ( *s && (isspace(*s) || *s == ',') ) s++;
+  /* skip leading spaces */
+  while ( *s && isspace(*s) ) s++;
   if ( *s == '\0' ) return NULL;
 
   t->s[0] = '\0';
@@ -38,6 +38,8 @@ static char *gettoken(token_t *t, char *s)
     t->type = OPERATOR;
     t->s[0] = *s;
     t->s[1] = '\0';
+    if ( *s == '*' && s[1] == '*' )
+      t->s[0] = '^'; /* convert "**" to "^" */
     p = s + 1;
   } else if ( isdigit(*s) ) {
     t->type = NUMBER;
@@ -85,20 +87,22 @@ static void copytoken(token_t *a, token_t *b)
   a->col = b->col;
 }
 
+/* return the precedence of the operator */
 static int preced(const char *s)
 {
-  if ( isalpha(*s) ) { /* function */
-    return 1000;
-  } else if ( *s == '^' ) {
-    return 3;
-  } else if ( *s == '*' || *s == '/' ) {
-    return 2;
-  } else if ( *s == '+' || *s == '-' ) {
-    return 1;
-  } else if ( *s == '(' || *s == ')' || *s == ',' ) {
-    return 10;
+  static char prtable[256];
+
+  if ( prtable['+'] == 0 ) { /* initialize the precedence table */
+    prtable['('] = prtable[')'] = 16;
+    prtable['_'] = 15;
+    prtable['^'] = 13;
+    prtable['*'] = prtable['/'] = prtable['%'] = 12;
+    prtable['+'] = prtable['-'] = 11;
+    prtable[','] = 1;
   }
-  return 0;
+
+  /* functions take the highest precedence */
+  return isalpha(*s) ? 1000 : prtable[(int)(*s)];
 }
 
 static int isleftassoc(const char *s)
@@ -115,7 +119,7 @@ static token_t *parse2postfix(char *s)
 {
   token_t *que; /* output queue */
   token_t *ost; /* operator stack */
-  token_t *pos, *top, tok[1];
+  token_t *pos, *top, tok[2];
   char *p;
   int n;
 
@@ -134,10 +138,14 @@ static token_t *parse2postfix(char *s)
   top = ost;
   strcpy(ost[0].s, ""); /* special operator */
 
+  tok[1].type = NULLTYPE; /* for the previous token */
+
   /* where there are tokens to be read, read a token */
   for ( p = s; (p = gettoken(tok, p)) != NULL; ) {
     if ( tok->type == NUMBER || tok->type == DATA || tok->type == VARIABLE ) {
       copytoken(pos++, tok);
+    } else if ( tok->s[0] == ',' ) {
+      /* do nothing for the comma */
     } else if ( tok->s[0] == '(' || tok->type == FUNCTION ) {
       copytoken(++top, tok); /* top = token */
     } else if ( tok->s[0] == ')' ) {
@@ -154,16 +162,27 @@ static token_t *parse2postfix(char *s)
         copytoken(pos++, top--);
       }
     } else if ( tok->type == OPERATOR ) {
-      while ( ( (preced(top->s) > preced(tok->s))
-            || (preced(top->s) == preced(tok->s) && isleftassoc(top->s)) )
-               && top->s[0] != '(' && !isalpha(top->s[0]) ) {
-        /* pop operators from the operator stack onto the output queue */
-        copytoken(pos++, top--); /* pos = top */
-        if ( top <= ost ) break;
+      if ( (tok->s[0] == '+' || tok->s[0] == '-') &&
+           ( tok[1].type == NULLTYPE || tok[1].type == FUNCTION
+          || (tok[1].type == OPERATOR && tok[1].s[0] != ')') ) ) {
+        /* handle a unary operator */
+        if ( tok->s[0] == '-' ) {
+          tok->s[0] = '_'; /* change it to negation */
+          copytoken(++top, tok); /* top = token */
+        } /* skip the unary '+' */
+      } else {
+        while ( ( (preced(top->s) > preced(tok->s))
+              || (preced(top->s) == preced(tok->s) && isleftassoc(top->s)) )
+                 && top->s[0] != '(' && !isalpha(top->s[0]) ) {
+          /* pop operators from the operator stack onto the output queue */
+          copytoken(pos++, top--); /* pos = top */
+          if ( top <= ost ) break;
+        }
+        //printf("pushing tok %s\n", tok->s);
+        copytoken(++top, tok); /* top = token */
       }
-      //printf("pushing tok %s\n", tok->s);
-      copytoken(++top, tok); /* top = token */
     }
+    copytoken(tok+1, tok); /* make a copy */
   }
 
   /* where there are still operator tokens on the stack
@@ -171,13 +190,14 @@ static token_t *parse2postfix(char *s)
   while ( top > ost )
     copytoken(pos++, top--);
 
-  pos->type = TYPE_INVALID;
+  pos->type = NULLTYPE;
   free(ost);
   return que;
 }
 
 static double max(double a, double b) { return (a > b) ? a : b; }
 static double min(double a, double b) { return (a < b) ? a : b; }
+static double iif(double c, double a, double b) { return (c == 0) ? a : b; }
 
 typedef struct {
   char s[VARNAME_MAX];
@@ -214,6 +234,8 @@ static funcmap_t funcmap[] = {
   {"fmod", fmod, 2},
   {"min", min, 2},
   {"max", max, 2},
+  {"if", iif, 3},
+  {"iif", iif, 3},
   {"", NULL, 0}
 };
 
@@ -242,14 +264,14 @@ static double evalpostfix(token_t *que, const double *arr)
   token_t *pos;
 
   /* determine the length of the expression */
-  for ( n = 0; que[n].type != TYPE_INVALID; n++ ) ;
+  for ( n = 0; que[n].type != NULLTYPE; n++ ) ;
   /* allocate the evaluation stack */
   if ((st = calloc(n, sizeof(*st))) == NULL) {
     exit(1);
   }
   top = 0;
 
-  for ( pos = que; pos->type != TYPE_INVALID; pos++ ) {
+  for ( pos = que; pos->type != NULLTYPE; pos++ ) {
     if ( pos->type == NUMBER ) {
       st[top++] = pos->val;
     } else if ( pos->type == DATA ) {
@@ -262,22 +284,23 @@ static double evalpostfix(token_t *que, const double *arr)
         }
       }
     } else if ( pos->type == OPERATOR ) {
-      /* TODO: handle unary `+' and `-' */
-      if ( pos->s[0] == '+' ) {
+      if ( pos->s[0] == '_' ) { /* unary operators */
+        st[top-1] = -st[top-1];
+      } else { /* binary operators */
         --top;
-        st[top-1] += st[top];
-      } else if ( pos->s[0] == '-' ) {
-        --top;
-        st[top-1] -= st[top];
-      } else if ( pos->s[0] == '*' ) {
-        --top;
-        st[top-1] *= st[top];
-      } else if ( pos->s[0] == '/' ) {
-        --top;
-        st[top-1] /= st[top];
-      } else if ( pos->s[0] == '^' ) {
-        --top;
-        st[top-1] = pow(st[top-1], st[top]);
+        if ( pos->s[0] == '+' ) {
+          st[top-1] += st[top];
+        } else if ( pos->s[0] == '-' ) {
+          st[top-1] -= st[top];
+        } else if ( pos->s[0] == '*' ) {
+          st[top-1] *= st[top];
+        } else if ( pos->s[0] == '/' ) {
+          st[top-1] /= st[top];
+        } else if ( pos->s[0] == '%' ) {
+          st[top-1] = fmod(st[top-1], st[top]);
+        } else if ( pos->s[0] == '^' ) {
+          st[top-1] = pow(st[top-1], st[top]);
+        }
       }
     } else if ( pos->type == FUNCTION ) {
       for ( i = 0; funcmap[i].f != NULL; i++ ) {
@@ -306,7 +329,7 @@ static int mkhist(const char *command, const char *fnin)
   double x, w, xmin, xmax, dx, wtot = 0, norm, *hist;
   FILE *fp;
   static double data[1024];
-  char *buf;
+  char *buf = NULL;
   const char *delims = " \t\r\n";
 
   /* get the x value */
@@ -387,11 +410,15 @@ END:
 
 static void genrandfile(const char *fn) {
   FILE *fp;
-  int i;
+  int i, j;
+  double x;
+
   srand(time(NULL));
   if ((fp = fopen(fn, "w")) != NULL) {
     for ( i = 0; i < 10000; i++ ) {
-      fprintf(fp, "%g\n", 6.19*rand()/RAND_MAX);
+      for ( x = 0, j = 0; j < 10; j++ )
+        x += 1.0*rand()/RAND_MAX;
+      fprintf(fp, "%g\n", x*2.19);
     }
     fclose(fp);
   }
@@ -399,7 +426,7 @@ static void genrandfile(const char *fn) {
 
 int main(int argc, char **argv)
 {
-  const char *command = "sin($1)::1.0>>h(100, -1.0, 1.0)";
+  const char *command = "sin(-$1+2)::1.0>>h(100, -1.0, 1.0)";
   const char *fnin = "data.dat";
 
   if ( argc >= 2 ) command = argv[1];

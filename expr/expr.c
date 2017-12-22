@@ -1,4 +1,4 @@
-//#define DEBUG
+#define DEBUG
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,11 +6,11 @@
 #include <ctype.h>
 #include <math.h>
 
-enum { TYPE_INVALID, NUMBER, OPERATOR, FUNCTION, DATA, VARIABLE };
+enum { NULLTYPE, NUMBER, OPERATOR, FUNCTION, DATA, VARIABLE };
 
-const char *ops = "+-*/^()";
+const char *ops = ",+-*/%^_()";
 
-#define VARNAME_MAX 16
+#define VARNAME_MAX 128
 
 typedef struct {
   int type;
@@ -27,8 +27,8 @@ static char *gettoken(token_t *t, char *s)
   char *p;
   int i;
 
-  /* skip leading spaces and comma */
-  while ( *s && (isspace(*s) || *s == ',') ) s++;
+  /* skip leading spaces */
+  while ( *s && isspace(*s) ) s++;
   if ( *s == '\0' ) return NULL;
 
   t->s[0] = '\0';
@@ -39,6 +39,8 @@ static char *gettoken(token_t *t, char *s)
     t->type = OPERATOR;
     t->s[0] = *s;
     t->s[1] = '\0';
+    if ( *s == '*' && s[1] == '*' )
+      t->s[0] = '^'; /* convert "**" to "^" */
     p = s + 1;
   } else if ( isdigit(*s) ) {
     t->type = NUMBER;
@@ -104,18 +106,19 @@ static void copytoken(token_t *a, token_t *b)
 
 static int preced(const char *s)
 {
-  if ( isalpha(*s) ) { /* function */
-    return 1000;
-  } else if ( *s == '^' ) {
-    return 3;
-  } else if ( *s == '*' || *s == '/' ) {
-    return 2;
-  } else if ( *s == '+' || *s == '-' ) {
-    return 1;
-  } else if ( *s == '(' || *s == ')' || *s == ',' ) {
-    return 10;
+  static char prtable[256];
+
+  if ( prtable['+'] == 0 ) { /* initialize the precedence table */
+    prtable['('] = prtable[')'] = 16;
+    prtable['_'] = 15;
+    prtable['^'] = 13;
+    prtable['*'] = prtable['/'] = prtable['%'] = 12;
+    prtable['+'] = prtable['-'] = 11;
+    prtable[','] = 1;
   }
-  return 0;
+
+  /* functions take the highest precedence */
+  return isalpha(*s) ? 1000 : prtable[(int)(*s)];
 }
 
 static int isleftassoc(const char *s)
@@ -134,11 +137,11 @@ __inline static void sy_print(token_t *tok, token_t *que, token_t *pos, token_t 
     printf("Token: %s\n", token2str(s, tok));
   }
   printf("Queue(%ld): ", pos - que);
-  for ( t = que; t <= pos; t++ ) printf("%s ", token2str(s, t));
+  for ( t = que; t < pos; t++ ) printf("%s ", token2str(s, t));
   printf("\nStack(%ld): ", top - ost);
   for ( t = top; t > ost; t-- ) printf("%s ", token2str(s, t));
   printf("\n\n");
-  //getchar();
+  getchar();
 }
 #endif
 
@@ -146,11 +149,11 @@ __inline static void sy_print(token_t *tok, token_t *que, token_t *pos, token_t 
  * Shunting Yard algorithm:
  * https://en.wikipedia.org/wiki/Shunting-yard_algorithm
  * */
-static token_t *shuntingyard(char *s)
+static token_t *parse2postfix(char *s)
 {
   token_t *que; /* output queue */
   token_t *ost; /* operator stack */
-  token_t *pos, *top, tok[1];
+  token_t *pos, *top, tok[2];
   char *p;
   int n;
 
@@ -169,10 +172,14 @@ static token_t *shuntingyard(char *s)
   top = ost;
   strcpy(ost[0].s, ""); /* special operator */
 
+  tok[1].type = NULLTYPE; /* for the previous token */
+
   /* where there are tokens to be read, read a token */
   for ( p = s; (p = gettoken(tok, p)) != NULL; ) {
     if ( tok->type == NUMBER || tok->type == DATA || tok->type == VARIABLE ) {
       copytoken(pos++, tok);
+    } else if ( tok->s[0] == ',' ) {
+      /* do nothing for the comma */
     } else if ( tok->s[0] == '(' || tok->type == FUNCTION ) {
       copytoken(++top, tok); /* top = token */
     } else if ( tok->s[0] == ')' ) {
@@ -189,16 +196,27 @@ static token_t *shuntingyard(char *s)
         copytoken(pos++, top--);
       }
     } else if ( tok->type == OPERATOR ) {
-      while ( ( (preced(top->s) > preced(tok->s))
-            || (preced(top->s) == preced(tok->s) && isleftassoc(top->s)) )
-               && top->s[0] != '(' && !isalpha(top->s[0]) ) {
-        /* pop operators from the operator stack onto the output queue */
-        copytoken(pos++, top--); /* pos = top */
-        if ( top <= ost ) break;
+      if ( (tok->s[0] == '+' || tok->s[0] == '-') &&
+           ( tok[1].type == NULLTYPE || tok[1].type == FUNCTION
+          || (tok[1].type == OPERATOR && tok[1].s[0] != ')') ) ) {
+        /* handle a unary operator */
+        if ( tok->s[0] == '-' ) {
+          tok->s[0] = '_'; /* change it to negation */
+          copytoken(++top, tok); /* top = token */
+        } /* skip the unary '+' */
+      } else {
+        while ( ( (preced(top->s) > preced(tok->s))
+              || (preced(top->s) == preced(tok->s) && isleftassoc(top->s)) )
+                 && top->s[0] != '(' && !isalpha(top->s[0]) ) {
+          /* pop operators from the operator stack onto the output queue */
+          copytoken(pos++, top--); /* pos = top */
+          if ( top <= ost ) break;
+        }
+        //printf("pushing tok %s\n", tok->s);
+        copytoken(++top, tok); /* top = token */
       }
-      //printf("pushing tok %s\n", tok->s);
-      copytoken(++top, tok); /* top = token */
     }
+    copytoken(tok+1, tok); /* make a copy */
 #ifdef DEBUG
     sy_print(tok, que, pos, ost, top);
 #endif
@@ -212,13 +230,14 @@ static token_t *shuntingyard(char *s)
   sy_print(NULL, que, pos, ost, top);
 #endif
 
-  pos->type = TYPE_INVALID;
+  pos->type = NULLTYPE;
   free(ost);
   return que;
 }
 
 static double max(double a, double b) { return (a > b) ? a : b; }
 static double min(double a, double b) { return (a < b) ? a : b; }
+static double iif(double c, double a, double b) { return (c == 0) ? a : b; }
 
 typedef struct {
   char s[VARNAME_MAX];
@@ -255,6 +274,8 @@ static funcmap_t funcmap[] = {
   {"fmod", fmod, 2},
   {"min", min, 2},
   {"max", max, 2},
+  {"if", iif, 3},
+  {"iif", iif, 3},
   {"", NULL, 0}
 };
 
@@ -283,14 +304,14 @@ static double evalpostfix(token_t *que, const double *arr)
   token_t *pos;
 
   /* determine the length of the expression */
-  for ( n = 0; que[n].type != TYPE_INVALID; n++ ) ;
+  for ( n = 0; que[n].type != NULLTYPE; n++ ) ;
   /* allocate the evaluation stack */
   if ((st = calloc(n, sizeof(*st))) == NULL) {
     exit(1);
   }
   top = 0;
 
-  for ( pos = que; pos->type != TYPE_INVALID; pos++ ) {
+  for ( pos = que; pos->type != NULLTYPE; pos++ ) {
     if ( pos->type == NUMBER ) {
       st[top++] = pos->val;
     } else if ( pos->type == DATA ) {
@@ -303,22 +324,23 @@ static double evalpostfix(token_t *que, const double *arr)
         }
       }
     } else if ( pos->type == OPERATOR ) {
-      /* TODO: handle unary `+' and `-' */
-      if ( pos->s[0] == '+' ) {
+      if ( pos->s[0] == '_' ) { /* unary operators */
+        st[top-1] = -st[top-1];
+      } else { /* binary operators */
         --top;
-        st[top-1] += st[top];
-      } else if ( pos->s[0] == '-' ) {
-        --top;
-        st[top-1] -= st[top];
-      } else if ( pos->s[0] == '*' ) {
-        --top;
-        st[top-1] *= st[top];
-      } else if ( pos->s[0] == '/' ) {
-        --top;
-        st[top-1] /= st[top];
-      } else if ( pos->s[0] == '^' ) {
-        --top;
-        st[top-1] = pow(st[top-1], st[top]);
+        if ( pos->s[0] == '+' ) {
+          st[top-1] += st[top];
+        } else if ( pos->s[0] == '-' ) {
+          st[top-1] -= st[top];
+        } else if ( pos->s[0] == '*' ) {
+          st[top-1] *= st[top];
+        } else if ( pos->s[0] == '/' ) {
+          st[top-1] /= st[top];
+        } else if ( pos->s[0] == '%' ) {
+          st[top-1] = fmod(st[top-1], st[top]);
+        } else if ( pos->s[0] == '^' ) {
+          st[top-1] = pow(st[top-1], st[top]);
+        }
       }
     } else if ( pos->type == FUNCTION ) {
       for ( i = 0; funcmap[i].f != NULL; i++ ) {
@@ -351,24 +373,27 @@ static double evalpostfix(token_t *que, const double *arr)
 
 int main(void)
 {
-  char *expr1 = "3 + 4 * 2 / ( 1 - 5 ) ^ 2 ^ 3";
-  char *expr2 = "sin ( max ( 2, 3 + $2 ) / 3 * 3.1415 )";
+  char *expr1 = "-3 + 4 * -2 / ( -1 - 1 ) ^ -2 ^ +2";
+  char *expr2 = "sin ( max ( 2, -$1 + 4 ) / 3 * 3.1415 )";
   token_t *pexpr;
   double data[] = {1.1, 2.2, 3.3}, y;
 
   //test_gettoken(expr2);
-
-  pexpr = shuntingyard(expr1);
+#if 1
+  pexpr = parse2postfix(expr1);
   y = evalpostfix(pexpr, data);
   printf("%s = %g\n", expr1, y);
   free(pexpr);
+#endif
 
+#if 1
   /* construct a postfix expression from the input */
-  pexpr = shuntingyard(expr2);
+  pexpr = parse2postfix(expr2);
   /* evaluate the postfix expression */
   y = evalpostfix(pexpr, data);
   printf("%s = %g\n", expr2, y);
   free(pexpr);
+#endif
 
   return 0;
 }
