@@ -14,7 +14,7 @@ const char *ops = ",+-*/%^_()";
 
 typedef struct {
   int type;
-  char s[VARNAME_MAX]; /* operator/function name */
+  char s[VARNAME_MAX]; /* operator/variable/function name */
   double val;
   int col; /* column of the data */
 } token_t;
@@ -160,21 +160,17 @@ static token_t *parse2postfix(char *s)
   n = strlen(s);
 
   /* initialize the output queue */
-  if ( (que = calloc(n + 1, sizeof(*que))) == NULL ) {
-    exit(1);
-  }
+  if ( (que = calloc(n + 1, sizeof(*que))) == NULL ) exit(-1);
   pos = que;
 
   /* initialize the operator stack */
-  if ( (ost = calloc(n + 1, sizeof(*ost))) == NULL ) {
-    exit(1);
-  }
+  if ( (ost = calloc(n + 1, sizeof(*ost))) == NULL ) exit(-1);
   top = ost;
   strcpy(ost[0].s, ""); /* special operator */
 
   tok[1].type = NULLTYPE; /* for the previous token */
 
-  /* where there are tokens to be read, read a token */
+  /* when there are tokens to be read, read a token */
   for ( p = s; (p = gettoken(tok, p)) != NULL; ) {
     if ( tok->type == NUMBER || tok->type == DATA || tok->type == VARIABLE ) {
       copytoken(pos++, tok);
@@ -183,8 +179,8 @@ static token_t *parse2postfix(char *s)
     } else if ( tok->s[0] == '(' || tok->type == FUNCTION ) {
       copytoken(++top, tok); /* top = token */
     } else if ( tok->s[0] == ')' ) {
-      /* while the operator at the top of the operator stack is not a left bracket
-       * and is not a function */
+      /* while the operator at the top of the operator stack is not a "("
+       * or function */
       while ( top->s[0] != '(' && !isalpha(top->s[0]) ) {
         /* pop operators from the operator stack onto the output queue */
         copytoken(pos++, top--);
@@ -212,7 +208,7 @@ static token_t *parse2postfix(char *s)
           copytoken(pos++, top--); /* pos = top */
           if ( top <= ost ) break;
         }
-        //printf("pushing tok %s\n", tok->s);
+        /* push the read operator onto the operator stack */
         copytoken(++top, tok); /* top = token */
       }
     }
@@ -306,9 +302,7 @@ static double evalpostfix(token_t *que, const double *arr)
   /* determine the length of the expression */
   for ( n = 0; que[n].type != NULLTYPE; n++ ) ;
   /* allocate the evaluation stack */
-  if ((st = calloc(n, sizeof(*st))) == NULL) {
-    exit(1);
-  }
+  if ( (st = calloc(n, sizeof(*st))) == NULL ) exit(-1);
   top = 0;
 
   for ( pos = que; pos->type != NULLTYPE; pos++ ) {
@@ -373,7 +367,7 @@ static double evalpostfix(token_t *que, const double *arr)
 
 int main(void)
 {
-  char *expr1 = "-3 + 4 * -2 / ( -1 - 1 ) ^ -2 ^ +2";
+  char *expr1 = "sin(1.0e-3 * $1) -3 + 4 * -2 / ( -1 - 1 ) ^ -2 ^ +2";
   char *expr2 = "sin ( max ( 2, -$1 + 4 ) / 3 * 3.1415 )";
   token_t *pexpr;
   double data[] = {1.1, 2.2, 3.3}, y;

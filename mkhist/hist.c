@@ -13,7 +13,7 @@ const char *ops = ",+-*/%^_()";
 
 typedef struct {
   int type;
-  char s[VARNAME_MAX]; /* operator/function name */
+  char s[VARNAME_MAX]; /* operator/variable/function name */
   double val;
   int col; /* column of the data */
 } token_t;
@@ -41,7 +41,7 @@ static char *gettoken(token_t *t, char *s)
     if ( *s == '*' && s[1] == '*' )
       t->s[0] = '^'; /* convert "**" to "^" */
     p = s + 1;
-  } else if ( isdigit(*s) ) {
+  } else if ( isdigit(*s) || *s == '.' ) { /* .5 is understood as a number */
     t->type = NUMBER;
     t->val = strtod(s, &p);
   } else if ( isalpha(*s) ) {
@@ -136,17 +136,19 @@ static token_t *parse2postfix(char *s)
 
   tok[1].type = NULLTYPE; /* for the previous token */
 
-  /* where there are tokens to be read, read a token */
+  /* when there are tokens to be read, read a token */
   for ( p = s; (p = gettoken(tok, p)) != NULL; ) {
     if ( tok->type == NUMBER || tok->type == DATA || tok->type == VARIABLE ) {
+      /* if the token is a number, then push it to the output queue */
       copytoken(pos++, tok);
     } else if ( tok->s[0] == ',' ) {
       /* do nothing for the comma */
     } else if ( tok->s[0] == '(' || tok->type == FUNCTION ) {
+      /* push "(" onto the operator stack */
       copytoken(++top, tok); /* top = token */
     } else if ( tok->s[0] == ')' ) {
-      /* while the operator at the top of the operator stack is not a left bracket
-       * and is not a function */
+      /* while the operator at the top of the operator stack is not a "("
+       * or a function */
       while ( top->s[0] != '(' && !isalpha(top->s[0]) ) {
         /* pop operators from the operator stack onto the output queue */
         copytoken(pos++, top--);
@@ -174,7 +176,7 @@ static token_t *parse2postfix(char *s)
           copytoken(pos++, top--); /* pos = top */
           if ( top <= ost ) break;
         }
-        //printf("pushing tok %s\n", tok->s);
+        /* push the read operator onto the operator stack */
         copytoken(++top, tok); /* top = token */
       }
     }
@@ -262,7 +264,7 @@ static double evalpostfix(token_t *que, const double *arr)
   /* determine the length of the expression */
   for ( n = 0; que[n].type != NULLTYPE; n++ ) ;
   /* allocate the evaluation stack */
-  if ((st = calloc(n, sizeof(*st))) == NULL) exit(-1);
+  if ( (st = calloc(n, sizeof(*st))) == NULL ) exit(-1);
   top = 0;
 
   for ( pos = que; pos->type != NULLTYPE; pos++ ) {
@@ -354,6 +356,24 @@ static int getmaxcol(token_t *p)
   return maxcol;
 }
 
+/* display a 1D histogram on the terminal */
+static void showhist(const double *h, double xmin, double dx, int xn)
+{
+  int i0 = 0, i, j;
+  double m = 0;
+  i0 = 0;
+  for ( ; i0 < xn; i0++ ) if ( h[i0] > 0 ) break;
+  for ( ; xn > i0; xn-- ) if ( h[xn-1] > 0 ) break;
+  for ( i = i0; i < xn; i++ ) if ( h[i] > m ) m = h[i];
+  for ( i = i0; i < xn; i++ ) {
+    fprintf(stderr, "%10g: ", xmin + (i+0.5)*dx);
+    for ( j = 0; j < 60*h[i]/m; j++ ) fprintf(stderr, "*");
+    fprintf(stderr, "\n");
+  }
+}
+
+/* generate a histogram from the command and the input file
+ * write the output to stdout */
 static int mkhist(const char *command, const char *fnin)
 {
   token_t *px, *py = NULL, *pz = NULL, *pw;
@@ -438,10 +458,11 @@ static int mkhist(const char *command, const char *fnin)
   }
   p += i;
   dx = (xmax - xmin) / xn;
-  zn = yn = xn;
+  /* set the default parameters for y and z the same as those for x */
+  zn   = yn   = xn;
   zmin = ymin = xmin;
   zmax = ymax = xmax;
-  dz = dy = dx;
+  dz   = dy   = dx;
 
   if ( dim >= 2 ) { /* scan histogram y parameters */
     while ( *p && isspace(*p) ) p++;
@@ -453,10 +474,11 @@ static int mkhist(const char *command, const char *fnin)
       }
       p += i;
       dy = (ymax - ymin) / yn;
-      zn = yn;
+      /* set the default parameters for z the same as those for y */
+      zn   = yn;
       zmin = ymin;
       zmax = ymax;
-      dz = dy;
+      dz   = dy;
       if ( dim >= 3 ) { /* scan histogram z parameters */
         while ( *p && isspace(*p) ) p++;
         if ( *p != ')' ) {
@@ -507,9 +529,8 @@ static int mkhist(const char *command, const char *fnin)
     /* compute the index */
     x = evalpostfix(px, data);
     ix = ( x >= xmin ) ? ( x - xmin ) / dx : -1;
-    i = -1;
+    i = ix;
     if ( ix < xn ) {
-      i = ix;
       if ( dim >= 2 ) {
         i *= yn;
         y = evalpostfix(py, data);
@@ -520,21 +541,14 @@ static int mkhist(const char *command, const char *fnin)
             i *= zn;
             z = evalpostfix(pz, data);
             iz = ( z >= zmin ) ? ( z - zmin ) / dz : -1;
-            if ( iz < zn ) {
-              i += iz;
-            } else {
-              i = -1;
-            }
+            i = ( iz < zn ) ? i + iz : -1;
           }
-        } else {
-          i = -1;
-        }
+        } else { i = -1; }
       }
-    } else {
-      i = -1;
-    }
+    } else { i = -1; }
+
     if ( i >= 0 ) {
-      w = (pw != NULL) ? evalpostfix(pw, data) : 1.0;
+      w = ( pw != NULL ) ? evalpostfix(pw, data) : 1.0;
       //fprintf(stderr, " |  %d %g\n", i, w);
       hist[i] += w;
       wtot += w;
@@ -545,12 +559,10 @@ static int mkhist(const char *command, const char *fnin)
   if ( dim == 1 ) { /* 1D histogram */
     norm = 1.0/(wtot*dx);
     /* truncate the edges */
-    i = 0;
-    for ( ; i < xn; i++ ) if ( hist[i] > 0 ) break;
-    for ( ; xn > i; xn-- ) if ( hist[xn-1] > 0 ) break;
-    for ( ; i < xn; i++ ) {
+    for ( i = 0; i < xn; i++ ) {
       printf("%g %g\n", xmin + (i + 0.5) * dx, hist[i]*norm);
     }
+    showhist(hist, xmin, dx, xn);
   } else if ( dim == 2 ) { /* 2D histogram */
     norm = 1.0/(wtot*dx*dy);
     for ( i = 0, ix = 0; ix < xn; ix++ ) {
@@ -612,8 +624,8 @@ static void genrandfile(const char *fn) {
 
 int main(int argc, char **argv)
 {
-  //const char *command = "sin(-$1+$2)::1.0>>h(100, -1.0, 1.0)";
-  const char *command = "sin(-$1+$2):cos($3)::1.0>>h(100, -1.0, 1.0)";
+  const char *command = "sin(-$1+.05e1*$2)::1.0>>h(100, -1.0, 1.0)";
+  //const char *command = "sin(-$1+$2):cos($3)::1.0>>h(100, -1.0, 1.0)";
   const char *fnin = "data.dat";
 
   if ( argc >= 2 ) {
