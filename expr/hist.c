@@ -126,15 +126,11 @@ static token_t *parse2postfix(char *s)
   n = strlen(s);
 
   /* initialize the output queue */
-  if ( (que = calloc(n + 1, sizeof(*que))) == NULL ) {
-    exit(1);
-  }
+  if ( (que = calloc(n + 1, sizeof(*que))) == NULL ) exit(-1);
   pos = que;
 
   /* initialize the operator stack */
-  if ( (ost = calloc(n + 1, sizeof(*ost))) == NULL ) {
-    exit(1);
-  }
+  if ( (ost = calloc(n + 1, sizeof(*ost))) == NULL ) exit(-1);
   top = ost;
   strcpy(ost[0].s, ""); /* special operator */
 
@@ -266,9 +262,7 @@ static double evalpostfix(token_t *que, const double *arr)
   /* determine the length of the expression */
   for ( n = 0; que[n].type != NULLTYPE; n++ ) ;
   /* allocate the evaluation stack */
-  if ((st = calloc(n, sizeof(*st))) == NULL) {
-    exit(1);
-  }
+  if ((st = calloc(n, sizeof(*st))) == NULL) exit(-1);
   top = 0;
 
   for ( pos = que; pos->type != NULLTYPE; pos++ ) {
@@ -349,14 +343,25 @@ static char *mygetline(char **s, size_t *n, FILE *fp)
   return *s;
 }
 
+/* get the maximal number of required data columns */
+static int getmaxcol(token_t *p)
+{
+  int maxcol = 0;
+
+  for ( ; p->type != NULLTYPE; p++ )
+    if ( p->type == DATA && p->col > maxcol )
+      maxcol = p->col;
+  return maxcol;
+}
+
 static int mkhist(const char *command, const char *fnin)
 {
   token_t *px, *pw;
   char *sx, *sw, *p, *q;
-  int i, n, xn;
+  int i, n, maxcol, xn;
   double x, w, xmin, xmax, dx, wtot = 0, norm, *hist;
   FILE *fp;
-  static double data[1024];
+  double *data;
   size_t bufsz = 0;
   char *buf = NULL;
   const char *delims = " \t\r\n";
@@ -364,33 +369,47 @@ static int mkhist(const char *command, const char *fnin)
   /* get the x value */
   if ( (p = strstr(command, ":")) == NULL ) {
     fprintf(stderr, "no : in [%s]\n", command);
-    exit(-1);
+    return -1;
   }
   n = p - command;
-  if ((sx = calloc(n + 1, 1)) == NULL ) exit(1);
+  if ( (sx = calloc(n + 1, 1)) == NULL ) exit(-1);
   strncpy(sx, command, n + 1);
   sx[n] = '\0';
   px = parse2postfix(sx);
+  maxcol = getmaxcol(px);
 
   /* get the weight */
-  p += 2;
-  q = strstr(p, ">>");
-  n = q - p;
-  if ((sw = calloc(n + 1, 1)) == NULL ) exit(1);
-  strncpy(sw, p, n + 1);
-  sw[n] = '\0';
-  pw = parse2postfix(sw);
+  if ( (q = strstr(p, "::")) != NULL ) {
+    p = q + 2;
+    q = strstr(p, ">>");
+    n = q - p;
+    if ( (sw = calloc(n + 1, 1)) == NULL ) exit(-1);
+    strncpy(sw, p, n + 1);
+    sw[n] = '\0';
+    pw = parse2postfix(sw);
+    if ((i = getmaxcol(pw)) > maxcol) maxcol = i;
+  } else {
+    fprintf(stderr, "no :: for weight in [%s], assuming 1.0\n", command);
+    sw = "1.0";
+    pw = NULL;
+  }
+
+  /* allocate the data array */
+  if ( (data = calloc(maxcol + 1, sizeof(*data))) == NULL ) exit(-1);
 
   /* get histogram parameters */
-  p = q + 2;
-  if (3 != sscanf(q + 2, " h ( %d, %lf, %lf )", &xn, &xmin, &xmax)) {
+  if ( (p = strstr(p, "h(")) == NULL ) {
+    fprintf(stderr, "no histogram function h(...) in [%s]\n", command);
+    return -1;
+  }
+  if (3 != sscanf(p, " h ( %d, %lf, %lf )", &xn, &xmin, &xmax)) {
     fprintf(stderr, "invalid histogram string [%s]\n", p);
     goto END;
   }
 
   fprintf(stderr, "data %s, weight %s, # of bins %d, min %g, max %g\n",
       sx, sw, xn, xmin, xmax);
-  if ((hist = calloc(xn, sizeof(*hist))) == NULL) exit(-1);
+  if ( (hist = calloc(xn, sizeof(*hist))) == NULL) exit(-1);
   for ( i = 0; i < xn; i++ ) hist[i] = 0;
   dx = (xmax - xmin) / xn;
 
@@ -403,13 +422,13 @@ static int mkhist(const char *command, const char *fnin)
   while ( mygetline(&buf, &bufsz, fp) ) {
     if (buf[0] == '#' || buf[0] == '!') continue;
     p = strtok(buf, delims);
-    for ( i = 0; p != NULL; i++ ) {
+    for ( i = 0; i < maxcol && p != NULL; i++ ) {
       data[i] = atof(p);
       p = strtok(NULL, delims);
       //fprintf(stderr, "%g ", data[i]);
     }
     x = evalpostfix(px, data);
-    w = evalpostfix(pw, data);
+    w = (pw != NULL) ? evalpostfix(pw, data) : 1.0;
     //fprintf(stderr, " |  %g %g\n", x, w);
     if ( x >= xmin ) {
       i = ( x - xmin ) / dx;
@@ -421,7 +440,11 @@ static int mkhist(const char *command, const char *fnin)
   }
 
   norm = 1.0/(wtot*dx);
-  for ( i = 0; i < xn; i++ ) {
+  /* truncate the edges */
+  i = 0;
+  for ( ; i < xn; i++ ) if ( hist[i] > 0 ) break;
+  for ( ; xn > i; xn-- ) if ( hist[xn-1] > 0 ) break;
+  for ( ; i < xn; i++ ) {
     printf("%g %g\n", xmin + (i + 0.5) * dx, hist[i]*norm);
   }
 
@@ -451,7 +474,7 @@ static void genrandfile(const char *fn) {
       for ( x = 0, j = 0; j < 10; j++ )
         x += 1.0*rand()/RAND_MAX;
       x /= 10;
-      fprintf(fp, "%g %g %g\n", x*2.19, x*x, x*x*x);
+      fprintf(fp, "%g %g %g\n", x*2.19, x*x*6.19, x*x*x*9.19);
     }
     fclose(fp);
   }
@@ -462,7 +485,10 @@ int main(int argc, char **argv)
   const char *command = "sin(-$1+$2)::1.0>>h(100, -1.0, 1.0)";
   const char *fnin = "data.dat";
 
-  if ( argc >= 2 ) command = argv[1];
+  if ( argc >= 2 ) {
+    command = argv[1];
+  }
+
   if ( argc >= 3 ) {
     fnin = argv[2];
   } else { /* otherwise generate a test data file */
