@@ -321,6 +321,34 @@ static double evalpostfix(token_t *que, const double *arr)
   return ans;
 }
 
+/* read a long line from file */
+static char *mygetline(char **s, size_t *n, FILE *fp)
+{
+  const int bufsz = 1024;
+  char *p;
+  size_t cnt, sz;
+
+  if ( *s == NULL && *n == 0 ) {
+    *n = bufsz;
+    if ( (*s = calloc(*n, sizeof(char))) == NULL ) exit(-1);
+  }
+  p = *s;
+  sz = *n;
+  while ( 1 ) {
+    if ( fgets(p, sz, fp) == NULL ) return NULL;
+    cnt = strlen(*s);
+    if ( (*s)[cnt-1] == '\n' ) {
+      break;
+    } else { /* line too long, expand the buffer */
+      *n += bufsz;
+      if ( (*s = realloc(*s, (*n)*sizeof(char))) == NULL ) exit(-1);
+      p = *s + cnt;
+      sz = bufsz;
+    }
+  }
+  return *s;
+}
+
 static int mkhist(const char *command, const char *fnin)
 {
   token_t *px, *pw;
@@ -329,12 +357,13 @@ static int mkhist(const char *command, const char *fnin)
   double x, w, xmin, xmax, dx, wtot = 0, norm, *hist;
   FILE *fp;
   static double data[1024];
+  size_t bufsz = 0;
   char *buf = NULL;
   const char *delims = " \t\r\n";
 
   /* get the x value */
-  if ( (p = strstr(command, "::")) == NULL ) {
-    fprintf(stderr, "no :: in [%s]\n", command);
+  if ( (p = strstr(command, ":")) == NULL ) {
+    fprintf(stderr, "no : in [%s]\n", command);
     exit(-1);
   }
   n = p - command;
@@ -343,7 +372,7 @@ static int mkhist(const char *command, const char *fnin)
   sx[n] = '\0';
   px = parse2postfix(sx);
 
-  /* get the width */
+  /* get the weight */
   p += 2;
   q = strstr(p, ">>");
   n = q - p;
@@ -370,10 +399,8 @@ static int mkhist(const char *command, const char *fnin)
     goto END;
   }
 
-  /* TODO: handle very long lines */
-  if ((buf = calloc(1024000, 1)) == NULL) exit(-1);
   /* read file line by line */
-  while ( fgets(buf, sizeof buf, fp) ) {
+  while ( mygetline(&buf, &bufsz, fp) ) {
     if (buf[0] == '#' || buf[0] == '!') continue;
     p = strtok(buf, delims);
     for ( i = 0; p != NULL; i++ ) {
@@ -408,17 +435,23 @@ END:
 }
 
 
+/* generate a random test file, if not exists */
 static void genrandfile(const char *fn) {
   FILE *fp;
   int i, j;
   double x;
 
-  srand(time(NULL));
+  if ( (fp = fopen(fn, "r")) != NULL ) {
+    fclose(fp);
+    return;
+  }
+  srand(clock());
   if ((fp = fopen(fn, "w")) != NULL) {
     for ( i = 0; i < 10000; i++ ) {
       for ( x = 0, j = 0; j < 10; j++ )
         x += 1.0*rand()/RAND_MAX;
-      fprintf(fp, "%g\n", x*2.19);
+      x /= 10;
+      fprintf(fp, "%g %g %g\n", x*2.19, x*x, x*x*x);
     }
     fclose(fp);
   }
@@ -426,7 +459,7 @@ static void genrandfile(const char *fn) {
 
 int main(int argc, char **argv)
 {
-  const char *command = "sin(-$1+2)::1.0>>h(100, -1.0, 1.0)";
+  const char *command = "sin(-$1+$2)::1.0>>h(100, -1.0, 1.0)";
   const char *fnin = "data.dat";
 
   if ( argc >= 2 ) command = argv[1];
