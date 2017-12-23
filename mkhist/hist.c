@@ -356,18 +356,22 @@ static int getmaxcol(token_t *p)
 
 static int mkhist(const char *command, const char *fnin)
 {
-  token_t *px, *pw;
-  char *sx, *sw, *p, *q;
-  int i, n, maxcol, xn;
-  double x, w, xmin, xmax, dx, wtot = 0, norm, *hist;
+  token_t *px, *py = NULL, *pz = NULL, *pw;
+  char *sx, *sy = NULL, *sz = NULL, *sw = NULL;
+  const char *p, *q;
+  int dim = 1, i, n, maxcol, ix, iy, iz, xn, yn, zn, hn;
+  double x, xmin, xmax, dx;
+  double y, ymin, ymax, dy;
+  double z, zmin, zmax, dz;
+  double w, wtot = 0, norm, *hist = NULL;
   FILE *fp;
-  double *data;
+  double *data = NULL;
   size_t bufsz = 0;
   char *buf = NULL;
   const char *delims = " \t\r\n";
 
-  /* get the x value */
-  if ( (p = strstr(command, ":")) == NULL ) {
+  /* get the x expression */
+  if ( (p = strpbrk(command, ":>")) == NULL ) {
     fprintf(stderr, "no : in [%s]\n", command);
     return -1;
   }
@@ -377,21 +381,47 @@ static int mkhist(const char *command, const char *fnin)
   sx[n] = '\0';
   px = parse2postfix(sx);
   maxcol = getmaxcol(px);
+  p++;
+
+  /* get the y expression */
+  if ( *p != ':' && (q = strpbrk(p, ":>")) != NULL ) {
+    dim++;
+    n = q - p;
+    if ( (sy = calloc(n + 1, 1)) == NULL ) exit(-1);
+    strncpy(sy, p, n + 1);
+    sy[n] = '\0';
+    py = parse2postfix(sy);
+    if ( (i = getmaxcol(py)) > maxcol ) maxcol = i;
+    p = (*q == ':') ? q + 1 : q;
+
+    /* get the z expression */
+    if ( *p != ':' && (q = strpbrk(p, ":>")) != NULL ) {
+      dim++;
+      n = q - p;
+      if ( (sz = calloc(n + 1, 1)) == NULL ) exit(-1);
+      strncpy(sz, p, n + 1);
+      sz[n] = '\0';
+      pz = parse2postfix(sz);
+      if ( (i = getmaxcol(pz)) > maxcol ) maxcol = i;
+      p = (*q == ':') ? q + 1 : q;
+    }
+  }
 
   /* get the weight */
-  if ( (q = strstr(p, "::")) != NULL ) {
-    p = q + 2;
+  if ( (p = strstr(command, "::")) != NULL ) {
+    p += 2;
     q = strstr(p, ">>");
     n = q - p;
     if ( (sw = calloc(n + 1, 1)) == NULL ) exit(-1);
     strncpy(sw, p, n + 1);
     sw[n] = '\0';
     pw = parse2postfix(sw);
-    if ((i = getmaxcol(pw)) > maxcol) maxcol = i;
+    if ( (i = getmaxcol(pw)) > maxcol ) maxcol = i;
   } else {
-    fprintf(stderr, "no :: for weight in [%s], assuming 1.0\n", command);
-    sw = "1.0";
+    fprintf(stderr, "no :: for weight in [%s|%s], assuming 1.0\n", command, p);
+    sw = NULL;
     pw = NULL;
+    p = command;
   }
 
   /* allocate the data array */
@@ -402,16 +432,62 @@ static int mkhist(const char *command, const char *fnin)
     fprintf(stderr, "no histogram function h(...) in [%s]\n", command);
     return -1;
   }
-  if (3 != sscanf(p, " h ( %d, %lf, %lf )", &xn, &xmin, &xmax)) {
-    fprintf(stderr, "invalid histogram string [%s]\n", p);
+  if (3 != sscanf(p, " h ( %d, %lf, %lf%n", &xn, &xmin, &xmax, &i)) {
+    fprintf(stderr, "invalid histogram x-parameters [%s]\n", p);
     goto END;
   }
-
-  fprintf(stderr, "data %s, weight %s, # of bins %d, min %g, max %g\n",
-      sx, sw, xn, xmin, xmax);
-  if ( (hist = calloc(xn, sizeof(*hist))) == NULL) exit(-1);
-  for ( i = 0; i < xn; i++ ) hist[i] = 0;
+  p += i;
   dx = (xmax - xmin) / xn;
+  zn = yn = xn;
+  zmin = ymin = xmin;
+  zmax = ymax = xmax;
+  dz = dy = dx;
+
+  if ( dim >= 2 ) { /* scan histogram y parameters */
+    while ( *p && isspace(*p) ) p++;
+    if ( *p != ')' ) {
+      p++; /* skip a , or ; */
+      if (3 != sscanf(p, "%d, %lf, %lf%n", &yn, &ymin, &ymax, &i)) {
+        fprintf(stderr, "invalid histogram y-parameters [%s]\n", p);
+        goto END;
+      }
+      p += i;
+      dy = (ymax - ymin) / yn;
+      zn = yn;
+      zmin = ymin;
+      zmax = ymax;
+      dz = dy;
+      if ( dim >= 3 ) { /* scan histogram z parameters */
+        while ( *p && isspace(*p) ) p++;
+        if ( *p != ')' ) {
+          p++; /* skip a , or ; */
+          if (3 != sscanf(p, "%d, %lf, %lf%n", &zn, &zmin, &zmax, &i)) {
+            fprintf(stderr, "invalid histogram z-parameters [%s]\n", p);
+            goto END;
+          }
+          p += i;
+          dz = (zmax - zmin) / zn;
+        }
+      }
+    }
+  }
+
+  if ( dim == 1 ) {
+    fprintf(stderr, "1D: x %s, weight %s, x %d bins (%g, %g)\n",
+        sx, (sw ? sw : "1"), xn, xmin, xmax);
+  } else if ( dim == 2 ) {
+    fprintf(stderr, "2D: x %s, y %s, weight %s, x %d bins (%g, %g); y %d bins (%g, %g)\n",
+        sx, sy, (sw ? sw : "1"), xn, xmin, xmax, yn, ymin, ymax);
+  } else if ( dim == 3 ) {
+    fprintf(stderr, "3D: x %s, y %s, z %s, weight %s, x %d bins (%g, %g); y %d bins (%g, %g); z %d bins (%g, %g)\n",
+        sx, sy, sz, (sw ? sw : "1"), xn, xmin, xmax, yn, ymin, ymax, zn, zmin, zmax);
+  }
+
+  hn = xn;
+  if ( dim >= 2 ) hn *= yn;
+  if ( dim >= 3 ) hn *= zn;
+  if ( (hist = calloc(hn, sizeof(*hist))) == NULL) exit(-1);
+  for ( i = 0; i < hn; i++ ) hist[i] = 0;
 
   if ((fp = fopen(fnin, "r")) == NULL ) {
     fprintf(stderr, "cannot read %s\n", fnin);
@@ -427,33 +503,84 @@ static int mkhist(const char *command, const char *fnin)
       p = strtok(NULL, delims);
       //fprintf(stderr, "%g ", data[i]);
     }
+
+    /* compute the index */
     x = evalpostfix(px, data);
-    w = (pw != NULL) ? evalpostfix(pw, data) : 1.0;
-    //fprintf(stderr, " |  %g %g\n", x, w);
-    if ( x >= xmin ) {
-      i = ( x - xmin ) / dx;
-      if ( i < xn ) {
-        hist[i] += w;
-        wtot += w;
+    ix = ( x >= xmin ) ? ( x - xmin ) / dx : -1;
+    i = -1;
+    if ( ix < xn ) {
+      i = ix;
+      if ( dim >= 2 ) {
+        i *= yn;
+        y = evalpostfix(py, data);
+        iy = ( y >= ymin ) ? ( y - ymin ) / dy : -1;
+        if ( iy < yn ) {
+          i += iy;
+          if ( dim >= 3 ) {
+            i *= zn;
+            z = evalpostfix(pz, data);
+            iz = ( z >= zmin ) ? ( z - zmin ) / dz : -1;
+            if ( iz < zn ) {
+              i += iz;
+            } else {
+              i = -1;
+            }
+          }
+        } else {
+          i = -1;
+        }
       }
+    } else {
+      i = -1;
+    }
+    if ( i >= 0 ) {
+      w = (pw != NULL) ? evalpostfix(pw, data) : 1.0;
+      //fprintf(stderr, " |  %d %g\n", i, w);
+      hist[i] += w;
+      wtot += w;
     }
   }
 
-  norm = 1.0/(wtot*dx);
-  /* truncate the edges */
-  i = 0;
-  for ( ; i < xn; i++ ) if ( hist[i] > 0 ) break;
-  for ( ; xn > i; xn-- ) if ( hist[xn-1] > 0 ) break;
-  for ( ; i < xn; i++ ) {
-    printf("%g %g\n", xmin + (i + 0.5) * dx, hist[i]*norm);
+  /* print the histogram */
+  if ( dim == 1 ) { /* 1D histogram */
+    norm = 1.0/(wtot*dx);
+    /* truncate the edges */
+    i = 0;
+    for ( ; i < xn; i++ ) if ( hist[i] > 0 ) break;
+    for ( ; xn > i; xn-- ) if ( hist[xn-1] > 0 ) break;
+    for ( ; i < xn; i++ ) {
+      printf("%g %g\n", xmin + (i + 0.5) * dx, hist[i]*norm);
+    }
+  } else if ( dim == 2 ) { /* 2D histogram */
+    norm = 1.0/(wtot*dx*dy);
+    for ( i = 0, ix = 0; ix < xn; ix++ ) {
+      for ( iy = 0; iy < yn; iy++, i++ ) {
+        printf("%g %g %g\n", xmin + (ix + 0.5) * dx,
+            ymin + (iy + 0.5) * dy, hist[i]*norm);
+      }
+      printf("\n");
+    }
+  } else if ( dim == 3 ) { /* 3D histogram */
+    norm = 1.0/(wtot*dx*dy*dz);
+    for ( i = 0, ix = 0; ix < xn; ix++ ) {
+      for ( iy = 0; iy < yn; iy++, i++ ) {
+        for ( iz = 0; iz < zn; iz++, i++ ) {
+          printf("%g %g %g %g\n", xmin + (ix + 0.5) * dx,
+              ymin + (iy + 0.5) * dy, zmin + (iz + 0.5) * dz,
+              hist[i]*norm);
+        }
+      }
+      printf("\n");
+    }
   }
 
   fclose(fp);
+END:
   free(hist);
   free(buf);
-END:
-  free(px);
-  free(pw);
+  free(data);
+  free(sx); free(sy); free(sz); free(sw);
+  free(px); free(py); free(pz); free(pw);
   return 0;
 }
 
@@ -462,7 +589,7 @@ END:
 static void genrandfile(const char *fn) {
   FILE *fp;
   int i, j;
-  double x;
+  double x, y;
 
   if ( (fp = fopen(fn, "r")) != NULL ) {
     fclose(fp);
@@ -474,7 +601,10 @@ static void genrandfile(const char *fn) {
       for ( x = 0, j = 0; j < 10; j++ )
         x += 1.0*rand()/RAND_MAX;
       x /= 10;
-      fprintf(fp, "%g %g %g\n", x*2.19, x*x*6.19, x*x*x*9.19);
+      for ( y = 0, j = 0; j < 10; j++ )
+        y += 1.0*rand()/RAND_MAX;
+      y /= 10;
+      fprintf(fp, "%g %g %g\n", x*2.19, x*y*6.19, y*y*9.19);
     }
     fclose(fp);
   }
@@ -482,7 +612,8 @@ static void genrandfile(const char *fn) {
 
 int main(int argc, char **argv)
 {
-  const char *command = "sin(-$1+$2)::1.0>>h(100, -1.0, 1.0)";
+  //const char *command = "sin(-$1+$2)::1.0>>h(100, -1.0, 1.0)";
+  const char *command = "sin(-$1+$2):cos($3)::1.0>>h(100, -1.0, 1.0)";
   const char *fnin = "data.dat";
 
   if ( argc >= 2 ) {
