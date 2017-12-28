@@ -308,13 +308,25 @@ static double evalpostfix(const token_t *que, const double *arr, int narr)
         }
       }
     } else if ( pos->type == OPERATOR ) {
-      if ( pos->s[0] == '_' ) { /* unary operators */
-        st[top-1] = -st[top-1];
-      } else if ( pos->s[0] == '!' && pos->s[1] == '\0' ) {
-        st[top-1] = !( st[top-1] != 0 );
+      if ( strchr("_!", pos->s[0]) != NULL && pos->s[1] == '\0' ) { /* unary operators */
+        if ( top < 1 ) {
+          fprintf(stderr, "Error: insufficient arguments for operator [%s]\n",
+              pos->s);
+          exit(1);
+        }
+        if ( pos->s[0] == '_' ) {
+          st[top-1] = -st[top-1];
+        } else if ( pos->s[0] == '!' ) {
+          st[top-1] = !( st[top-1] != 0 );
+        }
       } else if ( pos->s[0] == ',' ) { /* do nothing for comma */
         ;
       } else { /* binary operators */
+        if ( top < 2 ) {
+          fprintf(stderr, "Error: insufficient arguments for operator [%s], has %d\n",
+              pos->s, top);
+          exit(1);
+        }
         --top;
         if ( pos->s[0] == '+' ) {
           st[top-1] += st[top];
@@ -352,6 +364,11 @@ static double evalpostfix(const token_t *que, const double *arr, int narr)
     } else if ( pos->type == FUNCTION ) {
       for ( i = 0; funcmap[i].f != NULL; i++ ) {
         if ( strcmp(funcmap[i].s, pos->s) == 0 ) {
+          if ( top < funcmap[i].narg ) {
+            fprintf(stderr, "Error: insufficient arguments for function [%s], has %d, require %d\n",
+                funcmap[i].s, top, funcmap[i].narg);
+            exit(1);
+          }
           if ( funcmap[i].narg == 1 ) {
             st[top-1] = (*funcmap[i].f)(st[top-1]);
           } else if ( funcmap[i].narg == 2 ) {

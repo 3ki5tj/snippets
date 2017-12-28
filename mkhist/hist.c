@@ -29,7 +29,7 @@
 /*
  * Inspired by the syntax of the TTree::Draw expression in CERN ROOT.
  *
- * hist 'sin($1+$2^(log($3))):$2::1/exp($5)>>h(100, -1.0, 1.0, 50, 0.0, 2.0)' data.dat
+ * hist 'sin($1+$2^(log(if($3 > 0.1, $3, 0.1)))):$2::1/exp($5)>>h(100, -1.0, 1.0, 50, 0.0, 2.0)' data.dat
  *            X-axis expr      Y    W           nx  xmin xmax  ny ymin ymax
  *
  * will generate a 2D histogram according to the x,y,z binning
@@ -250,7 +250,7 @@ static token_t *hist_expr_parse2postfix(const char *s)
     } else if ( tok->s[0] == ')' ) {
       /* while the operator at the top of the operator stack is not a "("
        * or a function */
-      while ( top->s[0] != '(' && top->type == FUNCTION ) {
+      while ( top->s[0] != '(' && top->type != FUNCTION ) {
         /* pop operators from the operator stack onto the output queue */
         hist_expr_token_copy(pos++, top--);
         if ( top <= ost ) break;
@@ -282,6 +282,19 @@ static token_t *hist_expr_parse2postfix(const char *s)
         hist_expr_token_copy(++top, tok); /* top = token */
       }
     }
+#if 0
+    { /* debug routine to print out the output queue and operator stack */
+      token_t *t;
+      char buf[VARNAME_MAX];
+      fprintf(stderr, "%s\nQueue: ", hist_expr_token2str(buf, tok));
+      for ( t = que; t->type != NULLTYPE; t++ )
+        fprintf(stderr, "%s ", hist_expr_token2str(buf, t));
+      fprintf(stderr, "\nStack: ");
+      for ( t = top; t > ost; t-- )
+        fprintf(stderr, "%s ", hist_expr_token2str(buf, t));
+      fprintf(stderr, "\n\n");
+    }
+#endif
     hist_expr_token_copy(tok+1, tok); /* make a copy */
   }
 
@@ -383,11 +396,25 @@ static double hist_expr_eval_postfix(const token_t *que, const double *arr, int 
         }
       }
     } else if ( pos->type == OPERATOR ) {
-      if ( pos->s[0] == '_' ) { /* unary operators */
-        st[top-1] = -st[top-1];
+      if ( strchr("_!", pos->s[0]) != NULL && pos->s[1] == '\0' ) { /* unary operators */
+        if ( top < 1 ) {
+          fprintf(stderr, "Error: insufficient arguments for operator [%s]\n",
+              pos->s);
+          exit(1);
+        }
+        if ( pos->s[0] == '_' ) {
+          st[top-1] = -st[top-1];
+        } else if ( pos->s[0] == '!' ) {
+          st[top-1] = !( st[top-1] != 0 );
+        }
       } else if ( pos->s[0] == ',' ) { /* do nothing for comma */
         ;
       } else { /* binary operators */
+        if ( top < 2 ) {
+          fprintf(stderr, "Error: insufficient arguments for operator [%s], has %d\n",
+              pos->s, top);
+          exit(1);
+        }
         --top;
         if ( pos->s[0] == '+' ) {
           st[top-1] += st[top];
@@ -425,6 +452,11 @@ static double hist_expr_eval_postfix(const token_t *que, const double *arr, int 
     } else if ( pos->type == FUNCTION ) {
       for ( i = 0; funcmap[i].f != NULL; i++ ) {
         if ( strcmp(funcmap[i].s, pos->s) == 0 ) {
+          if ( top < funcmap[i].narg ) {
+            fprintf(stderr, "Error: insufficient arguments for function [%s], has %d, require %d\n",
+                funcmap[i].s, top, funcmap[i].narg);
+            exit(1);
+          }
           if ( funcmap[i].narg == 1 ) {
             st[top-1] = (*funcmap[i].f)(st[top-1]);
           } else if ( funcmap[i].narg == 2 ) {
@@ -438,6 +470,16 @@ static double hist_expr_eval_postfix(const token_t *que, const double *arr, int 
         }
       }
     }
+#if 0
+    { /* print out the evaluation stack */
+      int j;
+      char s[VARNAME_MAX];
+      fprintf(stderr, "%10s: ", hist_expr_token2str(s, pos));
+      for ( j = 0; j < top; j++ ) fprintf(stderr, "%g ", st[j]);
+      fprintf(stderr, "\n");
+      //getchar();
+    }
+#endif
   }
   ans = st[0];
   free(st);
@@ -524,7 +566,7 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
     pw = hist_expr_parse2postfix(sw);
     if ( (i = hist_expr_get_colmax(pw)) > colmax ) colmax = i;
   } else {
-    fprintf(stderr, "Error: no \'::\' for weight in [%s], assuming 1.0\n", sxyz);
+    fprintf(stderr, "Note: no \'::\' for weight in [%s], assuming 1.0\n", sxyz);
   }
 
   /* get the x expression */
