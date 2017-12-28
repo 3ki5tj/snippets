@@ -69,7 +69,7 @@ static char *gettoken(token_t *t, char *s)
 }
 
 /* string representation of token */
-__inline static char *token2str(char *s, token_t *tok)
+__inline static char *token2str(char *s, const token_t *tok)
 {
   if ( tok->type == NUMBER ) {
     sprintf(s, "%g", tok->val);
@@ -183,7 +183,7 @@ static token_t *parse2postfix(char *s)
     copytoken(tok+1, tok); /* make a copy */
   }
 
-  /* where there are still operator tokens on the stack
+  /* while there are still operator tokens on the stack,
    * pop the operator onto the output queue */
   while ( top > ost )
     copytoken(pos++, top--);
@@ -255,11 +255,11 @@ static varmap_t varmap[] = {
 };
 
 /* evaluate the postfix expression */
-static double evalpostfix(token_t *que, const double *arr)
+static double evalpostfix(const token_t *que, const double *arr, int narr)
 {
   int i, n, top;
   double *st, ans;
-  token_t *pos;
+  const token_t *pos;
 
   /* determine the length of the expression */
   for ( n = 0; que[n].type != NULLTYPE; n++ ) ;
@@ -271,7 +271,7 @@ static double evalpostfix(token_t *que, const double *arr)
     if ( pos->type == NUMBER ) {
       st[top++] = pos->val;
     } else if ( pos->type == DATA ) {
-      st[top++] = arr[pos->col - 1]; /* array index off-by-one */
+      st[top++] = ( pos->col <= narr ) ? arr[pos->col - 1] : 0.0; /* array index off-by-one */
     } else if ( pos->type == VARIABLE ) {
       for ( i = 0; varmap[i].s[0] != '\0'; i++ ) {
         if ( strcmp(varmap[i].s, pos->s) == 0 ) {
@@ -384,7 +384,7 @@ static int mkhist(const char *command, const char *fnin)
   token_t *px, *py = NULL, *pz = NULL, *pw = NULL;
   char *sx, *sy = NULL, *sz = NULL, *sw = NULL;
   char *sxyz, *shist = NULL, *p;
-  int dim = 1, i, n, maxcol = 0, ix, iy, iz, xn, yn, zn, hn;
+  int dim = 1, i, n, col, maxcol = 0, ix, iy, iz, xn, yn, zn, hn;
   double x, xmin, xmax, dx;
   double y, ymin, ymax, dy;
   double z, zmin, zmax, dz;
@@ -393,7 +393,7 @@ static int mkhist(const char *command, const char *fnin)
   double *data = NULL;
   size_t bufsz = 0;
   char *buf = NULL;
-  const char *delims = " \t\r\n";
+  const char *delims = " \t\r\n,";
 
   /* make a copy of the command */
   n = strlen(command);
@@ -518,26 +518,26 @@ static int mkhist(const char *command, const char *fnin)
   while ( mygetline(&buf, &bufsz, fp) ) {
     if (buf[0] == '#' || buf[0] == '!') continue;
     p = strtok(buf, delims);
-    for ( i = 0; i < maxcol && p != NULL; i++ ) {
-      data[i] = atof(p);
+    for ( col = 0; col < maxcol && p != NULL; col++ ) {
+      data[col] = atof(p);
       p = strtok(NULL, delims);
-      //fprintf(stderr, "%g ", data[i]);
+      //fprintf(stderr, "%g ", data[col]);
     }
 
     /* compute the index */
-    x = evalpostfix(px, data);
+    x = evalpostfix(px, data, col);
     ix = ( x >= xmin ) ? ( x - xmin ) / dx : -1;
     i = ix;
     if ( ix < xn ) {
       if ( dim >= 2 ) {
         i *= yn;
-        y = evalpostfix(py, data);
+        y = evalpostfix(py, data, col);
         iy = ( y >= ymin ) ? ( y - ymin ) / dy : -1;
         if ( iy < yn ) {
           i += iy;
           if ( dim >= 3 ) {
             i *= zn;
-            z = evalpostfix(pz, data);
+            z = evalpostfix(pz, data, col);
             iz = ( z >= zmin ) ? ( z - zmin ) / dz : -1;
             i = ( iz < zn ) ? i + iz : -1;
           }
@@ -546,7 +546,7 @@ static int mkhist(const char *command, const char *fnin)
     } else { i = -1; }
 
     if ( i >= 0 ) {
-      w = ( pw != NULL ) ? evalpostfix(pw, data) : 1.0;
+      w = ( pw != NULL ) ? evalpostfix(pw, data, col) : 1.0;
       //fprintf(stderr, " |  %d %g\n", i, w);
       hist[i] += w;
       wtot += w;

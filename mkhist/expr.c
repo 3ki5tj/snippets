@@ -70,7 +70,7 @@ static char *gettoken(token_t *t, char *s)
 }
 
 /* string representation of token */
-__inline static char *token2str(char *s, token_t *tok)
+__inline static char *token2str(char *s, const token_t *tok)
 {
   if ( tok->type == NUMBER ) {
     sprintf(s, "%g", tok->val);
@@ -130,9 +130,9 @@ static int isleftassoc(const char *s)
 }
 
 #ifdef DEBUG
-__inline static void sy_print(token_t *tok, token_t *que, token_t *pos, token_t *ost, token_t *top)
+__inline static void sy_print(const token_t *tok, token_t *que, token_t *pos, token_t *ost, token_t *top)
 {
-  token_t *t;
+  const token_t *t;
   char s[VARNAME_MAX];
 
   if ( tok != NULL ) {
@@ -218,7 +218,7 @@ static token_t *parse2postfix(char *s)
 #endif
   }
 
-  /* where there are still operator tokens on the stack
+  /* while there are still operator tokens on the stack,
    * pop the operator onto the output queue */
   while ( top > ost )
     copytoken(pos++, top--);
@@ -293,11 +293,11 @@ static varmap_t varmap[] = {
 };
 
 /* evaluate the postfix expression */
-static double evalpostfix(token_t *que, const double *arr)
+static double evalpostfix(const token_t *que, const double *arr, int narr)
 {
   int i, n, top;
   double *st, ans;
-  token_t *pos;
+  const token_t *pos;
 
   /* determine the length of the expression */
   for ( n = 0; que[n].type != NULLTYPE; n++ ) ;
@@ -309,7 +309,7 @@ static double evalpostfix(token_t *que, const double *arr)
     if ( pos->type == NUMBER ) {
       st[top++] = pos->val;
     } else if ( pos->type == DATA ) {
-      st[top++] = arr[pos->col - 1]; /* array index off-by-one */
+      st[top++] = ( pos->col <= narr ) ? arr[pos->col - 1] : 0.0; /* array index off-by-one */
     } else if ( pos->type == VARIABLE ) {
       for ( i = 0; varmap[i].s[0] != '\0'; i++ ) {
         if ( strcmp(varmap[i].s, pos->s) == 0 ) {
@@ -380,7 +380,7 @@ int main(void)
   //test_gettoken(expr2);
 #if 1
   pexpr = parse2postfix(expr1);
-  y = evalpostfix(pexpr, data);
+  y = evalpostfix(pexpr, data, 3);
   printf("%s = %g\n", expr1, y);
   free(pexpr);
 #endif
@@ -389,7 +389,7 @@ int main(void)
   /* construct a postfix expression from the input */
   pexpr = parse2postfix(expr2);
   /* evaluate the postfix expression */
-  y = evalpostfix(pexpr, data);
+  y = evalpostfix(pexpr, data, 3);
   printf("%s = %g\n", expr2, y);
   free(pexpr);
 #endif
