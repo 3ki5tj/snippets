@@ -38,9 +38,11 @@ static char *gettoken(token_t *t, char *s)
     t->type = OPERATOR;
     t->s[0] = *s;
     t->s[1] = '\0';
-    if ( *s == '*' && s[1] == '*' )
-      t->s[0] = '^'; /* convert "**" to "^" */
     p = s + 1;
+    if ( *s == '*' && s[1] == '*' ) {
+      t->s[0] = '^'; /* convert "**" to "^" */
+      p++;
+    }
   } else if ( isdigit(*s) || *s == '.' ) { /* .5 is understood as a number */
     t->type = NUMBER;
     t->val = strtod(s, &p);
@@ -141,15 +143,13 @@ static token_t *parse2postfix(char *s)
     if ( tok->type == NUMBER || tok->type == DATA || tok->type == VARIABLE ) {
       /* if the token is a number, then push it to the output queue */
       copytoken(pos++, tok);
-    } else if ( tok->s[0] == ',' ) {
-      /* do nothing for the comma */
     } else if ( tok->s[0] == '(' || tok->type == FUNCTION ) {
-      /* push "(" onto the operator stack */
+      /* push "(" or a function onto the operator stack */
       copytoken(++top, tok); /* top = token */
     } else if ( tok->s[0] == ')' ) {
       /* while the operator at the top of the operator stack is not a "("
        * or a function */
-      while ( top->s[0] != '(' && !isalpha(top->s[0]) ) {
+      while ( top->s[0] != '(' && tok->type != FUNCTION ) {
         /* pop operators from the operator stack onto the output queue */
         copytoken(pos++, top--);
         if ( top <= ost ) break;
@@ -171,7 +171,7 @@ static token_t *parse2postfix(char *s)
       } else {
         while ( ( (preced(top->s) > preced(tok->s))
               || (preced(top->s) == preced(tok->s) && isleftassoc(top->s)) )
-                 && top->s[0] != '(' && !isalpha(top->s[0]) ) {
+                 && top->s[0] != '(' && tok->type != FUNCTION ) {
           /* pop operators from the operator stack onto the output queue */
           copytoken(pos++, top--); /* pos = top */
           if ( top <= ost ) break;
@@ -195,7 +195,7 @@ static token_t *parse2postfix(char *s)
 
 static double max(double a, double b) { return (a > b) ? a : b; }
 static double min(double a, double b) { return (a < b) ? a : b; }
-static double iif(double c, double a, double b) { return (c == 0) ? a : b; }
+static double iif(double c, double a, double b) { return ( c != 0 ) ? a : b; }
 
 typedef struct {
   char s[VARNAME_MAX];
@@ -282,6 +282,8 @@ static double evalpostfix(token_t *que, const double *arr)
     } else if ( pos->type == OPERATOR ) {
       if ( pos->s[0] == '_' ) { /* unary operators */
         st[top-1] = -st[top-1];
+      } else if ( pos->s[0] == ',' ) { /* do nothing for comma */
+        ;
       } else { /* binary operators */
         --top;
         if ( pos->s[0] == '+' ) {
@@ -376,10 +378,10 @@ static void showhist(const double *h, double xmin, double dx, int xn)
  * write the output to stdout */
 static int mkhist(const char *command, const char *fnin)
 {
-  token_t *px, *py = NULL, *pz = NULL, *pw;
+  token_t *px, *py = NULL, *pz = NULL, *pw = NULL;
   char *sx, *sy = NULL, *sz = NULL, *sw = NULL;
-  const char *p, *q;
-  int dim = 1, i, n, maxcol, ix, iy, iz, xn, yn, zn, hn;
+  char *sxyz, *shist = NULL, *p;
+  int dim = 1, i, n, maxcol = 0, ix, iy, iz, xn, yn, zn, hn;
   double x, xmin, xmax, dx;
   double y, ymin, ymax, dy;
   double z, zmin, zmax, dz;
@@ -390,73 +392,67 @@ static int mkhist(const char *command, const char *fnin)
   char *buf = NULL;
   const char *delims = " \t\r\n";
 
-  /* get the x expression */
-  if ( (p = strpbrk(command, ":>")) == NULL ) {
-    fprintf(stderr, "no : in [%s]\n", command);
+  /* make a copy of the command */
+  n = strlen(command);
+  if ( (sxyz = calloc(n + 1, 1)) == NULL ) exit(-1);
+  strcpy(sxyz, command);
+
+  /* get the histogram string */
+  if ( (p = strstr(sxyz, ">>")) != NULL ) {
+    *p = '\0';
+    shist = p + 2;
+  } else {
+    fprintf(stderr, "no >> in [%s]\n", command);
     return -1;
   }
-  n = p - command;
-  if ( (sx = calloc(n + 1, 1)) == NULL ) exit(-1);
-  strncpy(sx, command, n + 1);
-  sx[n] = '\0';
-  px = parse2postfix(sx);
-  maxcol = getmaxcol(px);
-  p++;
 
-  /* get the y expression */
-  if ( *p != ':' && (q = strpbrk(p, ":>")) != NULL ) {
-    dim++;
-    n = q - p;
-    if ( (sy = calloc(n + 1, 1)) == NULL ) exit(-1);
-    strncpy(sy, p, n + 1);
-    sy[n] = '\0';
-    py = parse2postfix(sy);
-    if ( (i = getmaxcol(py)) > maxcol ) maxcol = i;
-    p = (*q == ':') ? q + 1 : q;
-
-    /* get the z expression */
-    if ( *p != ':' && (q = strpbrk(p, ":>")) != NULL ) {
-      dim++;
-      n = q - p;
-      if ( (sz = calloc(n + 1, 1)) == NULL ) exit(-1);
-      strncpy(sz, p, n + 1);
-      sz[n] = '\0';
-      pz = parse2postfix(sz);
-      if ( (i = getmaxcol(pz)) > maxcol ) maxcol = i;
-      p = (*q == ':') ? q + 1 : q;
-    }
-  }
-
-  /* get the weight */
-  if ( (p = strstr(command, "::")) != NULL ) {
-    p += 2;
-    q = strstr(p, ">>");
-    n = q - p;
-    if ( (sw = calloc(n + 1, 1)) == NULL ) exit(-1);
-    strncpy(sw, p, n + 1);
-    sw[n] = '\0';
+  /* get the weight expression */
+  if ( (p = strstr(sxyz, "::")) != NULL ) {
+    *p = '\0';
+    sw = p + 2;
     pw = parse2postfix(sw);
     if ( (i = getmaxcol(pw)) > maxcol ) maxcol = i;
   } else {
-    fprintf(stderr, "no :: for weight in [%s|%s], assuming 1.0\n", command, p);
-    sw = NULL;
-    pw = NULL;
-    p = command;
+    fprintf(stderr, "no :: for weight in [%s], assuming 1.0\n", sxyz);
+  }
+
+  /* get the x expression */
+  dim = 1;
+  sx = sxyz;
+  /* get the y expression */
+  if ( (p = strchr(sx, ':')) != NULL ) {
+    dim++;
+    *p = '\0';
+    sy = p + 1;
+    /* get the z expression */
+    if ( (p = strchr(sy, ':')) != NULL ) {
+      dim++;
+      *p = '\0';
+      sz = p + 1;
+    }
+  }
+
+  /* get the postfix expressions for x, y, z */
+  px = parse2postfix(sx);
+  if ( (i = getmaxcol(px)) > maxcol ) maxcol = i;
+  if ( dim >= 2 ) {
+    py = parse2postfix(sy);
+    if ( (i = getmaxcol(py)) > maxcol ) maxcol = i;
+    if ( dim >= 3 ) {
+      pz = parse2postfix(sz);
+      if ( (i = getmaxcol(pz)) > maxcol ) maxcol = i;
+    }
   }
 
   /* allocate the data array */
   if ( (data = calloc(maxcol + 1, sizeof(*data))) == NULL ) exit(-1);
 
   /* get histogram parameters */
-  if ( (p = strstr(p, "h(")) == NULL ) {
-    fprintf(stderr, "no histogram function h(...) in [%s]\n", command);
-    return -1;
-  }
-  if (3 != sscanf(p, " h ( %d, %lf, %lf%n", &xn, &xmin, &xmax, &i)) {
+  if (3 != sscanf(shist, " h ( %d, %lf, %lf%n", &xn, &xmin, &xmax, &i)) {
     fprintf(stderr, "invalid histogram x-parameters [%s]\n", p);
     goto END;
   }
-  p += i;
+  p = shist + i;
   dx = (xmax - xmin) / xn;
   /* set the default parameters for y and z the same as those for x */
   zn   = yn   = xn;
@@ -591,7 +587,7 @@ END:
   free(hist);
   free(buf);
   free(data);
-  free(sx); free(sy); free(sz); free(sw);
+  free(sxyz);
   free(px); free(py); free(pz); free(pw);
   return 0;
 }
@@ -624,8 +620,8 @@ static void genrandfile(const char *fn) {
 
 int main(int argc, char **argv)
 {
-  const char *command = "sin(-$1+.05e1*$2)::1.0>>h(100, -1.0, 1.0)";
-  //const char *command = "sin(-$1+$2):cos($3)::1.0>>h(100, -1.0, 1.0)";
+  //const char *command = "sin(-$1+.05e1*$2)::1.0>>h(100, -1.0, 1.0)";
+  const char *command = "sin(-$1+$2):cos($3)>>h(100, -1.0, 1.0)";
   const char *fnin = "data.dat";
 
   if ( argc >= 2 ) {

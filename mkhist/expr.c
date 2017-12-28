@@ -39,9 +39,11 @@ static char *gettoken(token_t *t, char *s)
     t->type = OPERATOR;
     t->s[0] = *s;
     t->s[1] = '\0';
-    if ( *s == '*' && s[1] == '*' )
-      t->s[0] = '^'; /* convert "**" to "^" */
     p = s + 1;
+    if ( *s == '*' && s[1] == '*' ) {
+      t->s[0] = '^'; /* convert "**" to "^" */
+      p++;
+    }
   } else if ( isdigit(*s) ) {
     t->type = NUMBER;
     t->val = strtod(s, &p);
@@ -174,14 +176,12 @@ static token_t *parse2postfix(char *s)
   for ( p = s; (p = gettoken(tok, p)) != NULL; ) {
     if ( tok->type == NUMBER || tok->type == DATA || tok->type == VARIABLE ) {
       copytoken(pos++, tok);
-    } else if ( tok->s[0] == ',' ) {
-      /* do nothing for the comma */
     } else if ( tok->s[0] == '(' || tok->type == FUNCTION ) {
       copytoken(++top, tok); /* top = token */
     } else if ( tok->s[0] == ')' ) {
       /* while the operator at the top of the operator stack is not a "("
        * or function */
-      while ( top->s[0] != '(' && !isalpha(top->s[0]) ) {
+      while ( top->s[0] != '(' && tok->type != FUNCTION ) {
         /* pop operators from the operator stack onto the output queue */
         copytoken(pos++, top--);
         if ( top <= ost ) break;
@@ -203,7 +203,7 @@ static token_t *parse2postfix(char *s)
       } else {
         while ( ( (preced(top->s) > preced(tok->s))
               || (preced(top->s) == preced(tok->s) && isleftassoc(top->s)) )
-                 && top->s[0] != '(' && !isalpha(top->s[0]) ) {
+                 && top->s[0] != '(' && top->type != FUNCTION ) {
           /* pop operators from the operator stack onto the output queue */
           copytoken(pos++, top--); /* pos = top */
           if ( top <= ost ) break;
@@ -233,7 +233,7 @@ static token_t *parse2postfix(char *s)
 
 static double max(double a, double b) { return (a > b) ? a : b; }
 static double min(double a, double b) { return (a < b) ? a : b; }
-static double iif(double c, double a, double b) { return (c == 0) ? a : b; }
+static double iif(double c, double a, double b) { return ( c != 0 ) ? a : b; }
 
 typedef struct {
   char s[VARNAME_MAX];
@@ -320,6 +320,8 @@ static double evalpostfix(token_t *que, const double *arr)
     } else if ( pos->type == OPERATOR ) {
       if ( pos->s[0] == '_' ) { /* unary operators */
         st[top-1] = -st[top-1];
+      } else if ( pos->s[0] == ',' ) {
+        ;
       } else { /* binary operators */
         --top;
         if ( pos->s[0] == '+' ) {
@@ -367,7 +369,7 @@ static double evalpostfix(token_t *que, const double *arr)
 
 int main(void)
 {
-  char *expr1 = "sin(1.0e-3 * $1) -3 + 4 * -2 / ( -1 - 1 ) ^ -2 ^ +2";
+  char *expr1 = "pow(1.0+2.0, 3)"; // "sin(1.0e-3 * $1) -3 + 4 * -2 / ( -1 - 1 ) ^ -2 ^ +2";
   char *expr2 = "sin ( max ( 2, -$1 + 4 ) / 3 * 3.1415 )";
   token_t *pexpr;
   double data[] = {1.1, 2.2, 3.3}, y;
