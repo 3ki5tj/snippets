@@ -7,7 +7,10 @@
 
 enum { NULLTYPE, NUMBER, OPERATOR, FUNCTION, DATA, VARIABLE };
 
-const char *ops = ",+-*/%^_()";
+/* supported operators:
+ * + and - (binary or unary), *, /, % (remainder), ^ or ** (power),
+ * <, <=, >, >=, ==, !=, && (logical AND), || (logical OR) and parentheses () */
+const char *ops = ",+-*/%^_<>!=&|()";
 
 #define VARNAME_MAX 128
 
@@ -41,6 +44,13 @@ static char *gettoken(token_t *t, char *s)
     p = s + 1;
     if ( *s == '*' && s[1] == '*' ) {
       t->s[0] = '^'; /* convert "**" to "^" */
+      p++;
+    } else if ( (strchr("<>!=", *s) != NULL && s[1] == '=')
+       || ( *s == '<' && s[1] == '>' )
+       || ( *s == '&' && s[1] == '&' )
+       || ( *s == '|' && s[1] == '|' ) ) {
+      t->s[1] = s[1];
+      t->s[2] = '\0';
       p++;
     }
   } else if ( isdigit(*s) || *s == '.' ) { /* .5 is understood as a number */
@@ -93,18 +103,36 @@ static void copytoken(token_t *a, token_t *b)
 static int preced(const char *s)
 {
   static char prtable[256];
+  static struct { const char *s; int p; } prlist[] = {
+    { "<=", 9 }, { ">=", 9 },
+    { "!=", 8 }, { "==", 8 }, { "<>", 8 },
+    { "&&", 5 },
+    { "||", 4 },
+    { NULL, 0 } }, *prptr;
 
   if ( prtable['+'] == 0 ) { /* initialize the precedence table */
     prtable['('] = prtable[')'] = 16;
-    prtable['_'] = 15;
+    prtable['_'] = prtable['!'] = 15;
     prtable['^'] = 13;
     prtable['*'] = prtable['/'] = prtable['%'] = 12;
     prtable['+'] = prtable['-'] = 11;
+    prtable['<'] = prtable['>'] = 9;
     prtable[','] = 1;
   }
 
-  /* functions take the highest precedence */
-  return isalpha(*s) ? 1000 : prtable[(int)(*s)];
+  if isalpha(*s) { /* functions take the highest precedence */
+    return 1000;
+  } else if ( s[1] == '\0' ) {
+    return prtable[(int)(*s)];
+  } else { /* search the list */
+    for ( prptr = prlist; prptr->s != NULL; prptr++ ) {
+      if ( strcmp(prptr->s, s) == 0 ) {
+        return prptr->p;
+      }
+    }
+  }
+  fprintf(stderr, "unknown operator [%s]\n", s);
+  return 0;
 }
 
 static int isleftassoc(const char *s)
@@ -114,7 +142,7 @@ static int isleftassoc(const char *s)
 }
 
 /* convert an expression to a stack of postfix expression
- * Shunting Yard algorithm:
+ * The shunting-yard algorithm:
  * https://en.wikipedia.org/wiki/Shunting-yard_algorithm
  * */
 static token_t *parse2postfix(char *s)
@@ -149,7 +177,7 @@ static token_t *parse2postfix(char *s)
     } else if ( tok->s[0] == ')' ) {
       /* while the operator at the top of the operator stack is not a "("
        * or a function */
-      while ( top->s[0] != '(' && tok->type != FUNCTION ) {
+      while ( top->s[0] != '(' && top->type != FUNCTION ) {
         /* pop operators from the operator stack onto the output queue */
         copytoken(pos++, top--);
         if ( top <= ost ) break;
@@ -171,7 +199,7 @@ static token_t *parse2postfix(char *s)
       } else {
         while ( ( (preced(top->s) > preced(tok->s))
               || (preced(top->s) == preced(tok->s) && isleftassoc(top->s)) )
-                 && top->s[0] != '(' && tok->type != FUNCTION ) {
+                 && top->s[0] != '(' && top->type != FUNCTION ) {
           /* pop operators from the operator stack onto the output queue */
           copytoken(pos++, top--); /* pos = top */
           if ( top <= ost ) break;
@@ -282,6 +310,8 @@ static double evalpostfix(const token_t *que, const double *arr, int narr)
     } else if ( pos->type == OPERATOR ) {
       if ( pos->s[0] == '_' ) { /* unary operators */
         st[top-1] = -st[top-1];
+      } else if ( pos->s[0] == '!' && pos->s[1] == '\0' ) {
+        st[top-1] = !( st[top-1] != 0 );
       } else if ( pos->s[0] == ',' ) { /* do nothing for comma */
         ;
       } else { /* binary operators */
@@ -298,6 +328,25 @@ static double evalpostfix(const token_t *que, const double *arr, int narr)
           st[top-1] = fmod(st[top-1], st[top]);
         } else if ( pos->s[0] == '^' ) {
           st[top-1] = pow(st[top-1], st[top]);
+        } else if ( strcmp(pos->s, "<") == 0 ) {
+          st[top-1] = ( st[top-1] < st[top] );
+        } else if ( strcmp(pos->s, ">") == 0 ) {
+          st[top-1] = ( st[top-1] > st[top] );
+        } else if ( strcmp(pos->s, "<=") == 0 ) {
+          st[top-1] = ( st[top-1] <= st[top] );
+        } else if ( strcmp(pos->s, ">=") == 0 ) {
+          st[top-1] = ( st[top-1] >= st[top] );
+        } else if ( strcmp(pos->s, "!=") == 0 || strcmp(pos->s, "<>") == 0 ) {
+          st[top-1] = ( st[top-1] != st[top] );
+        } else if ( strcmp(pos->s, "==") == 0 ) {
+          st[top-1] = ( st[top-1] == st[top] );
+        } else if ( strcmp(pos->s, "&&") == 0 ) {
+          st[top-1] = ( (st[top-1] != 0) && (st[top] != 0) );
+        } else if ( strcmp(pos->s, "||") == 0 ) {
+          st[top-1] = ( (st[top-1] != 0) || (st[top] != 0) );
+        } else {
+          fprintf(stderr, "Error: uknown operator [%s]\n", pos->s);
+          exit(1);
         }
       }
     } else if ( pos->type == FUNCTION ) {
@@ -310,7 +359,7 @@ static double evalpostfix(const token_t *que, const double *arr, int narr)
             st[top-1] = (*funcmap[i].f)(st[top-1], st[top]);
           } else if ( funcmap[i].narg == 3 ) {
             top -= 2;
-            st[top-2] = (*funcmap[i].f)(st[top-2], st[top-1], st[top]);
+            st[top-1] = (*funcmap[i].f)(st[top-1], st[top], st[top+1]);
           }
           break;
         }
@@ -622,8 +671,8 @@ static void genrandfile(const char *fn) {
 
 int main(int argc, char **argv)
 {
-  //const char *command = "sin(-$1+.05e1*$2)::1.0>>h(100, -1.0, 1.0)";
-  const char *command = "sin(-$1+$2):cos($3)>>h(100, -1.0, 1.0)";
+  const char *command = "sin(-$1+.05e1*(if($2>$3,$2,$3)))::1.0>>h(100, -1.0, 1.0)";
+  //const char *command = "sin(-$1+$2):cos($3)>>h(100, -1.0, 1.0)";
   const char *fnin = "data.dat";
 
   if ( argc >= 2 ) {

@@ -75,7 +75,10 @@ static void print_usage(const param_t *pm)
 /** expression token types */
 enum { NULLTYPE, NUMBER, OPERATOR, FUNCTION, COLUMN, VARIABLE };
 
-static const char *ops = ",+-*/%^_()";
+/* supported operators:
+ * + and - (binary or unary), *, /, % (remainder), ^ or ** (power),
+ * <, <=, >, >=, ==, !=, && (logical AND), || (logical OR) and parentheses () */
+const char *ops = ",+-*/%^_<>!=&|()";
 
 #define VARNAME_MAX 128
 
@@ -171,18 +174,36 @@ static void hist_expr_token_copy(token_t *a, const token_t *b)
 static int hist_expr_preced(const char *s)
 {
   static char prtable[256];
+  static struct { const char *s; int p; } prlist[] = {
+    { "<=", 9 }, { ">=", 9 },
+    { "!=", 8 }, { "==", 8 }, { "<>", 8 },
+    { "&&", 5 },
+    { "||", 4 },
+    { NULL, 0 } }, *prptr;
 
   if ( prtable['+'] == 0 ) { /* initialize the precedence table */
     prtable['('] = prtable[')'] = 16;
-    prtable['_'] = 15;
+    prtable['_'] = prtable['!'] = 15;
     prtable['^'] = 13;
     prtable['*'] = prtable['/'] = prtable['%'] = 12;
     prtable['+'] = prtable['-'] = 11;
+    prtable['<'] = prtable['>'] = 9;
     prtable[','] = 1;
   }
 
-  /* functions take the highest precedence */
-  return isalpha(*s) ? 1000 : prtable[(int)(*s)];
+  if isalpha(*s) { /* functions take the highest precedence */
+    return 1000;
+  } else if ( s[1] == '\0' ) {
+    return prtable[(int)(*s)];
+  } else { /* search the list */
+    for ( prptr = prlist; prptr->s != NULL; prptr++ ) {
+      if ( strcmp(prptr->s, s) == 0 ) {
+        return prptr->p;
+      }
+    }
+  }
+  fprintf(stderr, "Error: unknown operator [%s]\n", s);
+  return 0;
 }
 
 static int hist_expr_isleftassoc(const char *s)
@@ -192,7 +213,7 @@ static int hist_expr_isleftassoc(const char *s)
 }
 
 /** Convert an expression to a stack of postfix expression.
- * Shunting Yard algorithm:
+ * The shunting-yard algorithm:
  * https://en.wikipedia.org/wiki/Shunting-yard_algorithm
  *
  * @return a malloc-ed queue stack of tokens.
@@ -229,7 +250,7 @@ static token_t *hist_expr_parse2postfix(const char *s)
     } else if ( tok->s[0] == ')' ) {
       /* while the operator at the top of the operator stack is not a "("
        * or a function */
-      while ( top->s[0] != '(' && tok->type == FUNCTION ) {
+      while ( top->s[0] != '(' && top->type == FUNCTION ) {
         /* pop operators from the operator stack onto the output queue */
         hist_expr_token_copy(pos++, top--);
         if ( top <= ost ) break;
@@ -380,6 +401,25 @@ static double hist_expr_eval_postfix(const token_t *que, const double *arr, int 
           st[top-1] = fmod(st[top-1], st[top]);
         } else if ( pos->s[0] == '^' ) {
           st[top-1] = pow(st[top-1], st[top]);
+        } else if ( strcmp(pos->s, "<") == 0 ) {
+          st[top-1] = ( st[top-1] < st[top] );
+        } else if ( strcmp(pos->s, ">") == 0 ) {
+          st[top-1] = ( st[top-1] > st[top] );
+        } else if ( strcmp(pos->s, "<=") == 0 ) {
+          st[top-1] = ( st[top-1] <= st[top] );
+        } else if ( strcmp(pos->s, ">=") == 0 ) {
+          st[top-1] = ( st[top-1] >= st[top] );
+        } else if ( strcmp(pos->s, "!=") == 0 || strcmp(pos->s, "<>") == 0 ) {
+          st[top-1] = ( st[top-1] != st[top] );
+        } else if ( strcmp(pos->s, "==") == 0 ) {
+          st[top-1] = ( st[top-1] == st[top] );
+        } else if ( strcmp(pos->s, "&&") == 0 ) {
+          st[top-1] = ( (st[top-1] != 0) && (st[top] != 0) );
+        } else if ( strcmp(pos->s, "||") == 0 ) {
+          st[top-1] = ( (st[top-1] != 0) || (st[top] != 0) );
+        } else {
+          fprintf(stderr, "Error: uknown operator [%s]\n", pos->s);
+          exit(1);
         }
       }
     } else if ( pos->type == FUNCTION ) {
@@ -392,7 +432,7 @@ static double hist_expr_eval_postfix(const token_t *que, const double *arr, int 
             st[top-1] = (*funcmap[i].f)(st[top-1], st[top]);
           } else if ( funcmap[i].narg == 3 ) {
             top -= 2;
-            st[top-2] = (*funcmap[i].f)(st[top-2], st[top-1], st[top]);
+            st[top-1] = (*funcmap[i].f)(st[top-1], st[top], st[top+1]);
           }
           break;
         }
@@ -456,7 +496,7 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
   double x, xmin, xmax, dx;
   double y, ymin, ymax, dy;
   double z, zmin, zmax, dz;
-  double w, wtot = 0, dvol, norm, *hist = NULL;
+  double w, wtot = 0, norm, *hist = NULL;
   FILE *fp;
   double *data = NULL;
   size_t bufsz = 0;
@@ -473,7 +513,7 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
     *p = '\0';
     shist = p + 2;
   } else {
-    fprintf(stderr, "no >> in [%s]\n", command);
+    fprintf(stderr, "Error: no \'>>\' in [%s]\n", command);
     return -1;
   }
 
@@ -484,7 +524,7 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
     pw = hist_expr_parse2postfix(sw);
     if ( (i = hist_expr_get_colmax(pw)) > colmax ) colmax = i;
   } else {
-    fprintf(stderr, "no :: for weight in [%s], assuming 1.0\n", sxyz);
+    fprintf(stderr, "Error: no \'::\' for weight in [%s], assuming 1.0\n", sxyz);
   }
 
   /* get the x expression */
@@ -593,9 +633,8 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
     /* compute the index */
     x = hist_expr_eval_postfix(px, data, col);
     ix = ( x >= xmin ) ? ( x - xmin ) / dx : -1;
-    i = -1;
+    i = ix;
     if ( ix < xn ) {
-      i = ix;
       if ( dim >= 2 ) {
         i *= yn;
         y = hist_expr_eval_postfix(py, data, col);
@@ -629,19 +668,18 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
 
   /* print the histogram */
   w = 0.0; if ( pm->bincenter ) w = 0.5;
-  dvol = dx;
-  if ( dim >= 2 ) dvol *= dy;
-  if ( dim >= 3 ) dvol *= dz;
   if ( pm->normalize == 0 ) {
     norm = 1.0;
   } else if ( pm->normalize == 1 ) {
     norm = 1.0/wtot;
   } else {
+    double dvol = dx;
+    if ( dim >= 2 ) dvol *= dy;
+    if ( dim >= 3 ) dvol *= dz;
     norm = 1.0/(wtot*dvol);
   }
-  //fprintf(stderr, "wtot %g, w %g, dx %g, norm %g\n", wtot, w, dx, norm); getchar();
   if ( dim == 1 ) { /* 1D histogram */
-    for (i=0 ; i < xn; i++ ) {
+    for ( i = 0 ; i < xn; i++ ) {
       printf("%g %g\n", xmin + (i + w) * dx, hist[i]*norm);
     }
   } else if ( dim == 2 ) { /* 2D histogram */
