@@ -1,2 +1,12 @@
 mkhist.c    my version
 hist.c      Yuan Mei's modification
+
+12/28 updates
+
+* Add support to logical operators.
+* Handle "," better.
+* Handle numbers that start with ".", such as ".5".
+* Basic check of the number of arguments for operators and functions.
+* Basic check of the number of columns in a data row.
+* Better routine of parsing the input command.
+* Add a vegi clause to the license.

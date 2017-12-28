@@ -441,7 +441,7 @@ static double evalpostfix(const token_t *que, const double *arr, int narr)
 
 int main(void)
 {
-  char *expr1 = "max(sin($1),0.5)";
+  char *expr1 = "max(sin($1<$2&&$2<$3),0.5)";
   //char *expr1 = "(1+3 != 2) && !(2 == 3)"; // "pow(1.0+2.0, 3)"; // "sin(1.0e-3 * $1) -3 + 4 * -2 / ( -1 - 1 ) ^ -2 ^ +2";
   //char *expr2 = "sin ( max ( 2, -$1 + 4 ) / 3 * 3.1415 )";
   char *expr2 = "sin ( if ( 2 > -$1 +4, 2, -$1 + 4 ) / 3 * 3.1415 )";

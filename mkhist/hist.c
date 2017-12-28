@@ -13,6 +13,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  * notice, this list of conditions and the following disclaimer in the
  * documentation and/or other materials provided with the distribution.
+ * 3. Users of source code or binary forms are encouraged to take the
+ * challenge of adopting a vegetarian diet for a full day chosen at their
+ * convenience as a token of gratitude to the authors.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -46,19 +49,24 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-#include <unistd.h>
 
 /** Parameters settable from commandline */
 typedef struct param
 {
   int normalize;  /**< normalize histogram instead of raw counts */
   int bincenter;  /**< print bin center instead of lower edge */
+  const char *command;
+  const char *dfname;
 } param_t;
 
-param_t param_default = {
-  .normalize = 0,
-  .bincenter = 0
-};
+/* set default parameters, C89 compatible */
+static void param_set_default(param_t *p)
+{
+  p->normalize = 0;
+  p->bincenter = 0;
+  p->command = "sin(-$1+$2):cos($3)>>h(100, -1.0, 1.0; -23, -1.1, 1.2)";
+  p->dfname = "data.dat";
+}
 
 static void print_usage(const param_t *pm)
 {
@@ -70,6 +78,50 @@ static void print_usage(const param_t *pm)
   printf("                     use $1 to address the leftmost data column in file.\n");
   printf("         exprW expression for weight, if omitted, weight=1.\n");
   printf("         Up to 3-dimensional histograms are supported.\n");
+}
+
+static int param_parse(param_t *pm, int argc, char **argv)
+{
+  int i, iarg = 0;
+  const char *p;
+
+  param_set_default(pm);
+  /* parse switches */
+  for ( i = 1; i < argc; i++ ) {
+    if ( argv[i][0] == '-' && strstr(argv[i], ">>") == NULL ) {
+      switch ( argv[i][1] ) {
+      case 'c':
+        pm->bincenter = 1;
+        break;
+      case 'm':
+        p = argv[i] + 2; /* string next to '-m' */
+        if ( *p == '\0' && i < argc - 1 ) p = argv[i+1];
+        pm->normalize = (int) strtol(p, NULL, 0);
+        break;
+      default:
+        print_usage(pm);
+        return EXIT_FAILURE;
+        break;
+      }
+    } else {
+      if ( iarg == 0 ) {
+        pm->command = argv[i];
+      } else if ( iarg == 1 ) {
+        pm->dfname = argv[i];
+      }
+      iarg++;
+    }
+  }
+  if ( iarg < 2 ) {
+    print_usage(pm);
+    return EXIT_FAILURE;
+  }
+  fprintf(stderr, "Input file:    %s\n"
+                  "Command:       %s\n"
+                  "Bin-center:    %s\n"
+                  "Normalization: %d\n",
+      pm->dfname, pm->command, (pm->bincenter ? "on" : "off"), pm->normalize);
+  return EXIT_SUCCESS;
 }
 
 /** expression token types */
@@ -141,7 +193,7 @@ static char *hist_expr_token_get(token_t *t, const char *s)
   return p;
 }
 
-#if 0
+#ifdef DEBUG
 /** String representation of token
  * @param[in] tok
  * @param[out] s string representation of token.  Must be large enough to hold the string.
@@ -282,7 +334,7 @@ static token_t *hist_expr_parse2postfix(const char *s)
         hist_expr_token_copy(++top, tok); /* top = token */
       }
     }
-#if 0
+#ifdef DEBUG
     { /* debug routine to print out the output queue and operator stack */
       token_t *t;
       char buf[VARNAME_MAX];
@@ -470,7 +522,7 @@ static double hist_expr_eval_postfix(const token_t *que, const double *arr, int 
         }
       }
     }
-#if 0
+#ifdef DEBUG
     { /* print out the evaluation stack */
       int j;
       char s[VARNAME_MAX];
@@ -783,38 +835,11 @@ static void gen_rand_file(const char *fn) {
 
 int main(int argc, char **argv)
 {
-  int optC = 0;
   param_t pm;
-  //const char *command = "sin(-$1+$2)::1.0>>h(100, -1.0, 1.0)";
-  const char *command = "sin(-$1+$2):cos($3)>>h(100, -1.0, 1.0; -23, -1.1, 1.2)";
-  const char *dfname = "data.dat";
 
-  memcpy(&pm, &param_default, sizeof(pm));
-  /* parse switches */
-  while((optC = getopt(argc, argv, "cm:")) != -1) {
-    switch(optC) {
-    case 'c':
-      pm.bincenter = 1;
-      break;
-    case 'm':
-      pm.normalize = (int) strtol(optarg, NULL, 0);
-      break;
-    default:
-      print_usage(&pm);
-      return EXIT_FAILURE;
-      break;
-    }
-  }
-  argc -= optind;
-  argv += optind;
-
-  if(argc<2) {
-    print_usage(&pm);
+  if ( param_parse(&pm, argc, argv) != EXIT_SUCCESS )
     return EXIT_FAILURE;
-  }
-  command = argv[0];
-  dfname  = argv[1];
-  hist_from_file(command, dfname, &pm);
+  hist_from_file(pm.command, pm.dfname, &pm);
 
   return EXIT_SUCCESS;
 }
