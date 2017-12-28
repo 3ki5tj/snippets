@@ -346,6 +346,9 @@ static double evalpostfix(token_t *que, const double *arr)
           } else if ( funcmap[i].narg == 2 ) {
             --top;
             st[top-1] = (*funcmap[i].f)(st[top-1], st[top]);
+          } else if ( funcmap[i].narg == 3 ) {
+            top -= 2;
+            st[top-2] = (*funcmap[i].f)(st[top-2], st[top-1], st[top]);
           }
           break;
         }

@@ -1,97 +1,27 @@
-/*
- * Copyright (c) 2017
- *
- *     Yuan Mei and Cheng Zhang
- *
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- * notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- * notice, this list of conditions and the following disclaimer in the
- * documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-/*
- * Inspired by the syntax of the TTree::Draw expression in CERN ROOT.
- *
- * hist 'sin($1+$2^(log($3))):$2::1/$5>>h(100, -1.0, 1.0, 50, 0.0, 2.0)' data.dat
- *            X-axis expr      Y    W      nx  xmin xmax  ny ymin ymax
- *
- * will generate a 2D histogram according to the x,y,z binning
- * specification using data from the file, transformed by the X,Y,Z
- * and W (weight) expression, then filled into the histogram with
- * weight.  Weight is assumed to be 1 if ::W is absent.  1, 2 and 3
- * dimensional histograms are supported.  The generated histogram data
- * are printed to stdout and are suitable for plotting in gnuplot:
- *
- * plot "<hist 'sin($1)>>h(...)'" w step
- */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-#include <unistd.h>
+#include <time.h>
 
-/** Parameters settable from commandline */
-typedef struct param
-{
-  int normalize;  /**< normalize histogram instead of raw counts */
-  int bincenter;  /**< print bin center instead of lower edge */
-} param_t;
+enum { NULLTYPE, NUMBER, OPERATOR, FUNCTION, DATA, VARIABLE };
 
-param_t param_default = {
-  .normalize = 0,
-  .bincenter = 0
-};
-
-static void print_usage(const param_t *pm)
-{
-  printf("Usage:\n");
-  printf("    hist -c -m 0 'exprX:exprY:exprZ::exprW>>h(nx,xl,xh,ny...)' dfname\n");
-  printf("         -c print bin center, default is bin lower edge, currently %s.\n", (pm->bincenter ? "on" : "off"));
-  printf("         -m [0]:counts, 1:normalize to sum=1.0, 2:integral=1.0, currently %d.\n", pm->normalize);
-  printf("         exprX,Y,Z : expressions for computing X,Y,Z values\n");
-  printf("                     use $1 to address the leftmost data column in file.\n");
-  printf("         exprW expression for weight, if omitted, weight=1.\n");
-  printf("         Up to 3-dimensional histograms are supported.\n");
-}
-
-/** expression token types */
-enum { NULLTYPE, NUMBER, OPERATOR, FUNCTION, COLUMN, VARIABLE };
-
-static const char *ops = ",+-*/%^_()";
+const char *ops = ",+-*/%^_()";
 
 #define VARNAME_MAX 128
 
 typedef struct {
   int type;
-  char s[VARNAME_MAX]; /* operator/function name */
+  char s[VARNAME_MAX]; /* operator/variable/function name */
   double val;
-  int col;             /* column id in the data */
+  int col; /* column of the data */
 } token_t;
 
-/** Get a token from the string and return a pointer after the token.
- * @param[out] t an identified token, modified.
- * @param[in] s expression string, not modified.
- * @return a pointer pointing to the character in string s right after the identified token.
- */
-static char *hist_expr_token_get(token_t *t, const char *s)
+
+/* get a token from the string and return a pointer
+ * after the token */
+static char *gettoken(token_t *t, char *s)
 {
   char *p;
   int i;
@@ -108,16 +38,16 @@ static char *hist_expr_token_get(token_t *t, const char *s)
     t->type = OPERATOR;
     t->s[0] = *s;
     t->s[1] = '\0';
-    p = (char *)s + 1;
+    p = s + 1;
     if ( *s == '*' && s[1] == '*' ) {
       t->s[0] = '^'; /* convert "**" to "^" */
       p++;
     }
-  } else if ( isdigit(*s) ) {
+  } else if ( isdigit(*s) || *s == '.' ) { /* .5 is understood as a number */
     t->type = NUMBER;
     t->val = strtod(s, &p);
   } else if ( isalpha(*s) ) {
-    for ( p = (char*)s, i = 0; isalnum(*p) && i < VARNAME_MAX - 1; p++, i++ ) {
+    for ( p = s, i = 0; isalnum(*p) && i < VARNAME_MAX - 1; p++, i++ ) {
       t->s[i] = *p;
     }
     t->s[i] = '\0';
@@ -129,7 +59,7 @@ static char *hist_expr_token_get(token_t *t, const char *s)
       t->type = VARIABLE;
     }
   } else if ( *s == '$' ) {
-    t->type = COLUMN;
+    t->type = DATA;
     t->col = (int) strtol(s + 1, &p, 10);
   } else {
     fprintf(stderr, "Error: unknown token [%s]\n", s);
@@ -138,24 +68,20 @@ static char *hist_expr_token_get(token_t *t, const char *s)
   return p;
 }
 
-/** String representation of token
- * @param[in] tok
- * @param[out] s string representation of token.  Must be large enough to hold the string.
- * @return s
- */
-static char *hist_expr_token2str(char *s, const token_t *tok)
+/* string representation of token */
+__inline static char *token2str(char *s, token_t *tok)
 {
   if ( tok->type == NUMBER ) {
     sprintf(s, "%g", tok->val);
   } else if ( tok->type == OPERATOR || tok->type == FUNCTION || tok->type == VARIABLE ) {
     sprintf(s, "%s", tok->s);
-  } else if ( tok->type == COLUMN ) {
+  } else if ( tok->type == DATA ) {
     sprintf(s, "$%d", tok->col);
   }
   return s;
 }
 
-static void hist_expr_token_copy(token_t *a, const token_t *b)
+static void copytoken(token_t *a, token_t *b)
 {
   a->type = b->type;
   strncpy(a->s, b->s, VARNAME_MAX);
@@ -163,10 +89,8 @@ static void hist_expr_token_copy(token_t *a, const token_t *b)
   a->col = b->col;
 }
 
-/** Operator precedence table.
- * @return the precedence of the operator.
- */
-static int hist_expr_preced(const char *s)
+/* return the precedence of the operator */
+static int preced(const char *s)
 {
   static char prtable[256];
 
@@ -183,19 +107,17 @@ static int hist_expr_preced(const char *s)
   return isalpha(*s) ? 1000 : prtable[(int)(*s)];
 }
 
-static int hist_expr_isleftassoc(const char *s)
+static int isleftassoc(const char *s)
 {
   if ( *s == '^' ) return 0;
   return 1;
 }
 
-/** Convert an expression to a stack of postfix expression.
+/* convert an expression to a stack of postfix expression
  * Shunting Yard algorithm:
  * https://en.wikipedia.org/wiki/Shunting-yard_algorithm
- *
- * @return a malloc-ed queue stack of tokens.
- */
-static token_t *hist_expr_parse2postfix(const char *s)
+ * */
+static token_t *parse2postfix(char *s)
 {
   token_t *que; /* output queue */
   token_t *ost; /* operator stack */
@@ -216,24 +138,26 @@ static token_t *hist_expr_parse2postfix(const char *s)
 
   tok[1].type = NULLTYPE; /* for the previous token */
 
-  /* where there are tokens to be read, read a token */
-  for ( p = (char*)s; (p = hist_expr_token_get(tok, p)) != NULL; ) {
-    if ( tok->type == NUMBER || tok->type == COLUMN || tok->type == VARIABLE ) {
-      hist_expr_token_copy(pos++, tok);
+  /* when there are tokens to be read, read a token */
+  for ( p = s; (p = gettoken(tok, p)) != NULL; ) {
+    if ( tok->type == NUMBER || tok->type == DATA || tok->type == VARIABLE ) {
+      /* if the token is a number, then push it to the output queue */
+      copytoken(pos++, tok);
     } else if ( tok->s[0] == '(' || tok->type == FUNCTION ) {
-      hist_expr_token_copy(++top, tok); /* top = token */
+      /* push "(" or a function onto the operator stack */
+      copytoken(++top, tok); /* top = token */
     } else if ( tok->s[0] == ')' ) {
-      /* while the operator at the top of the operator stack is not a left bracket
-       * and is not a function */
-      while ( top->s[0] != '(' && tok->type == FUNCTION ) {
+      /* while the operator at the top of the operator stack is not a "("
+       * or a function */
+      while ( top->s[0] != '(' && tok->type != FUNCTION ) {
         /* pop operators from the operator stack onto the output queue */
-        hist_expr_token_copy(pos++, top--);
+        copytoken(pos++, top--);
         if ( top <= ost ) break;
       }
       if ( top->s[0] == '(' ) {
         top--; /* pop the left bracket from the stack */
       } else {
-        hist_expr_token_copy(pos++, top--);
+        copytoken(pos++, top--);
       }
     } else if ( tok->type == OPERATOR ) {
       if ( (tok->s[0] == '+' || tok->s[0] == '-') &&
@@ -242,28 +166,27 @@ static token_t *hist_expr_parse2postfix(const char *s)
         /* handle a unary operator */
         if ( tok->s[0] == '-' ) {
           tok->s[0] = '_'; /* change it to negation */
-          hist_expr_token_copy(++top, tok); /* top = token */
+          copytoken(++top, tok); /* top = token */
         } /* skip the unary '+' */
       } else {
-        while ( ((hist_expr_preced(top->s) > hist_expr_preced(tok->s))
-                 || (hist_expr_preced(top->s) == hist_expr_preced(tok->s)
-                     && hist_expr_isleftassoc(top->s)))
-                && top->s[0] != '(' && top->type != FUNCTION ) {
+        while ( ( (preced(top->s) > preced(tok->s))
+              || (preced(top->s) == preced(tok->s) && isleftassoc(top->s)) )
+                 && top->s[0] != '(' && tok->type != FUNCTION ) {
           /* pop operators from the operator stack onto the output queue */
-          hist_expr_token_copy(pos++, top--); /* pos = top */
+          copytoken(pos++, top--); /* pos = top */
           if ( top <= ost ) break;
         }
-        //printf("pushing tok %s\n", tok->s);
-        hist_expr_token_copy(++top, tok); /* top = token */
+        /* push the read operator onto the operator stack */
+        copytoken(++top, tok); /* top = token */
       }
     }
-    hist_expr_token_copy(tok+1, tok); /* make a copy */
+    copytoken(tok+1, tok); /* make a copy */
   }
 
-  /* while there are still operator tokens on the stack,
+  /* where there are still operator tokens on the stack
    * pop the operator onto the output queue */
   while ( top > ost )
-    hist_expr_token_copy(pos++, top--);
+    copytoken(pos++, top--);
 
   pos->type = NULLTYPE;
   free(ost);
@@ -331,9 +254,8 @@ static varmap_t varmap[] = {
   {"", 0}
 };
 
-/** Evaluate the postfix expression stack.
- */
-static double hist_expr_eval_postfix(const token_t *que, const double *arr)
+/* evaluate the postfix expression */
+static double evalpostfix(token_t *que, const double *arr)
 {
   int i, n, top;
   double *st, ans;
@@ -342,13 +264,13 @@ static double hist_expr_eval_postfix(const token_t *que, const double *arr)
   /* determine the length of the expression */
   for ( n = 0; que[n].type != NULLTYPE; n++ ) ;
   /* allocate the evaluation stack */
-  if ((st = calloc(n, sizeof(*st))) == NULL) exit(-1);
+  if ( (st = calloc(n, sizeof(*st))) == NULL ) exit(-1);
   top = 0;
 
-  for ( pos = (token_t*)que; pos->type != NULLTYPE; pos++ ) {
+  for ( pos = que; pos->type != NULLTYPE; pos++ ) {
     if ( pos->type == NUMBER ) {
       st[top++] = pos->val;
-    } else if ( pos->type == COLUMN ) {
+    } else if ( pos->type == DATA ) {
       st[top++] = arr[pos->col - 1]; /* array index off-by-one */
     } else if ( pos->type == VARIABLE ) {
       for ( i = 0; varmap[i].s[0] != '\0'; i++ ) {
@@ -400,23 +322,8 @@ static double hist_expr_eval_postfix(const token_t *que, const double *arr)
   return ans;
 }
 
-/** Get the maximal number of required columns in data */
-static int hist_expr_get_colmax(token_t *p)
-{
-  int colmax = 0;
-
-  for ( ; p->type != NULLTYPE; p++ )
-    if ( p->type == COLUMN && p->col > colmax )
-      colmax = p->col;
-  return colmax;
-}
-
-/** Read a long line from file.
- * @param[inout] s string of the line, is allocated when s==NULL and n==0 and grown as needed.
- * @param[inout] n current size of s
- * @return s
- */
-static char *file_read_long_line(char **s, size_t *n, FILE *fp)
+/* read a long line from file */
+static char *mygetline(char **s, size_t *n, FILE *fp)
 {
   const int bufsz = 1024;
   char *p;
@@ -443,12 +350,41 @@ static char *file_read_long_line(char **s, size_t *n, FILE *fp)
   return *s;
 }
 
-static int hist_from_file(const char *command, const char *dfname, const param_t *pm)
+/* get the maximal number of required data columns */
+static int getmaxcol(token_t *p)
+{
+  int maxcol = 0;
+
+  for ( ; p->type != NULLTYPE; p++ )
+    if ( p->type == DATA && p->col > maxcol )
+      maxcol = p->col;
+  return maxcol;
+}
+
+/* display a 1D histogram on the terminal */
+static void showhist(const double *h, double xmin, double dx, int xn)
+{
+  int i0 = 0, i, j;
+  double m = 0;
+  i0 = 0;
+  for ( ; i0 < xn; i0++ ) if ( h[i0] > 0 ) break;
+  for ( ; xn > i0; xn-- ) if ( h[xn-1] > 0 ) break;
+  for ( i = i0; i < xn; i++ ) if ( h[i] > m ) m = h[i];
+  for ( i = i0; i < xn; i++ ) {
+    fprintf(stderr, "%10g: ", xmin + (i+0.5)*dx);
+    for ( j = 0; j < 60*h[i]/m; j++ ) fprintf(stderr, "*");
+    fprintf(stderr, "\n");
+  }
+}
+
+/* generate a histogram from the command and the input file
+ * write the output to stdout */
+static int mkhist(const char *command, const char *fnin)
 {
   token_t *px, *py = NULL, *pz = NULL, *pw = NULL;
   char *sx, *sy = NULL, *sz = NULL, *sw = NULL;
   char *sxyz, *shist = NULL, *p;
-  int dim = 1, i, n, colmax = 0, ix, iy, iz, xn, yn, zn, hn;
+  int dim = 1, i, n, maxcol = 0, ix, iy, iz, xn, yn, zn, hn;
   double x, xmin, xmax, dx;
   double y, ymin, ymax, dy;
   double z, zmin, zmax, dz;
@@ -457,7 +393,7 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
   double *data = NULL;
   size_t bufsz = 0;
   char *buf = NULL;
-  const char *delims = " \t\r\n,";
+  const char *delims = " \t\r\n";
 
   /* make a copy of the command */
   n = strlen(command);
@@ -477,8 +413,8 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
   if ( (p = strstr(sxyz, "::")) != NULL ) {
     *p = '\0';
     sw = p + 2;
-    pw = hist_expr_parse2postfix(sw);
-    if ( (i = hist_expr_get_colmax(pw)) > colmax ) colmax = i;
+    pw = parse2postfix(sw);
+    if ( (i = getmaxcol(pw)) > maxcol ) maxcol = i;
   } else {
     fprintf(stderr, "no :: for weight in [%s], assuming 1.0\n", sxyz);
   }
@@ -499,52 +435,54 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
   }
 
   /* get the postfix expressions for x, y, z */
-  px = hist_expr_parse2postfix(sx);
-  if ( (i = hist_expr_get_colmax(px)) > colmax ) colmax = i;
+  px = parse2postfix(sx);
+  if ( (i = getmaxcol(px)) > maxcol ) maxcol = i;
   if ( dim >= 2 ) {
-    py = hist_expr_parse2postfix(sy);
-    if ( (i = hist_expr_get_colmax(py)) > colmax ) colmax = i;
+    py = parse2postfix(sy);
+    if ( (i = getmaxcol(py)) > maxcol ) maxcol = i;
     if ( dim >= 3 ) {
-      pz = hist_expr_parse2postfix(sz);
-      if ( (i = hist_expr_get_colmax(pz)) > colmax ) colmax = i;
+      pz = parse2postfix(sz);
+      if ( (i = getmaxcol(pz)) > maxcol ) maxcol = i;
     }
   }
 
   /* allocate the data array */
-  if ( (data = calloc(colmax + 1, sizeof(*data))) == NULL ) exit(-1);
+  if ( (data = calloc(maxcol + 1, sizeof(*data))) == NULL ) exit(-1);
 
   /* get histogram parameters */
   if (3 != sscanf(shist, " h ( %d, %lf, %lf%n", &xn, &xmin, &xmax, &i)) {
-    fprintf(stderr, "Error: invalid histogram x-axis specification [%s]\n", p);
+    fprintf(stderr, "invalid histogram x-parameters [%s]\n", p);
     goto END;
   }
   p = shist + i;
   dx = (xmax - xmin) / xn;
-  zn = yn = xn;
+  /* set the default parameters for y and z the same as those for x */
+  zn   = yn   = xn;
   zmin = ymin = xmin;
   zmax = ymax = xmax;
-  dz = dy = dx;
+  dz   = dy   = dx;
 
   if ( dim >= 2 ) { /* scan histogram y parameters */
     while ( *p && isspace(*p) ) p++;
     if ( *p != ')' ) {
       p++; /* skip a , or ; */
       if (3 != sscanf(p, "%d, %lf, %lf%n", &yn, &ymin, &ymax, &i)) {
-        fprintf(stderr, "Error: invalid histogram y-axis specification [%s]\n", p);
+        fprintf(stderr, "invalid histogram y-parameters [%s]\n", p);
         goto END;
       }
       p += i;
       dy = (ymax - ymin) / yn;
-      zn = yn;
+      /* set the default parameters for z the same as those for y */
+      zn   = yn;
       zmin = ymin;
       zmax = ymax;
-      dz = dy;
+      dz   = dy;
       if ( dim >= 3 ) { /* scan histogram z parameters */
         while ( *p && isspace(*p) ) p++;
         if ( *p != ')' ) {
           p++; /* skip a , or ; */
           if (3 != sscanf(p, "%d, %lf, %lf%n", &zn, &zmin, &zmax, &i)) {
-            fprintf(stderr, "Error: invalid histogram z-axis specification [%s]\n", p);
+            fprintf(stderr, "invalid histogram z-parameters [%s]\n", p);
             goto END;
           }
           p += i;
@@ -555,13 +493,13 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
   }
 
   if ( dim == 1 ) {
-    fprintf(stdout, "# hist1D: x: %s, weight: %s, xbins (%d, %g, %g)\n",
+    fprintf(stderr, "1D: x %s, weight %s, x %d bins (%g, %g)\n",
         sx, (sw ? sw : "1"), xn, xmin, xmax);
   } else if ( dim == 2 ) {
-    fprintf(stdout, "# hist2D: x: %s, y: %s, weight: %s, xbins (%d, %g, %g); ybins (%d, %g, %g)\n",
+    fprintf(stderr, "2D: x %s, y %s, weight %s, x %d bins (%g, %g); y %d bins (%g, %g)\n",
         sx, sy, (sw ? sw : "1"), xn, xmin, xmax, yn, ymin, ymax);
   } else if ( dim == 3 ) {
-    fprintf(stdout, "# hist3D: x: %s, y: %s, z: %s, weight: %s, xbins (%d, %g, %g); ybins (%d, %g, %g); zbins (%d, %g, %g)\n",
+    fprintf(stderr, "3D: x %s, y %s, z %s, weight %s, x %d bins (%g, %g); y %d bins (%g, %g); z %d bins (%g, %g)\n",
         sx, sy, sz, (sw ? sw : "1"), xn, xmin, xmax, yn, ymin, ymax, zn, zmin, zmax);
   }
 
@@ -571,52 +509,44 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
   if ( (hist = calloc(hn, sizeof(*hist))) == NULL) exit(-1);
   for ( i = 0; i < hn; i++ ) hist[i] = 0;
 
-  if ((fp = fopen(dfname, "r")) == NULL ) {
-    fprintf(stderr, "Error: cannot read %s\n", dfname);
+  if ((fp = fopen(fnin, "r")) == NULL ) {
+    fprintf(stderr, "cannot read %s\n", fnin);
     goto END;
   }
 
   /* read file line by line */
-  while ( file_read_long_line(&buf, &bufsz, fp) ) {
+  while ( mygetline(&buf, &bufsz, fp) ) {
     if (buf[0] == '#' || buf[0] == '!') continue;
     p = strtok(buf, delims);
-    for ( i = 0; i < colmax && p != NULL; i++ ) {
+    for ( i = 0; i < maxcol && p != NULL; i++ ) {
       data[i] = atof(p);
       p = strtok(NULL, delims);
       //fprintf(stderr, "%g ", data[i]);
     }
 
     /* compute the index */
-    x = hist_expr_eval_postfix(px, data);
+    x = evalpostfix(px, data);
     ix = ( x >= xmin ) ? ( x - xmin ) / dx : -1;
-    i = -1;
+    i = ix;
     if ( ix < xn ) {
-      i = ix;
       if ( dim >= 2 ) {
         i *= yn;
-        y = hist_expr_eval_postfix(py, data);
+        y = evalpostfix(py, data);
         iy = ( y >= ymin ) ? ( y - ymin ) / dy : -1;
         if ( iy < yn ) {
           i += iy;
           if ( dim >= 3 ) {
             i *= zn;
-            z = hist_expr_eval_postfix(pz, data);
+            z = evalpostfix(pz, data);
             iz = ( z >= zmin ) ? ( z - zmin ) / dz : -1;
-            if ( iz < zn ) {
-              i += iz;
-            } else {
-              i = -1;
-            }
+            i = ( iz < zn ) ? i + iz : -1;
           }
-        } else {
-          i = -1;
-        }
+        } else { i = -1; }
       }
-    } else {
-      i = -1;
-    }
+    } else { i = -1; }
+
     if ( i >= 0 ) {
-      w = ( pw != NULL ) ? hist_expr_eval_postfix(pw, data) : 1.0;
+      w = ( pw != NULL ) ? evalpostfix(pw, data) : 1.0;
       //fprintf(stderr, " |  %d %g\n", i, w);
       hist[i] += w;
       wtot += w;
@@ -624,46 +554,29 @@ static int hist_from_file(const char *command, const char *dfname, const param_t
   }
 
   /* print the histogram */
-  w = 0.0; if ( pm->bincenter ) w = 0.5;
   if ( dim == 1 ) { /* 1D histogram */
-    if ( pm->normalize == 0 ) {
-      norm = 1.0;
-    } else if ( pm->normalize == 1 ) {
-      norm = 1.0/wtot;
-    } else {
-      norm = 1.0/(wtot*dx);
+    norm = 1.0/(wtot*dx);
+    /* truncate the edges */
+    for ( i = 0; i < xn; i++ ) {
+      printf("%g %g\n", xmin + (i + 0.5) * dx, hist[i]*norm);
     }
-    for (i=0 ; i < xn; i++ ) {
-      printf("%g %g\n", xmin + (i + w) * dx, hist[i]*norm);
-    }
+    showhist(hist, xmin, dx, xn);
   } else if ( dim == 2 ) { /* 2D histogram */
-    if ( pm->normalize == 0 ) {
-      norm = 1.0;
-    } else if ( pm->normalize == 1 ) {
-      norm = 1.0/wtot;
-    } else {
-      norm = 1.0/(wtot*dx*dy);
-    }
+    norm = 1.0/(wtot*dx*dy);
     for ( i = 0, ix = 0; ix < xn; ix++ ) {
       for ( iy = 0; iy < yn; iy++, i++ ) {
-        printf("%g %g %g\n", xmin + (ix + w) * dx,
-            ymin + (iy + w) * dy, hist[i]*norm);
+        printf("%g %g %g\n", xmin + (ix + 0.5) * dx,
+            ymin + (iy + 0.5) * dy, hist[i]*norm);
       }
       printf("\n");
     }
   } else if ( dim == 3 ) { /* 3D histogram */
-    if ( pm->normalize == 0 ) {
-      norm = 1.0;
-    } else if ( pm->normalize == 1 ) {
-      norm = 1.0/wtot;
-    } else {
-      norm = 1.0/(wtot*dx*dy*dz);
-    }
+    norm = 1.0/(wtot*dx*dy*dz);
     for ( i = 0, ix = 0; ix < xn; ix++ ) {
       for ( iy = 0; iy < yn; iy++, i++ ) {
         for ( iz = 0; iz < zn; iz++, i++ ) {
-          printf("%g %g %g %g\n", xmin + (ix + w) * dx,
-              ymin + (iy + w) * dy, zmin + (iz + w) * dz,
+          printf("%g %g %g %g\n", xmin + (ix + 0.5) * dx,
+              ymin + (iy + 0.5) * dy, zmin + (iz + 0.5) * dz,
               hist[i]*norm);
         }
       }
@@ -681,17 +594,18 @@ END:
   return 0;
 }
 
-#if 0
-/** Generate a random test file, if not exist */
-static void gen_rand_file(const char *fn) {
+
+/* generate a random test file, if not exists */
+static void genrandfile(const char *fn) {
   FILE *fp;
   int i, j;
   double x, y;
+
   if ( (fp = fopen(fn, "r")) != NULL ) {
     fclose(fp);
     return;
   }
-  // srand(clock());
+  srand(clock());
   if ((fp = fopen(fn, "w")) != NULL) {
     for ( i = 0; i < 10000; i++ ) {
       for ( x = 0, j = 0; j < 10; j++ )
@@ -705,46 +619,22 @@ static void gen_rand_file(const char *fn) {
     fclose(fp);
   }
 }
-#endif
 
 int main(int argc, char **argv)
 {
-  int optC = 0;
-  param_t pm;
-  //const char *command = "sin(-$1+$2)::1.0>>h(100, -1.0, 1.0)";
-  const char *command = "sin(-$1+$2):cos($3)>>h(100, -1.0, 1.0; -23, -1.1, 1.2)";
-  const char *dfname = "data.dat";
+  //const char *command = "sin(-$1+.05e1*$2)::1.0>>h(100, -1.0, 1.0)";
+  const char *command = "sin(-$1+$2):cos($3)>>h(100, -1.0, 1.0)";
+  const char *fnin = "data.dat";
 
-  memcpy(&pm, &param_default, sizeof(pm));
-  /* parse switches */
-  while((optC = getopt(argc, argv, "cm:")) != -1) {
-    switch(optC) {
-    case 'c':
-      pm.bincenter = 1;
-      break;
-    case 'm':
-      pm.normalize = (int) strtol(optarg, NULL, 0);
-      break;
-    default:
-      print_usage(&pm);
-      return EXIT_FAILURE;
-      break;
-    }
+  if ( argc >= 2 ) {
+    command = argv[1];
   }
-  argc -= optind;
-  argv += optind;
 
-  if(argc<2) {
-    print_usage(&pm);
-    return EXIT_FAILURE;
+  if ( argc >= 3 ) {
+    fnin = argv[2];
+  } else { /* otherwise generate a test data file */
+    genrandfile(fnin);
   }
-  command = argv[0];
-  dfname  = argv[1];
-  hist_from_file(command, dfname, &pm);
-
-  return EXIT_SUCCESS;
+  mkhist(command, fnin);
+  return 0;
 }
-
-/* Local Variables:  */
-/* c-basic-offset: 2 */
-/* End:              */
