@@ -213,15 +213,15 @@ static double dblmax(double a, double b) { return ( a > b ) ? a : b; }
 static double dblmin(double a, double b) { return ( a < b ) ? a : b; }
 static double iif(double c, double a, double b) { return ( c != 0 ) ? a : b; }
 
-/* Tausworthe random number generator for a number in [0, 1) */
+/** Tausworthe random number generator for a number in [0, 1) */
 static double rand01(void)
 {
   static unsigned long s1, s2, s3;
 
 #define TAUSWORTHE(s, a, b, c, d) (((s & c) << d) & 0xffffffffUL) ^ ((((s << a) & 0xffffffffUL) ^ s) >> b)
-#define TAUS3() s1 = TAUSWORTHE(s1, 13, 19, 4294967294UL, 12); \
-                s2 = TAUSWORTHE(s2,  2, 25, 4294967288UL,  4); \
-                s3 = TAUSWORTHE(s3,  3, 11, 4294967280UL, 17)
+#define TAUS3() s1 = TAUSWORTHE(s1, 13, 19, 4294967294UL, 12);  \
+  s2 = TAUSWORTHE(s2,  2, 25, 4294967288UL,  4);                \
+  s3 = TAUSWORTHE(s3,  3, 11, 4294967280UL, 17)
 
   if ( s1 == 0 ) {
     s3 = (unsigned long) time(NULL) & 0xffffffffUL;
@@ -234,19 +234,18 @@ static double rand01(void)
   return ( s1 ^ s2 ^ s3 ) / 4294967296.0;
 }
 
-
 /** expression token types */
 enum { NULLTYPE, NUMBER, OPERATOR, FUNCTION, COLUMN, VARIABLE };
 
 typedef struct {
   const char *s;
-  double (*f)(); /* corresponding function */
-  int nops; /* number of operands */
-  int preced; /* precedence */
-  int rightassoc; /* right associative */
+  double (*f)();  /**< corresponding function */
+  int nops;       /**< number of operands */
+  int preced;     /**< precedence */
+  int rightassoc; /**< right associative */
 } opinfo_t;
 
-/* supported operators: */
+/** supported operators: */
 opinfo_t hist_expr_oplist[] = {
   { "",      NULL, 0,  0, 0 }, /* root of the operator stack */
   { "(",     NULL, 0, 16, 0 }, { ")",     NULL, 0, 16, 0 },
@@ -264,7 +263,8 @@ opinfo_t hist_expr_oplist[] = {
   { "&&",  dbland, 2,  5, 0 }, { "and", dbland, 2,  5, 0 },
   { "||",   dblor, 2,  4, 0 }, { "or",   dblor, 2,  4, 0 },
   { ",",     NULL, 0,  1, 0 },
-  { NULL,    NULL, 0,  0, 0 } };
+  { NULL,    NULL, 0,  0, 0 }
+};
 
 typedef struct {
   const char *s;
@@ -550,8 +550,7 @@ static varmap_t varmap[] = {
   {"", 0}
 };
 
-/** Evaluate the postfix expression stack.
- */
+/** Evaluate the postfix expression stack. */
 static double hist_expr_eval_postfix(const token_t *que, const double *arr, int narr)
 {
   int i, n, top, narg;
@@ -878,19 +877,19 @@ static int hist_guess_range(param_t *pm)
     pm->xn = hist_make_grid(&pm->xmin, &pm->xmax, &pm->dx);
 #ifdef DEBUG
     fprintf(stderr, "Auto x range: (%g, %g) bin %g, %d bins\n",
-      pm->xmin, pm->xmax, pm->dx, pm->xn);
+            pm->xmin, pm->xmax, pm->dx, pm->xn);
 #endif
     if ( pm->dim >= 2 ) {
       pm->yn = hist_make_grid(&pm->ymin, &pm->ymax, &pm->dy);
 #ifdef DEBUG
       fprintf(stderr, "Auto y range: (%g, %g) bin %g, %d bins\n",
-        pm->ymin, pm->ymax, pm->dy, pm->yn);
+              pm->ymin, pm->ymax, pm->dy, pm->yn);
 #endif
       if ( pm->dim >= 3 ) {
         pm->zn = hist_make_grid(&pm->zmin, &pm->zmax, &pm->dz);
 #ifdef DEBUG
         fprintf(stderr, "Auto z range: (%g, %g) bin %g, %d bins\n",
-          pm->zmin, pm->zmax, pm->dz, pm->zn);
+                pm->zmin, pm->zmax, pm->dz, pm->zn);
 #endif
       }
     }

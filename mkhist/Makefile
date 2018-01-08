@@ -11,7 +11,7 @@ $(bins): % : %.c $(deps)
 	$(CC) $< -o $@ $(LM)
 
 clean:
-	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~ *.dat *.pos vgcore.* *.his
+	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~ *.pos vgcore.* *.his
 	rstrip.py -Rlv
 
 zip:

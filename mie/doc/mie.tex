@@ -1,0 +1,237 @@
+\documentclass[reprint, superscriptaddress]{revtex4-1}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{mathtools}
+\usepackage{upgreek}
+\usepackage[table,usenames,dvipsnames]{xcolor}
+%\usepackage{tikz}
+%\usetikzlibrary{calc}
+\usepackage{hyperref}
+\usepackage{setspace}
+
+\setcitestyle{super}
+
+\hypersetup{
+  colorlinks,
+  linkcolor={blue!80!black},
+  citecolor={green!20!black},
+  urlcolor={blue!80!black}
+}
+
+
+\definecolor{DarkBlue}{RGB}{0,0,64}
+\definecolor{DarkBrown}{RGB}{64,20,10}
+\definecolor{DarkGreen}{RGB}{0,64,0}
+\definecolor{DarkPurple}{RGB}{128,0,84}
+\definecolor{LightGray}{gray}{0.85}
+% annotation macros
+\newcommand{\repl}[2]{{\color{gray} [#1] }{\color{blue} #2}}
+\newcommand{\add}[1]{{\color{blue} #1}}
+\newcommand{\del}[1]{{\color{gray} [#1]}}
+\newcommand{\note}[1]{{\color{DarkGreen}\footnotesize \textsc{Note.} #1}}
+
+\begin{document}
+\title{Bias of the configuration entropy estimated from counting methods}
+
+\author{Justin A. Drake}
+\affiliation{
+Sealy Center for Structural Biology and Molecular Biophysics,
+The University of Texas Medical Branch,
+Galveston, Texas 77555-0304, USA}
+\author{Danielle D. Seckfort}
+\affiliation{
+Quantitative and Computational Biosciences,
+Baylor College of Medicine, Houston, Texas 77030, USA}
+\author{B. Montgomery Pettitt}
+\email{mpettitt@utmb.edu}
+\affiliation{
+Sealy Center for Structural Biology and Molecular Biophysics,
+The University of Texas Medical Branch,
+Galveston, Texas 77555-0304, USA}
+\affiliation{
+Quantitative and Computational Biosciences,
+Baylor College of Medicine, Houston, Texas 77030, USA}
+
+\begin{abstract}
+We show that the configuration entropy estimated from methods based on counting occurrences
+carries a negative bias
+that is inversely proportional to the simulation length.
+%
+In particular, for the method based on the mutual information expansion,
+we show that the magnitude of the bias can grow rapidly with the order of the expansion.
+\end{abstract}
+
+\maketitle
+
+
+\section{Introduction}
+
+Entropy is a key concept of statistical mechanics that provides a quantitative measure of
+the number of possible states a system can go through during its time evolution.
+%
+In particular, the configuration entropy is defined,
+for $M$ coarse-grained states in the configuration space, as
+%
+\begin{equation}
+  S
+  \equiv
+  -k_B \sum_{i = 1}^M p_i \, \ln p_i
+  ,
+  \label{eq:entropy_def}
+\end{equation}
+%
+where $p_i$ is the probability of discrete state $i = 1, \dots, M$,
+and $k_B$ is the Boltzmann constant.
+%
+For the even distribution, $p_i \equiv 1/M$,
+we can readily verify that $S \equiv k_B \, \ln M$
+is proportional to the logarithm of the number of states.
+
+We can readily apply Eq. \eqref{eq:entropy_def} to a trajectory
+obtained from a molecular dynamics (MD) or Monte Carlo (MC) simulation,
+with the probabilities estimated from the observed occurrences of the states.
+%
+Among the many methods for estimation of the configuration entropy based on this principle
+the method of mutual information expansion (MIE) is a notable example
+that can potentially handle a vast state spaces of a complex system.
+%
+The MIE method applies to a many-body system
+ whose state space is decomposable to a direct product of individual component spaces.
+%
+Starting from the sum of the entropies from the component spaces,
+the method offers a cascade of levels of corrections
+that gradually take into account higher-order correlations
+of pairs, triples, quadruples, etc.
+
+However, a common drawback of the above counting-based methods is that
+they tend to underestimate the configuration entropy for finite samples
+derived from realistic simulations.
+%
+Thus, it is useful to understand the variance of this estimation bias with the sample size.
+%
+This knowledge can hopefully help derive a finite-size correction
+through extrapolation along the system size.
+
+Here we wish to show that the configuration entropy derived
+from the counting-based methods (including MIE)
+generally carries a negative bias that scales inversely with the trajectory length.
+%
+The bias of the MIE method, in particular,
+can grow dramatically with the order of tuples.
+%
+We can reduce the magnitude of the bias
+by imposing some restrictions to the higher-order tuples included.
+
+\section{Method}
+
+\subsection{Estimation bias in direct counting}
+
+We will first discuss the estimation bias
+of directly using Eq. \eqref{eq:entropy_def} for a finite trajectory.
+%
+In this estimation, we replace the probability $p_i$
+by the frequency, $f_i = n_i / t$,
+where $n_i$ is the number of times state $i$ occurring in the trajectory of $t$ steps,
+and
+%
+\begin{equation}
+  \hat S
+  =
+  -k_B \sum_{i = 1}^M f_i \, \ln f_i
+  .
+  \label{eq:entropy_est}
+\end{equation}
+%
+To discuss the error,
+we will imagine an ensemble of trajectories of replica systems
+under the same condition but different random forces
+so that we can define the bias from the difference
+between the ensemble average, $\langle \hat S \rangle$
+and the true value, $S$.
+%
+By the series expansion of $f_i$ around $p_i$, we have
+%
+\begin{align*}
+  \hat S
+  =
+  S - k_B \sum_{i = 1}^M \left[
+    (\ln p_i + 1) (f_i - p_i)
+    + \frac{ (f_i - p_i)^2 } { 2 \, p_i }
+  \right]
+  .
+  %\label{eq:Shat_series}
+\end{align*}
+%
+\note{The series expansion of the function, $h(x) = -x \, \ln x$,
+around $x_0$,
+%
+\begin{align*}
+  h(x)
+  &\approx h(x_0) + h'(x_0) (x - x_0) + \frac{h''(x_0)}{2} (x - x_0)^2 \\
+  &\approx h(x_0) - (\ln x_0 + 1) ( x - x_0) - \frac{1}{2 \, x_0} (x - x_0)^2
+  .
+\end{align*}
+}
+%
+Assuming the sampling is unbiased,
+we should have $\langle f_i \rangle = p_i$.
+%
+Thus, after ensemble averaging, we get
+%
+\begin{align*}
+  \langle \hat S \rangle
+  \approx
+  S - k_B \sum_{i = 1}^M
+    \frac{ \operatorname{var} (f_i) } { 2 \, p_i }
+  =
+  S - k_B \sum_{i = 1}^M
+    \frac{ \operatorname{var} (n_i) } { 2 \, p_i \, t^2 }
+  .
+  %\label{eq:Shat_series}
+\end{align*}
+
+By definition, we have
+$$n_i = \sum_{t' = 1}^t \delta_{i, i(t')},$$
+where $i(t')$ denotes the state at step $t'$,
+and $\delta_{i, j}$ is the Kronecker delta,
+which takes the value of $1$ if $i = j$, or $0$ otherwise.
+%
+We can readily show that
+\begin{align*}
+  \langle n_i \rangle
+  &=
+  t \, p_i, \\
+  \operatorname{var}{n_i}
+  &=
+  \left\langle n_i^2 \right\rangle - \langle n_i \rangle^2
+  =
+  t \, p_i \, (1 - p_i) \, (2 \, \tau_{i} + 1)
+  ,
+\end{align*}
+%
+where $\tau_i$ is the integral autocorrelation time of $\delta_{i, i(t)}$,
+defined as $\tau_i = \sum_{t = 1}^\infty \kappa_i(t)/\kappa_i(0)$,
+with the autocorrelation function given by
+$\kappa(t) = (\delta_{i, i(t)} - p_i) (\delta_{i, i(0)} - p_i)$.
+
+\begin{align*}
+  \langle \hat S \rangle
+  &\approx
+  S - k_B \sum_{i = 1}^M
+    \frac{ (1 - p_i) ( 2 \, \tau_i + 1) } { 2 \, t }
+  \\
+  &\approx
+  S - k_B
+    \frac{ (M - 1) ( 2 \, \tau + 1) } { 2 \, t }
+  .
+  %\label{eq:Shat_series}
+\end{align*}
+where in the second step,
+we have assumed that all integral autocorrelation time are the same.
+
+This result shows that the entropy estimated from direct counting
+is expected to carry a negative bias
+that is inversely proportional to the trajectory length.
+
+\end{document}
