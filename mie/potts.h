@@ -12,7 +12,7 @@ typedef struct {
   long **cnt1; /* raw counts for 1D entropy */
   long **cnt2; /* raw counts for 2D entropy */
   double *enti;
-  double ent1, ent2, ent1r, ent2r;
+  double ent1, ent2, ent1r, ent2r, entr;
 } potts_t;
 
 static potts_t *potts_open(int q, int n)
@@ -206,66 +206,29 @@ __inline static void lnmatmul(double *a, double *b, double *c, int q)
 /* compute the reference entropy */
 __inline static double potts_ent2ref(potts_t *p, double beta)
 {
-  int s, t, st, q = p->q, i, j, n = p->n;
-  double **lnm; /* transition matrices, saving logarithms of elements */
-  double *lnz; /* partition function */
-  double lnp, eij;
+  int q = p->q, k, n = p->n;
+  double f = exp(beta) - 1, lna, lnb, lnz, lnp1, lnp2, sk;
 
-  /* allocate spaces for transition matrices */
-  xnew(lnm, n);
-  for ( i = 0; i < n; i++ ) {
-    xnew(lnm[i], q * q);
-  }
-  xnew(lnz, n);
-
-  for ( s = 0; s < q; s++ ) {
-    for ( t = 0; t < q; t++ ) {
-      st = s * q + t;
-      lnm[0][st] = beta * (s == t); /* exp(-beta*(-delta(s,t))) */
-      lnm[1][st] = lnm[0][st];
-    }
-  }
-
-  /* using matrix multiplication
-   * to compute higher-order matrices */
-  for ( i = 1; i < n - 1; i++ ) {
-    /* lnm[i+1] = lnm[i] * lnm[0]; */
-    lnmatmul(lnm[i+1], lnm[i], lnm[0], q);
-  }
-
-  /* compute the partition function */
-  for ( i = 0; i < n; i++ ) {
-    lnz[i] = LN0;
-    for ( s = 0; s < q; s++ ) {
-      for ( t = 0; t < q; t++ ) {
-        st = s * q + t;
-        lnz[i] = lnadd(lnz[i], lnm[i][st]);
-      }
-    }
-  }
-
-  /* compute the information */
+  /* compute the correction from pair information */
   p->ent2r = 0;
-  for ( i = 0; i < n; i++ ) {
-    for ( j = i + 1; j < n; j++ ) {
-      eij = 0;
-      for ( s = 0; s < q; s++ ) {
-        for ( t = 0; t < q; t++ ) {
-          st = s * q + t;
-          lnp = lnm[j-i][st] - lnz[j-i];
-          eij += -exp(lnp) * lnp;
-        }
-      }
-      p->ent2r += eij - 2*log(q);
-    }
+  for ( k = 1; k < n; k++ ) {
+    /* for the transition matrix of a pair k sites apart */
+    lna = k * log(f);
+    /* ai = f^k, bi = ((f+q)^k - f^k)/q */
+    lnb = k * log(f + q) - log(q) + log(1 - pow(f/(f+q), k));
+    lnz = log(q) + k * log(f + q); /* partition function */
+    lnp1 = lnadd(lna, lnb) - lnz; /* diagonal element of the transition matrix */
+    lnp2 = lnb - lnz; /* non-diagonal element of the transition matrix */
+    /* entropy of the pair of k sites apart
+       sk = -(p2*ln(p2)*(q^2 - q) + p1*ln(p1)*q) */
+    sk = -(lnp2*exp(lnp2)*(q*q - q) + lnp1*exp(lnp1)*q);
+    p->ent2r += (sk - 2*log(q)) * (n - k);
+    //fprintf(stderr, "k %d: e^s %g\n", k, exp(sk));
   }
+  //fprintf(stderr, "ent2r %g\n", p->ent2r);
   p->ent1r = n * log(q);
   p->ent2r += p->ent1r;
-
-  /* compute the pairwise information */
-  for ( i = 0; i < n; i++ ) free(lnm[i]);
-  free(lnm);
-  free(lnz);
+  p->entr = log(q) + (n - 1) * (log(f + q) - beta * (f + 1) / (f + q));
 
   return p->ent2r;
 }

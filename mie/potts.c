@@ -59,8 +59,8 @@ int main(int argc, char **argv)
       ent1 /= nsys;
       ent2 /= nsys;
       t1 = t / nsttraj;
-      printf("%9ld: entropy %8.4f(%8.4f), %8.4f(%8.4f); %8.4f(%6.2f), %8.4f(%6.2f);\n", t,
-          ent1, p[0]->ent1r, ent2, p[0]->ent2r,
+      printf("%9ld: entropy %8.4f(%8.4f), %8.4f(%8.4f), (%8.4f); %8.4f(%6.2f), %8.4f(%6.2f);\n", t,
+          ent1, p[0]->ent1r, ent2, p[0]->ent2r, p[0]->entr,
           (p[0]->ent1r - ent1)*t1, a1,
           (p[0]->ent2r - ent2)*t1, a2);
     }
