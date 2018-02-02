@@ -31,8 +31,10 @@
 \newcommand{\del}[1]{{\color{gray} [#1]}}
 \newcommand{\note}[1]{{\color{DarkGreen}\footnotesize \textsc{Note.} #1}}
 
+\newcommand{\MI}{\mathcal I} % mutual information
+
 \begin{document}
-\title{Bias of the configuration entropy estimated from counting methods}
+\title{Bias of the configuration entropy estimated from counting-based methods}
 
 \author{Justin A. Drake}
 \affiliation{
@@ -43,6 +45,11 @@ Galveston, Texas 77555-0304, USA}
 \affiliation{
 Quantitative and Computational Biosciences,
 Baylor College of Medicine, Houston, Texas 77030, USA}
+\author{Omneya Nassar}
+\affiliation{
+Sealy Center for Structural Biology and Molecular Biophysics,
+The University of Texas Medical Branch,
+Galveston, Texas 77555-0304, USA}
 \author{B. Montgomery Pettitt}
 \email{mpettitt@utmb.edu}
 \affiliation{
@@ -58,7 +65,7 @@ We show that the configuration entropy estimated from methods based on counting 
 carries a negative bias
 that is inversely proportional to the simulation length.
 %
-In particular, for the method based on the mutual information expansion,
+In particular, for the mutual information expansion method,
 we show that the magnitude of the bias can grow rapidly with the order of the expansion.
 \end{abstract}
 
@@ -99,29 +106,29 @@ that can potentially handle a vast state space of a complex system.
 The MIE method applies to a many-body system
  whose state space is decomposable to a direct product of individual component spaces.
 %
-Starting from the sum of the entropies from the component spaces,
+Starting from the sum of marginal entropies of individual components,
 the method offers a cascade of levels of corrections
-that gradually take into account higher-order correlations
-of pairs, triples, quadruples, etc.
+to systematically absorb the contributions of higher-order correlations
+of increasingly larger groups, such as pairs, triplets, quartets, etc.
 
-However, a common drawback of the above counting-based methods is that
-they tend to underestimate the configuration entropy for a finite sample
+However, a common drawback of the above counting-based methods
+lies in its tendency to underestimate the configuration entropy for a finite sample
 derived from a realistic simulation.
 %
-Thus, it is useful to understand the variance of this estimation bias with the sample size.
+Thus, it is useful to understand the nature of this bias
+and its dependence on the sample size.
 %
-This knowledge can hopefully help derive a finite-size correction
-through extrapolation along the system size.
+This knowledge can hopefully help us derive a finite-size correction.
 
 Here we wish to show that the configuration entropy derived
-from the counting-based methods (including MIE)
+from the counting-based methods (including the MIE method)
 generally carries a negative bias that scales inversely with the trajectory length.
 %
 The bias of the MIE method, in particular,
 can grow dramatically with the order of tuples.
 %
-We can reduce the magnitude of the bias
-by imposing some restrictions to the higher-order tuples included.
+In some cases, we can reduce the magnitude of the bias
+by imposing some restrictions on the higher-order tuples included.
 
 \section{Method}
 
@@ -132,19 +139,19 @@ the direct application of Eq. \eqref{eq:entropy_def},
 which will be referred to as the direct counting method below.
 %
 Here, we estimate the probability $p(\alpha)$
-by the frequency, $f(\alpha) = n(\alpha) / t$,
-where $n(\alpha)$ is the number of times state $\alpha$ occurring in the trajectory of $t$ steps,
+by the frequency, $\hat{p}(\alpha) = \hat{n}(\alpha) / t$,
+where $\hat{n}(\alpha)$ is the number of times state $\alpha$ occurring in the trajectory of $t$ steps,
 and
 %
 \begin{equation}
   \hat S
   =
-  -k_B \sum_{\alpha = 1}^M f(\alpha) \, \ln f(\alpha)
+  -k_B \sum_{\alpha = 1}^M \hat{p}(\alpha) \, \ln \hat{p}(\alpha)
   .
   \label{eq:entropy_est}
 \end{equation}
 %
-To facilitate the discussion on error,
+To better investigate the error,
 we will imagine an ensemble of trajectories of replica systems
 under the same condition but different random forces
 and define the bias from the difference
@@ -152,7 +159,7 @@ between the ensemble average,
 $\langle \hat S \rangle$
 and the true value, $S$.
 %
-By the series expansion of $f(\alpha)$ around $p(\alpha)$, we have
+By the series expansion of $\hat{p}(\alpha)$ around $p(\alpha)$, we have
 %
 \begin{align*}
   \hat S
@@ -160,10 +167,10 @@ By the series expansion of $f(\alpha)$ around $p(\alpha)$, we have
   S
   &- k_B \sum_{\alpha = 1}^M
     \bigl[\ln p(\alpha) + 1 \bigr]
-    \bigl[ f(\alpha) - p(\alpha) \bigr]
+    \bigl[ \hat{p}(\alpha) - p(\alpha) \bigr]
   \\
   &- k_B \sum_{\alpha = 1}^M
-    \frac{ \bigl[f(\alpha) - p(\alpha)\bigr]^2 } { 2 \, p(\alpha) }
+    \frac{ \bigl[ \hat{p}(\alpha) - p(\alpha) \bigr]^2 } { 2 \, p(\alpha) }
   .
   %\label{eq:Shat_series}
 \end{align*}
@@ -180,7 +187,7 @@ around $x_0$,
 }
 %
 Assuming the sampling is unbiased,
-we have $\langle f(\alpha) \rangle = p(\alpha)$.
+we have $\langle \hat{p}(\alpha) \rangle = p(\alpha)$.
 %
 Thus, after ensemble averaging, we get
 %
@@ -188,28 +195,32 @@ Thus, after ensemble averaging, we get
   \langle \hat S \rangle
   \approx
   S - k_B \sum_{\alpha = 1}^M
-    \frac{ \operatorname{var} f(\alpha) } { 2 \, p(\alpha) }
+    \frac{ \operatorname{var} \hat{p}(\alpha) } { 2 \, p(\alpha) }
   =
   S - k_B \sum_{\alpha = 1}^M
-    \frac{ \operatorname{var} n(\alpha) } { 2 \, p(\alpha) \, t^2 }
+    \frac{ \operatorname{var} \hat{n}(\alpha) } { 2 \, p(\alpha) \, t^2 }
   .
   %\label{eq:Shat_series}
 \end{align*}
 
 By definition, we have
-$$n(\alpha) = \sum_{t' = 1}^t \delta_{\alpha, \alpha(t')},$$
+%
+\begin{equation*}
+  \hat{n}(\alpha) = \sum_{t' = 1}^t \delta_{\alpha, \alpha(t')},
+\end{equation*}
+%
 where $\alpha(t')$ denotes the state at step $t'$,
 and $\delta_{\alpha, \gamma}$ is the Kronecker delta,
 which takes the value of $1$ if $\alpha = \gamma$, or $0$ otherwise.
 %
 We can readily show that
 \begin{align*}
-  \langle n(\alpha) \rangle
+  \langle \hat{n}(\alpha) \rangle
   &=
   t \, p(\alpha), \\
-  \operatorname{var}{n(\alpha)}
+  \operatorname{var}{\hat{n}(\alpha)}
   &=
-  \left\langle n(\alpha)^2 \right\rangle - \langle n(\alpha) \rangle^2
+  \left\langle \hat{n}(\alpha)^2 \right\rangle - \langle \hat{n}(\alpha) \rangle^2
   \\
   &=
   t \, p(\alpha) \, \bigl( 1 - p(\alpha) \bigr) \, \bigl(2 \, \tau_\alpha + 1\bigr)
@@ -261,7 +272,7 @@ can readily deteriorate the precision of the entropy estimate.
 For these many-body systems,
 we may alternatively adopt
 the mutual information expansion (MIE) method,
-which is an approximate method designed for a system
+which is a more advanced, albeit approximate, method designed for a system
 with many largely-independent degrees of freedom.
 %
 The MIE method is based on the idea of
@@ -276,43 +287,48 @@ $$
 W(\alpha) = \ln\left[ \frac{1}{p(\alpha)} \right].
 $$
 The PMF can be interpreted as the amount of work
-(in the unit of $k_B \, T$, with $T$ being the temperature)
-required to commit an average system randomly drawn from ensemble of unknown state (of probability $1$)
+(in the unit of $k_B \, T$'s, with $T$ being the temperature)
+required to transfer an average system randomly drawn from the ensemble (of probability $1$)
 to state $\alpha$ (of probability $p(\alpha)$).
 %
-We will refer to this work as the work of ensemble restriction (WES) below.
+We will refer to this work as the work of ensemble confinement (WEC) below.
 %
 We can now rewrite Eq. \eqref{eq:entropy_def} as
 %
 \begin{equation}
-  S =
+  \frac{S}{k_B}
+  =
   \sum_{\alpha = 1}^M p(\alpha) \, W(\alpha)
   =
   \overline{ W(\alpha) }
   ,
+  \label{eq:S_W}
 \end{equation}
 %
 which shows that the configuration entropy
-is the mean WES.
+is the mean WEC.
 %
-For a thermodynamic system,
-we might expect the WES to be decomposable to
-the work of individual degrees of freedom plus some correlation.
+The Kirkwood superposition approximation is based on the intuition
+that for a physical or extensive system composed of multiple components,
+the WEC of the entire system is decomposable to the sum of WECs of the components
+plus some correlation.
 %
-The Kirkwood superposition approximation is based on this intuition.
 
-Consider a many-body system with many component degrees of freedom.
+Consider a many-body system of $n$ degrees of freedom.
 %
-We will label the degrees of freedom by $i$, $j$, \dots,
-and for a state $\alpha$,
-we will denote the corresponding components by
-$\alpha_i$, $\alpha_j$, \dots.
+We denote, for a state $\alpha$, the $i$th component degree of freedom by $\alpha_i$.
 %
 %For simplicity, we will assume that the degrees of freedom are identical.
 %
-For a set of degrees of freedom, $I = \{i, j, \dots\}$,
-we denote the marginal joint distribution by $p_I(\alpha_I)$,
-and define the joint PMF as $W_I(\alpha_I) = -\ln p_I(\alpha_I)$.
+For a subset of degrees of freedom, $I = \{i, j, \dots\}$,
+we denote the joint distribution by $p_I(\alpha_I)$,
+and define the joint PMF as
+%
+\begin{equation}
+  W_I(\alpha_I) = -\ln p_I(\alpha_I)
+  .
+  \label{eq:WI_def}
+\end{equation}
 %
 For example,
 the marginal PMF of a single degree of freedom $i$ is given by $W_i$ (omitting the argument),
@@ -320,9 +336,9 @@ that of a pair $\{i, j\}$ by $W_{i, j}$,
 that of a triplet $\{i, j, k\}$ by $W_{i, j, k}$, etc.
 
 Now by assuming that the components are largely independent,
-we would expect that the PMF of a pair $\{i, j\}$
-is the sum of the PMFs of the two individual components $i$ and $j$
-and a two-body correction, $\delta W_{i,j}$,
+we can write the PMF of a pair $\{i, j\}$
+as the sum of the PMFs of the two individual components $i$ and $j$
+and a hopefully small two-body correction, $\delta W_{i,j}$,
 %
 \begin{equation}
   W_{i,j}(\alpha_i, \alpha_j)
@@ -334,7 +350,7 @@ and a two-body correction, $\delta W_{i,j}$,
 \end{equation}
 %
 Similarly, for a triplet, $\{i, j, k\}$,
-we can define the correction, $\delta W_{i,j,k}$ via
+we can define the three-body correction, $\delta W_{i,j,k}$, via
 %
 \begin{align}
   &W_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
@@ -384,71 +400,164 @@ Eq. \eqref{eq:WI_dWJ} is an exact relation
 that serves only as the mathematical definition of $\delta W_I$.
 %
 However, its practical value lies in that in many cases
-with nearly independent components,
+with largely independent components,
 we can often assume, approximately,
 that the corrections of larger subsets are negligible
 so that a many-component PMF can be constructed
 from a few low-order ones.
 
 Since Eq. \eqref{eq:WI_dWJ} is a linear relation,
-we can invert it to get an explicit definition of $\delta W_I$
-through the inverse M\"{o}bius transform\cite{bjorklund2007},
+we can invert it to get an explicit definition of $\delta W_J$
+through the inclusion-exclusion principle, or the inverse M\"{o}bius transform\cite{bjorklund2007},
 \begin{equation}
-  \delta W_I =
-  \sum_{J \subseteq I}
-  (-1)^{|I| - |J|}
-  W_J
+  \delta W_J =
+  \sum_{I \subseteq J}
+  (-1)^{|J| - |I|}
+  W_I
   ,
-  \label{eq:dWI_WJ}
+  \label{eq:dWJ_WI}
 \end{equation}
 %
-where $|I|$ denote the size of set $I$.
+where $|I|$ denote the size of subset $I$.
+%
+For example, for a pair, $\{i, j\}$, we have
+%
+\begin{equation}
+  \delta W_{i,j} = W_{i,j} - W_{i} - W_{j}
+  .
+  \label{eq:dWij}
+\end{equation}
 
-We can readily verify Eq. \eqref{eq:dWI_WJ}
+We can readily verify Eq. \eqref{eq:dWJ_WI}
 by a direct expansion using Eq. \eqref{eq:WI_dWJ}.
 %
-Consider a particular subset $K \subseteq I$.
+Consider a particular subset $K \subseteq J$.
 Let us compute the contribution of $\delta W_K$
-to the right-hand side of Eq. \eqref{eq:dWI_WJ}.
+to the right-hand side of Eq. \eqref{eq:dWJ_WI}.
 %
 Note that $\delta W_K$ contributes only to those terms
-whose $J$ is a superset of $K$,
-and the contribution coefficient is $(-1)^{|I|-|J|}$.
+whose $I$ is a superset of $K$,
+and the contribution coefficient is $(-1)^{|J|-|I|}$.
 %
-If $K$ is strict subset of $I$,
-then there is at least one component $i^*$ that belongs to $I$
+If $K$ is strict subset of $J$,
+then there is at least one component $j^*$ that belongs to $J$
 but not to $K$,
-and all supersets, $J$'s,
-satisfying the condition given by Eq. \eqref{eq:dWI_WJ},
-$K \subseteq J \subseteq I$,
+and all supersets, $I$'s,
+satisfying the above condition, and that given by Eq. \eqref{eq:dWJ_WI},
+$K \subseteq I \subseteq J$,
 can be partitioned to two equally populated groups,
-according to whether the $J$ has $i^*$ or not.
+according to whether the $I$ has $j^*$ or not.
 %
 However, because the corresponding members of the two groups
-contribute opposite signs to the sum,
+contribute the same value with opposite signs to the sum,
 the total contribution is zero.
 %
 This means $\delta W_K$ can contribute to the right-hand side
-if and only if $K = I$, and the contribution is $1 \cdot W_I$,
+if and only if $K = J$, and the contribution is $1 \cdot W_J$,
 as intended.
 
-
-%If we limit ourselves to supersets, $J$'s, of size $j$,
+%If we limit ourselves to supersets, $I$'s, of size $i$,
 %then there are
-%${|I| - |K| \choose j - |K|}$ ways
-%of including components other than those in $K$ into $J$,
+%${|J| - |K| \choose i - |K|}$ ways
+%of including components other than those in $K$ into $I$,
 %and the total contribution is
-%$(-1)^{|I|-j} {|I| - |K| \choose j - |K|}$.
+%$(-1)^{|J|-i} {|J| - |K| \choose i - |K|}$.
 %%
 %Summing over the possible sizes yields
 %$$
-%\sum_{j=|K|}^{|I|} (-1)^{|I|-j} {|I| - |K| \choose j - |K|}
-%= (1 - 1)^{|I| - |K|} = \delta_{|I|, |K|}.
+%\sum_{j=|K|}^{|J|} (-1)^{|J|-i} {|J| - |K| \choose i - |K|}
+%= (1 - 1)^{|J| - |K|} = \delta_{|J|, |K|}.
 %$$
 %This shows that the total contribution of $\delta W_K$
-%to the right-hand side of Eq. \eqref{eq:dWI_WJ}
-%vanishes unless $K = I$,
+%to the right-hand side of Eq. \eqref{eq:dWJ_WI}
+%vanishes unless $K = J$,
 %which is the intended result.
+
+
+Just as we define the WECs, $W_I$'s, from the joint distributions
+through Eq. \eqref{eq:WI_def},
+we can associate the corrections, $\delta W_I$'s,
+with the (excess) correlation functions, $g_I$'s, as
+%
+\begin{equation}
+  g_I(\alpha_I) \equiv e^{-W_I(\alpha_I)}
+  .
+  \label{eq:gI_def}
+\end{equation}
+%
+This definition is consistent with the usual definition
+of the pair correlation function (as in liquid state theory\cite{hansen}),
+$g_{i,j}(\alpha_i, \alpha_j)$ for a pair, $\{i, j\}$,
+\begin{equation}
+  g_{i,j}(\alpha_i, \alpha_j)
+  =
+  \frac{ p_{i,j}(\alpha_i, \alpha_j) } { p_i(\alpha_i) \, p_j(\alpha_j) }
+  .
+  \label{eq:gij_MIE2}
+\end{equation}
+Similarly, for a triplet, $\{i, j, k\}$, we have
+$$
+g_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
+=
+\frac{ p_{i,j,k}(\alpha_i, \alpha_j \, \alpha_k) \, p_i(\alpha_i) \, p_j(\alpha_j) \, p_k(\alpha_k) }{ p_{i,j}(\alpha_i, \alpha_j) \, p_{j,k}(\alpha_j, \alpha_k) \, p_{k,i}(\alpha_k, \alpha_i) }
+.
+$$
+
+
+\subsection{Mutual information expansion}
+
+If we can assume the corrections, $\delta W_I$, higher than a certain order are negligible,
+we can then express a multiple-body distribution
+in terms of a few lower-order distributions.
+%
+For example, in the first-order MIE or independent-component approximation,
+we ignore all corrections of tuples of more than one element,
+i.e. $\delta W_{i, j} = \delta W_{i,j,k} = \cdots = 0$,
+or, equivalently,
+$g_{i,j} = g_{i,j,k} = \cdots = 1$.
+%
+Then we can approximate the pair distribution
+$p_{i,j}(\alpha_i, \alpha_j)$
+as the product $p_i(\alpha_i) \, p_j(\alpha_j)$
+by Eq. \eqref{eq:gij_MIE2},
+and
+$p_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)$
+as
+$p_i(\alpha_i) \, p_j(\alpha_j) \, p_k(\alpha_k)$, etc.
+
+Similarly, in the second-order MIE, we can write
+the triplet distribution as
+$$
+p_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
+=
+\frac{ p_{i,j}(\alpha_i, \alpha_j) \, p_{j,k}(\alpha_j, \alpha_k) \, p_{k,i}(\alpha_k, \alpha_i) }{ p_i(\alpha_i) \, p_j(\alpha_j) \, p_k(\alpha_k) }
+,
+$$
+if both the marginal and pairwise joint distributions are available.
+
+Similarly, the entropy under the $k$th-order MIE is expressed
+[cf. Eq. \eqref{eq:S_W}] as
+$$
+\frac{S}{k_B}
+=
+\sum_{|I| \le k} \overline{ \delta W_I(\alpha_I) },
+$$
+where $I$ goes through all subsets of the $n$ degrees of freedom,
+and $\delta W_I$ can be computed from Eq. \eqref{eq:dWJ_WI}
+with the $W_I$'s defined by Eq. \eqref{eq:WI_def}
+from the available margin and joint distributions, $p_I(\alpha_I)$'s.
+
+We can collect the terms of subsets of different sizes as
+$$
+\frac{S}{k_B}
+=
+\sum_{j = 1}^k (-1)^{j-1} \MI_j,
+$$
+%
+where the mutual information, $\MI_k$, is defined as
+$$
+\MI_j \equiv (-1)^{j-1} \sum_{|J| = j} \overline{ \delta W_J(\alpha_J) }.
+$$
 
 \bibliography{simul}
 \end{document}

@@ -15,4 +15,5 @@ clean:
 	rstrip.py -Rlv
 
 zip:
-	zip mie.zip *.c *.h Makefile
+	zip mie.zip *.c *.h Makefile \
+	    doc/Makefile doc/*.tex doc/*.nb

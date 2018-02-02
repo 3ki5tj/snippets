@@ -26,7 +26,7 @@ $(pdffigs): $(epsfigs) $(figgps)
 	make -C fig
 
 clean:
-	$(RM) -rf *.aux *.bbl *.blg *.dvi *.log *Notes.bib *~
+	$(RM) -rf *.aux *.bbl *.blg *.dvi *.log *.out *Notes.bib *~
 	rstrip.py -Rlv
 
 zip: $(prj)docV$(ver).zip
