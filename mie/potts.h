@@ -12,10 +12,16 @@ typedef struct {
   long **cnt1; /* raw counts for 1D entropy */
   long **cnt2; /* raw counts for 2D entropy */
   double *enti;
-  double ent1, ent2, ent1r, ent2r, entr;
+  double ent1, ent1c, ent1r;
+  double ent2, ent2c, ent2r;
+  double entr;
+
+  int trjn, trji; /* trajectory length and current position */
+  int trjwsz; /* size to save each frame */
+  char *trj;
 } potts_t;
 
-static potts_t *potts_open(int q, int n)
+static potts_t *potts_open(int q, int n, int trjlen)
 {
   potts_t *p;
   int i, s;
@@ -44,27 +50,115 @@ static potts_t *potts_open(int q, int n)
     for ( s = 0; s < q*q; s++ )
       p->cnt2[i][s] = 0;
   }
+
+  /* initialize the trajectory data */
+  p->trjn = trjlen;
+  p->trji = 0;
+  p->trj = NULL;
+  p->trjwsz = n;
+  if ( trjlen > 0 ) {
+    if ( q >= 128 ) {
+      fprintf(stderr, "traj. mode does not support %d state\n", q);
+      return NULL;
+    }
+    //fprintf(stderr, "using trajectory of size %gM\n", trjlen*n/(1024.*1024));
+    xnew(p->trj, p->trjn * p->trjwsz);
+  }
   return p;
 }
 
-static void potts_reg(potts_t *p)
+static void potts_close(potts_t *p)
+{
+  int i, n = p->n;
+
+  for ( i = 0; i < n; i++ ) {
+    free(p->cnt1[i]);
+  }
+  free(p->cnt1);
+  free(p->s);
+  free(p->trj);
+  free(p);
+}
+
+static void potts_encode(potts_t *p, int trji, const int *s)
+{
+  int i;
+  char *c = p->trj + trji * p->trjwsz;
+
+  for ( i = 0; i < p->n; i++ )
+    c[i] = (char) s[i];
+}
+
+static void potts_decode(potts_t *p, int trji, int *s)
+{
+  int i;
+  char *c = p->trj + trji * p->trjwsz;
+
+  for ( i = 0; i < p->n; i++ )
+    s[i] = c[i];
+}
+
+/* empty counts */
+static void potts_empty(potts_t *p)
+{
+  int i, s, n = p->n, q = p->q;
+
+  p->tot = 0;
+
+  for ( i = 0; i < n; i++ )
+    for ( s = 0; s < q; s++ )
+      p->cnt1[i][s] = 0;
+
+  for ( i = 0; i < n*n; i++ )
+    for ( s = 0; s < q*q; s++ )
+      p->cnt2[i][s] = 0;
+}
+
+
+/* register the state ps into the counts */
+static void potts_reg(potts_t *p, const int *ps)
 {
   int i, j, n = p->n, s, t, q = p->q;
 
   p->tot += 1;
 
   for ( i = 0; i < n; i++ ) {
-    s = p->s[i];
+    s = ps[i];
     p->cnt1[i][s] += 1;
   }
 
   for ( i = 0; i < n; i++ ) {
-    s = p->s[i];
+    s = ps[i];
     for ( j = i + 1; j < n; j++ ) {
-      t = p->s[j];
+      t = ps[j];
       p->cnt2[i*n + j][s*q + t] += 1;
     }
   }
+}
+
+/* add a trajectory frame */
+static void potts_add(potts_t *p)
+{
+  if ( p->trjn > 0 ) {
+    potts_encode(p, p->trji, p->s);
+    p->trji++;
+  } else { /* register directly */
+    potts_reg(p, p->s);
+  }
+}
+
+/* count occurrences from frame start to frame end */
+static void potts_count(potts_t *p, int start, int end)
+{
+  int i, *s;
+
+  xnew(s, p->n);
+  potts_empty(p);
+  for ( i = start; i < end; i++ ) {
+    potts_decode(p, i, s);
+    potts_reg(p, s);
+  }
+  free(s);
 }
 
 /* compute the first-order approximation of the entropy */
@@ -115,16 +209,43 @@ static double potts_ent2(potts_t *p)
 }
 
 
-static void potts_close(potts_t *p)
+static double potts_entropy(potts_t *p, int npart)
 {
-  int i, n = p->n;
+  if ( p->trjn == 0 ) {
+    potts_ent2(p);
+    p->ent1c = p->ent1;
+    p->ent2c = p->ent2;
+  } else {
+    int trjn = p->trji + 1, ip, blksz;
+    double ent1p = 0, ent1t;
+    double ent2p = 0, ent2t;
 
-  for ( i = 0; i < n; i++ ) {
-    free(p->cnt1[i]);
+    /* entropy estimated from the blocks */
+    blksz = trjn / npart;
+    for ( ip = 0; ip < npart; ip++ ) {
+      potts_count(p, ip * blksz, (ip + 1) * blksz);
+      potts_ent2(p);
+      ent1p += p->ent1;
+      ent2p += p->ent2;
+    }
+    ent1p /= npart;
+    ent2p /= npart;
+
+    /* entropy estimate from the entire trajectory */
+    potts_count(p, 0, p->trji + 1);
+    potts_ent2(p);
+    ent1t = p->ent1;
+    ent2t = p->ent2;
+
+    /* since we have St = S - a/t, Sp = S - a*npart/t
+     * a/t = (St - Sp)/(npart-1)
+     * S = (npart*St - Sp)/(npart-1); */
+    p->ent1 = ent1t;
+    p->ent1c = (ent1t*npart - ent1p)/(npart - 1);
+    p->ent2 = ent2t;
+    p->ent2c = (ent2t*npart - ent2p)/(npart - 1);
   }
-  free(p->cnt1);
-  free(p->s);
-  free(p);
+  return p->ent2;
 }
 
 __inline static int potts_energy(potts_t *p)
