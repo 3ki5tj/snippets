@@ -1,4 +1,4 @@
-\documentclass[preprint, superscriptaddress]{revtex4-1}
+\documentclass[reprint, superscriptaddress]{revtex4-1}
 
 \usepackage{amsmath}
 \usepackage{amsfonts}
@@ -398,9 +398,11 @@ We can readily verify that
 Eqs.~\eqref{eq:W_ij} and \eqref{eq:W_ijk}
 are special cases of Eq.~\eqref{eq:WI_dWJ}
 
-Since Eq.~\eqref{eq:WI_dWJ} is a linear relation,
+As Eq.~\eqref{eq:WI_dWJ} is a linear relation,
 we can invert it to get an explicit definition of $\delta W_J$
-through the inclusion-exclusion principle, or the inverse M\"{o}bius transform\cite{bjorklund2007},
+through the inclusion-exclusion principle,
+or the inverse M\"{o}bius transform\cite{bjorklund2007},
+(cf. Appendix~\ref{sec:inclexcl})
 %
 \begin{equation}
   \delta W_J(\alpha_J)
@@ -417,7 +419,34 @@ where $|I|$ denotes the size of subset $I$.
 Below we will refer to the subset sizes, $|I|$ and $|J|$,
 as the orders of $W_I(\alpha_I)$ and $\delta W_J(\alpha_J)$.
 %
-For example, we have, for a pair, $\{i, j\}$,
+For example, we have, for a pair, $\{i, j\}$,\footnote{
+  Just as we define the PMFs, $W_I$'s, from the joint distributions
+  through Eq.~\eqref{eq:WI_def},
+  we can associate the corrections, $\delta W_I$'s,
+  with the (excess) correlation functions, $g_I$'s, as
+  %
+  $$
+  g_I(\alpha_I) \equiv e^{-\delta W_I(\alpha_I)}
+  .
+  $$
+  %
+  This definition is consistent with the usual definition
+  of the pair correlation function (as in liquid state theory\cite{hansen}),
+  $g_{i,j}(\alpha_i, \alpha_j)$ for a pair, $\{i, j\}$,
+  $$
+    g_{i,j}(\alpha_i, \alpha_j)
+    =
+    \frac{ p_{i,j}(\alpha_i, \alpha_j) } { p_i(\alpha_i) \, p_j(\alpha_j) }
+    .
+  $$
+  Similarly, for a triplet, $\{i, j, k\}$, we have
+  $$
+  g_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
+  =
+  \frac{ p_{i,j,k}(\alpha_i, \alpha_j \, \alpha_k) \, p_i(\alpha_i) \, p_j(\alpha_j) \, p_k(\alpha_k) }{ p_{i,j}(\alpha_i, \alpha_j) \, p_{j,k}(\alpha_j, \alpha_k) \, p_{k,i}(\alpha_k, \alpha_i) }
+  .
+  $$
+}
 %
 \begin{equation}
   \delta W_{i,j}(\alpha_i, \alpha_j)
@@ -449,85 +478,6 @@ or, for a triplet, $\{i, j, k\}$,
   %\label{eq:dWijk}
 \end{align*}
 
-\note{
-We can readily verify Eq.~\eqref{eq:dWJ_WI}
-by a direct expansion using Eq.~\eqref{eq:WI_dWJ}.
-%
-Consider a particular subset $K \subseteq J$.
-Let us compute the contribution of $\delta W_K$
-to the right-hand side of Eq.~\eqref{eq:dWJ_WI}.
-%
-Note that $\delta W_K$ contributes only to those terms
-whose $I$ is a superset of $K$,
-and the contribution coefficient is $(-1)^{|J|-|I|}$.
-%
-If $K$ is strict subset of $J$,
-then there is at least one component $j^*$ that belongs to $J$
-but not to $K$,
-and all supersets, $I$'s,
-satisfying the above condition, and that given by Eq.~\eqref{eq:dWJ_WI},
-$K \subseteq I \subseteq J$,
-can be partitioned to two equally populated groups,
-according to whether the $I$ has $j^*$ or not.
-%
-However, because the corresponding members of the two groups
-contribute the same value with opposite signs to the sum,
-the total contribution is zero.
-%
-This means $\delta W_K$ can contribute to the right-hand side
-if and only if $K = J$, and the contribution is $1 \cdot W_J$,
-as intended.
-}
-
-%If we limit ourselves to supersets, $I$'s, of size $i$,
-%then there are
-%${|J| - |K| \choose i - |K|}$ ways
-%of including components other than those in $K$ into $I$,
-%and the total contribution is
-%$(-1)^{|J|-i} {|J| - |K| \choose i - |K|}$.
-%%
-%Summing over the possible sizes yields
-%$$
-%\sum_{j=|K|}^{|J|} (-1)^{|J|-i} {|J| - |K| \choose i - |K|}
-%= (1 - 1)^{|J| - |K|} = \delta_{|J|, |K|}.
-%$$
-%This shows that the total contribution of $\delta W_K$
-%to the right-hand side of Eq.~\eqref{eq:dWJ_WI}
-%vanishes unless $K = J$,
-%which is the intended result.
-
-\note{
-Just as we define the PMFs, $W_I$'s, from the joint distributions
-through Eq.~\eqref{eq:WI_def},
-we can associate the corrections, $\delta W_I$'s,
-with the (excess) correlation functions, $g_I$'s, as
-%
-\begin{equation}
-  g_I(\alpha_I) \equiv e^{-\delta W_I(\alpha_I)}
-  .
-  \notag
-  %\label{eq:gI_def}
-\end{equation}
-%
-This definition is consistent with the usual definition
-of the pair correlation function (as in liquid state theory\cite{hansen}),
-$g_{i,j}(\alpha_i, \alpha_j)$ for a pair, $\{i, j\}$,
-\begin{equation}
-  g_{i,j}(\alpha_i, \alpha_j)
-  =
-  \frac{ p_{i,j}(\alpha_i, \alpha_j) } { p_i(\alpha_i) \, p_j(\alpha_j) }
-  .
-  \notag
-  %\label{eq:gij_MIE2}
-\end{equation}
-Similarly, for a triplet, $\{i, j, k\}$, we have
-$$
-g_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
-=
-\frac{ p_{i,j,k}(\alpha_i, \alpha_j \, \alpha_k) \, p_i(\alpha_i) \, p_j(\alpha_j) \, p_k(\alpha_k) }{ p_{i,j}(\alpha_i, \alpha_j) \, p_{j,k}(\alpha_j, \alpha_k) \, p_{k,i}(\alpha_k, \alpha_i) }
-.
-$$
-}
 
 
 
@@ -555,44 +505,48 @@ for orders greater than $k$ are negligible,
   %\label{eq:mie_trunc}
 \end{equation}
 %
-we can then approximate Eq.~\eqref{eq:entest_2nd} as
+we can then approximate Eq.~\eqref{eq:WI_dWJ_MIE} as
 %
 \begin{equation}
   W_I(\alpha_I)
   =
   \sum_{ \substack{J \subseteq I, \; |J| \le k} }
   \!\! \delta W_J(\alpha_J)
-  ,
+  .
   \label{eq:WI_dWJ_MIE}
 \end{equation}
 %
-which can be inverted as
-%
-\begin{equation}
-  \delta W_J(\alpha_J)
-  =
-  \begin{dcases}
-    \sum_{ I \subseteq J }
-    (-1)^{|J| - |I|} W_I(\alpha_I)
-    &\mbox{for $|J| \le k$}
-    ,
-    \\
-    0
-    &\mbox{for $|J| > k$}
-    .
-  \end{dcases}
-  \label{eq:dWJ_WI_MIE}
-\end{equation}
-%
+Since Eq.~\eqref{eq:WI_dWJ_MIE}
+is equivalent to Eq.~\eqref{eq:WI_dWJ}
+for $|I| \le k$,
+the inversion is still given by Eq.~\eqref{eq:dWJ_WI} for $|J| \le k$.
+%%
+%\begin{equation}
+%  \delta W_J(\alpha_J)
+%  =
+%  \begin{dcases}
+%    \sum_{ I \subseteq J }
+%    (-1)^{|J| - |I|} W_I(\alpha_I)
+%    &\mbox{for $|J| \le k$}
+%    ,
+%    \\
+%    0
+%    &\mbox{for $|J| > k$}
+%    .
+%  \end{dcases}
+%  \label{eq:dWJ_WI_MIE}
+%\end{equation}
 
-In this way, we now only require the lower-order $W_I(\alpha_I)$'s
-for subsets satisfying $|I| \le k$
-as the independent variables,
-which are to be estimated from simulation trajectories,
-because the higher-order $W_I(\alpha_I)$'s for larger subsets
-can be readily constructed from Eq.~\eqref{eq:WI_dWJ_MIE}
-using the values of $\delta W_J(\alpha_J)$'s
-given by Eq.~\eqref{eq:dWJ_WI_MIE}.
+In practice, we will treat the lower-order $W_I(\alpha_I)$'s
+for $|I| \le k$ as the independent variables,
+which are to be estimated from the data collected in simulation trajectories,
+%
+and use them to deduce the corrections,
+$\delta W_J(\alpha_J)$'s of $|J| \le k$ from Eq.~\eqref{eq:dWJ_WI}.
+%
+Then, we can use these lower-order corrections
+to construct higher-order PMFs, $W_I(\alpha_I)$'s,
+from Eq.~\eqref{eq:WI_dWJ_MIE}.
 
 For example,
 in the second-order approximation,
@@ -603,7 +557,7 @@ Then,
 %$\delta W_{i, j} = W_{i,j} - W_i - W_j$,
 $$\delta W_{i, j}(\alpha_i, \alpha_j)
 = W_{i,j}(\alpha_i, \alpha_j) - W_i(\alpha_i) - W_j(\alpha_j),$$
-and the triplet PMF is given as a superposition
+and the triplet PMF is expressed as a superposition
 of the pair and marginal PMFs,
 %$$
 %W_{i, j, k} = W_{i,j} + W_{j,k} + W_{k,i} - W_i - W_j - W_k.
@@ -617,8 +571,8 @@ W_{i,j}(\alpha_i, \alpha_j) + W_{j,k}(\alpha_j, \alpha_k)\\
 .
 \end{align*}
 %
-The latter, written in terms of the distributions, $p_I(\alpha_I)$'s,
-[cf. Eq.~\eqref{eq:WI_def}]
+Written in terms of the distributions, $p_I(\alpha_I)$'s,
+[cf. Eq.~\eqref{eq:WI_def}], the above relation gives
 %
 $$
 p_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
@@ -627,7 +581,7 @@ p_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
 ,
 $$
 recovers the classical version of the superposition approximation\cite{kirkwood1935, born1946}.
-\note{Eq. (4.6) in \cite{born1946}.}
+\note{Eq.~(4.6) in \cite{born1946}.}
 
 \subsection{Mutual information expansion (MIE)}
 
@@ -643,7 +597,7 @@ we get an expression for the entropy for the $k$th-order MIE,
 where $J$ goes through all subsets of $\{1, \dots, n\}$ satisfying $|J| \le k$,
 and $\delta W_J(\alpha_J)$ can be computed from Eq.~\eqref{eq:dWJ_WI}.
 
-Conventionally, the sum in Eq. \eqref{eq:ent_MIE1}
+Conventionally, the sum in Eq.~\eqref{eq:ent_MIE1}
 is arranged by the subset size as
 \begin{equation}
   \frac{S}{k_B}
@@ -654,86 +608,154 @@ is arranged by the subset size as
 \end{equation}
 %
 where the $j$th-order mutual information, $\MI_j$, is defined as
-$$
-\MI_j \equiv (-1)^{j-1} \sum_{|J| = j} \overline{ \delta W_J(\alpha_J) }.
-$$
-
-Using Eq. \eqref{eq:dWJ_WI_MIE}, we have for $j \le k$,
 \begin{align}
   \MI_j
-  &=
-  \sum_{ |J| = j }
-  \sum_{ I \subseteq J }
-  (-1)^{|I| - 1}
-  \, \overline{ W_I(\alpha_I) }
+  &\equiv (-1)^{j-1} \sum_{|J| = j} \overline{ \delta W_J(\alpha_J) }
   \notag \\
   &=
   \sum_{ |I| \le j }
   (-1)^{|I| - 1}
   {n - |I| \choose j - |I|}
-  \, \overline{ W_I(\alpha_I) }
+  \, \frac{S_I}{k_B}
   ,
-  \label{eq:MIj_expansion}
+  \label{eq:MI_comb}
 \end{align}
+where we have used Eq.~\eqref{eq:dWJ_WI}
+in the second step,
+and we have defined, in analogous to Eq.~\eqref{eq:S_W},
+the entropy of the subset $I$ as
+$S_I / k_B \equiv \overline{ W_I(\alpha_I) }$.
+%$$
+%\frac{ S_I } { k_B } \equiv \overline{ W_I(\alpha_I) }.
+%$$
 %
-where the appearance of the binomial coefficient
-is due to the number of ways of forming
-a size-$j$ superset of $I$,
-which is given by the number of ways of choosing
-$j - |I|$ DOFs out of the $n - |I|$ remaining DOFs.
+Thus, Eq.~\eqref{eq:MI_comb} shows that
+the mutual information is a linear combination of
+the entropies of the subsets.
 
-Using Eq.~\eqref{eq:MIj_expansion} in Eq.~\eqref{eq:S_MIE} yields
+%Using Eq.~\eqref{eq:dWJ_WI}, we have for $j \le k$,
+%\begin{align}
+%  \MI_j
+%  &=
+%  \sum_{ |J| = j }
+%  \sum_{ I \subseteq J }
+%  (-1)^{|I| - 1}
+%  \, \overline{ W_I(\alpha_I) }
+%  \notag \\
+%  &=
+%  \sum_{ |I| \le j }
+%  (-1)^{|I| - 1}
+%  {n - |I| \choose j - |I|}
+%  \, \overline{ W_I(\alpha_I) }
+%  ,
+%  \label{eq:MIj_expansion}
+%\end{align}
+%%
+%where the appearance of the binomial coefficient
+%is due to the number of ways of forming
+%a size-$j$ superset of $I$,
+%which is given by the number of ways of choosing
+%$j - |I|$ DOFs out of the $n - |I|$ remaining DOFs.
 %
-\begin{align}
-  \frac{S}{k_B}
-  &=
-  \sum_{j=1}^k
-  \sum_{|I| \le j}
-  (-1)^{j - |I|}
-  {n - |I| \choose j - |I|}
-  \, \overline{ W_I(\alpha_I) }
-  \notag\\
-  &=
-  \sum_{|I| \le k}
-  (-1)^{ k - |I| }
-  {n - |I| - 1 \choose k - |I|}
-  \, \overline{ W_I(\alpha_I) }
-  ,
-  \notag
-  %\label{eq:S_MIE_expansion}
-\end{align}
-%
-where we have used the combinatorial identity
-$$
-\sum_{r = 0}^R (-1)^r \, {m \choose r}
-=
-(-1)^R \, {m - 1 \choose R}.
-$$
-\note{ See, for example, \url{https://en.wikipedia.org/wiki/Binomial\_coefficient\#Partial\_sums} }
-
-In analogous to Eq.~\eqref{eq:S_W}, we can define
-the marginal entropy of the subset $I$ as
-$$
-\frac{ S_I } { k_B } = \overline{ W_I(\alpha_I) }.
-$$
+%Using Eq.~\eqref{eq:MIj_expansion} in Eq.~\eqref{eq:S_MIE} yields
+%%
+%\begin{align}
+%  \frac{S}{k_B}
+%  &=
+%  \sum_{j=1}^k
+%  \sum_{|I| \le j}
+%  (-1)^{j - |I|}
+%  {n - |I| \choose j - |I|}
+%  \, \overline{ W_I(\alpha_I) }
+%  \notag\\
+%  &=
+%  \sum_{|I| \le k}
+%  (-1)^{ k - |I| }
+%  {n - |I| - 1 \choose k - |I|}
+%  \, \overline{ W_I(\alpha_I) }
+%  ,
+%  \notag
+%  %\label{eq:S_MIE_expansion}
+%\end{align}
+%%
+%where we have used the combinatorial identity
+%$$
+%\sum_{r = 0}^R (-1)^r \, {m \choose r}
+%=
+%(-1)^R \, {m - 1 \choose R},
+%$$
+%where $0 \le R \le m$, and we have defined ${-1 \choose 0} \equiv 1$.
+%\note{ See, for example, \url{https://en.wikipedia.org/wiki/Binomial\_coefficient\#Partial\_sums} }
 
 
 If we estimate $S_I$ using the direct counting method,
 by counting the occurrences in the subspace of $\alpha_I$ as
 $$
-\hat S_I = - k_B \sum_{\alpha_I} \hat p(\alpha_I) \, \ln p(\alpha_I),
+\hat S_I = - k_B \sum_{\alpha_I} \hat p(\alpha_I) \, \ln \hat p(\alpha_I),
 $$
-the result, $\hat S_I$, would also suffer from the bias discussed
+the result, $\hat S_I$, would also suffer from the $1/t$-bias discussed
 in Sec.~\ref{sec:fsbias}, and thus should be corrected accordingly.
 %
 As the subspace of $\alpha_I$ is the direct product of
 the individual spaces of all elements in $I$,
-its size, $M_I = \prod_{i \in I} M_i$, grows exponentially with the size of $I$.
+its size, $M_I = \prod_{i \in I} M_i$
+(with $M_i$ being the number of possibilities for the $i$th DOF),
+grows exponentially with the size of $I$.
 %
-Thus, according to Eq. \eqref{eq:Shat_ave},
+Thus, according to Eq.~\eqref{eq:Shat_ave},
 the bias in uncorrected result would be much more noticeable
 in a higher-order version of MIE.
 
+
+\appendix
+
+\section{\label{sec:inclexcl}
+Proof of the inversion formula }
+
+We can verify Eq.~\eqref{eq:dWJ_WI}
+by a direct expansion using Eq.~\eqref{eq:WI_dWJ}.
+%
+Consider a particular subset $K \subseteq J$.
+Let us compute the contribution of $\delta W_K$
+to the right-hand side of Eq.~\eqref{eq:dWJ_WI}.
+%
+Note that $\delta W_K$ contributes only to those terms
+whose $I$ is a superset of $K$,
+and the contribution coefficient is $(-1)^{|J|-|I|}$.
+%
+If $K$ is strict subset of $J$,
+then there is at least one component $j^*$ that belongs to $J$
+but not to $K$,
+and all supersets, $I$'s,
+satisfying the above condition, and that given by Eq.~\eqref{eq:dWJ_WI},
+$K \subseteq I \subseteq J$,
+can be partitioned to two equally populated groups,
+according to whether the $I$ has $j^*$ or not.
+%
+However, because the corresponding members of the two groups
+contribute the same value with opposite signs to the sum,
+the total contribution is zero.
+%
+This means $\delta W_K$ can contribute to the right-hand side
+if and only if $K = J$, and the contribution is $1 \cdot W_J$,
+as intended.
+
+%If we limit ourselves to supersets, $I$'s, of size $i$,
+%then there are
+%${|J| - |K| \choose i - |K|}$ ways
+%of including components other than those in $K$ into $I$,
+%and the total contribution is
+%$(-1)^{|J|-i} {|J| - |K| \choose i - |K|}$.
+%%
+%Summing over the possible sizes yields
+%$$
+%\sum_{j=|K|}^{|J|} (-1)^{|J|-i} {|J| - |K| \choose i - |K|}
+%= (1 - 1)^{|J| - |K|} = \delta_{|J|, |K|}.
+%$$
+%This shows that the total contribution of $\delta W_K$
+%to the right-hand side of Eq.~\eqref{eq:dWJ_WI}
+%vanishes unless $K = J$,
+%which is the intended result.
 
 \bibliography{simul}
 \end{document}

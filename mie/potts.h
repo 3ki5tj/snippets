@@ -85,6 +85,10 @@ static void potts_encode(potts_t *p, int trji, const int *s)
   int i;
   char *c = p->trj + trji * p->trjwsz;
 
+  if ( trji >= p->trjn ) {
+    fprintf(stderr, "encode: index overflow %d >= %d\n", trji, p->trjn);
+    exit(1);
+  }
   for ( i = 0; i < p->n; i++ )
     c[i] = (char) s[i];
 }
@@ -94,6 +98,10 @@ static void potts_decode(potts_t *p, int trji, int *s)
   int i;
   char *c = p->trj + trji * p->trjwsz;
 
+  if ( trji >= p->trjn ) {
+    fprintf(stderr, "decode: index overflow %d >= %d\n", trji, p->trjn);
+    exit(1);
+  }
   for ( i = 0; i < p->n; i++ )
     s[i] = c[i];
 }
@@ -209,30 +217,36 @@ static double potts_ent2(potts_t *p)
 }
 
 
-static double potts_entropy(potts_t *p, int npart)
+static double potts_entropy(potts_t *p, int npart, int blkave)
 {
   if ( p->trjn == 0 ) {
     potts_ent2(p);
     p->ent1c = p->ent1;
     p->ent2c = p->ent2;
   } else {
-    int trjn = p->trji + 1, ip, blksz;
+    int trjn = p->trji, ip, blksz;
     double ent1p = 0, ent1t;
     double ent2p = 0, ent2t;
 
-    /* entropy estimated from the blocks */
+    /* entropy estimated from trajectory block(s) */
     blksz = trjn / npart;
-    for ( ip = 0; ip < npart; ip++ ) {
-      potts_count(p, ip * blksz, (ip + 1) * blksz);
-      potts_ent2(p);
-      ent1p += p->ent1;
-      ent2p += p->ent2;
+    if ( blkave ) { /* average over several blocks */
+      for ( ip = 0; ip < npart; ip++ ) {
+        potts_count(p, ip * blksz, (ip + 1) * blksz);
+        potts_ent2(p);
+        ent1p += p->ent1;
+        ent2p += p->ent2;
+      }
+      ent1p /= npart;
+      ent2p /= npart;
+    } else { /* just from the first block */
+      potts_count(p, 0, blksz);
+      ent2p = potts_ent2(p);
+      ent1p = p->ent1;
     }
-    ent1p /= npart;
-    ent2p /= npart;
 
     /* entropy estimate from the entire trajectory */
-    potts_count(p, 0, p->trji + 1);
+    potts_count(p, 0, trjn);
     potts_ent2(p);
     ent1t = p->ent1;
     ent2t = p->ent2;
