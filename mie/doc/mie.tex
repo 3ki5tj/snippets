@@ -97,11 +97,14 @@ is proportional to the logarithm of the number of states.
 
 We can readily apply Eq.~\eqref{eq:entropy_def} to a trajectory
 obtained from a molecular dynamics (MD) or Monte Carlo (MC) simulation,
-with the probabilities estimated from the observed occurrences of the states.
+with the probabilities, $p(\alpha)$'s,
+estimated from the observed occurrences of the states.
 %
-Among the occurrence-counting-based methods for estimating the configuration entropy
-the method of mutual information expansion (MIE) is notable
-for its potential to handle a vast state space of a complex system.
+This straightforward application also furnishes the basis
+of many more-advanced counting-based methods for estimating the configuration entropy\cite{hnizdo2007, killian2007}.
+%
+Among them, the method of mutual information expansion (MIE)\cite{killian2007} is notable
+for its potential to handle a vast but decomposable state space common in a complex system.
 %
 The MIE method applies to a many-body system
 whose degrees of freedom are only loosely coupled.
@@ -111,9 +114,10 @@ the method offers a cascade of levels of corrections
 to systematically absorb the contributions of higher-order correlations
 of increasingly larger groups, such as pairs, triplets, quartets, etc.
 
-However, a common drawback of the above counting-based methods
-lies in its tendency to underestimate the configuration entropy for a finite sample
-derived from a realistic simulation.
+However, the above counting-based methods
+tends to underestimate the configuration entropy
+because a realistic simulation of finite length
+often cannot fully sample the state space.
 %
 Thus, it is useful to understand the nature of this bias
 and its dependence on the sample size.
@@ -122,13 +126,19 @@ This knowledge can hopefully help us derive a finite-size correction.
 
 Here we wish to show that the configuration entropy derived
 from the counting-based methods (including the MIE method)
-generally carries a negative bias that scales inversely with the trajectory length.
+generally carries a negative bias
+that roughly scales inversely with the trajectory length.
 %
-The bias of the MIE method, in particular,
+Such a bias can be readily corrected to the leading order
+by a blocking procedure.
+%
+In addition, the bias of the MIE method, in particular,
 can grow dramatically with the order of tuples.
 %
 In some cases, we can reduce the magnitude of the bias
 by imposing some restrictions on the higher-order tuples included.
+
+
 
 \section{Method}
 
@@ -139,10 +149,10 @@ We will first discuss the finite-size bias associated with
 the direct application of Eq.~\eqref{eq:entropy_def},
 which will be referred to as the direct counting method below.
 %
-Here, we estimate the probability $p(\alpha)$
+Here, we estimate the probability, $p(\alpha)$,
 by the frequency, $\hat{p}(\alpha) = \hat{n}(\alpha) / t$,
 where $\hat{n}(\alpha)$ is the number of times state $\alpha$ occurring in the trajectory of $t$ steps,
-and
+and the entropy estimate is
 %
 \begin{equation}
   \hat S
@@ -152,29 +162,29 @@ and
   \label{eq:entropy_est}
 \end{equation}
 %
-To better investigate the error of Eq.~\eqref{eq:entropy_est},
+To investigate the error of Eq.~\eqref{eq:entropy_est},
 we will imagine an ensemble of trajectories of replica systems
 that differ only by the random forces
 and define the bias from the difference
 between the ensemble average,
-$\bigl\langle \hat S \bigr\rangle$
+$\bigl\langle \hat S \bigr\rangle$,
 and the true value, $S$.
 %
 By the series expansion of $\hat{p}(\alpha)$ around $p(\alpha)$, we have
 %
-\begin{align*}
+\begin{align}
   \hat S
   =
   S
   &- k_B \sum_{\alpha = 1}^M
     \bigl[\ln p(\alpha) + 1 \bigr]
     \bigl[ \hat{p}(\alpha) - p(\alpha) \bigr]
-  \\
+  \notag\\
   &- k_B \sum_{\alpha = 1}^M
     \frac{ \bigl[ \hat{p}(\alpha) - p(\alpha) \bigr]^2 } { 2 \, p(\alpha) }
   .
-  %\label{eq:Shat_series}
-\end{align*}
+  \label{eq:Shat_series}
+\end{align}
 %
 \note{The series expansion of the function, $h(x) = -x \, \ln x$,
 around $x_0$,
@@ -222,53 +232,177 @@ We can readily show that
   %
   \operatorname{var}{\hat{n}(\alpha)}
   &=
-  \left\langle \hat{n}(\alpha)^2 \right\rangle - \langle \hat{n}(\alpha) \rangle^2
-  \\
-  &=
+  %\left\langle \hat{n}(\alpha)^2 \right\rangle - \langle \hat{n}(\alpha) \rangle^2
+  %\\
+  %&=
   t \, p(\alpha) \, \bigl( 1 - p(\alpha) \bigr) \, \bigl(2 \, \tau_\alpha + 1\bigr)
   ,
 \end{align*}
 %
-where $\tau_\alpha$ is the integral autocorrelation time of $\delta_{\alpha, \alpha(t)}$,
-defined as $\tau_\alpha = \sum_{t = 1}^\infty \kappa_\alpha(t)/\kappa_\alpha(0)$,
-with the autocorrelation function given by
+where $\tau_\alpha$ is the integral autocorrelation time of $\delta_{\alpha, \alpha(t)}$.\footnote{
+The autocorrelation function is defined as
 $$
 \kappa_\alpha(t) = \bigl(\delta_{\alpha, \alpha(t)} - p(\alpha)\bigr)
-\bigl(\delta_{\alpha, \alpha(0)} - p(\alpha)\bigr).
+\bigl(\delta_{\alpha, \alpha(0)} - p(\alpha)\bigr),
 $$
+and the autocorrelation time is given by
+$\tau_\alpha = \sum_{t = 1}^\infty \kappa_\alpha(t)/\kappa_\alpha(0)$.
+}
 %
 Thus, we can rewrite Eq.~\eqref{eq:entest_2nd} as
 %
 \begin{align}
   \bigl\langle \hat S \bigr\rangle
   &\approx
-  S - k_B \sum_{\alpha = 1}^M
-    \frac{ \bigl(1 - p(\alpha)\bigr) ( 2 \, \tau_\alpha + 1) } { 2 \, t }
-  \notag\\
-  &\approx
-  S - k_B
-    \frac{ (M - 1) ( 2 \, \tau + 1) } { 2 \, t }
-  .
+  S - \frac{ a } { t }
+  %\notag\\
+  %&\approx
+  %S - k_B
+  %  \frac{ (M - 1) ( 2 \, \tau + 1) } { 2 \, t }
+  ,
   \label{eq:Shat_ave}
 \end{align}
-where in the second step,
-we have assumed that all integral autocorrelation times are the same.
+%
+where $a = k_B \sum_{\alpha = 1}^M
+    \bigl(1 - p(\alpha)\bigr) ( 2 \, \tau_\alpha + 1)/2$,
+%
+and $a = (M-1)/2$ for perfect sampling, where $\tau_\alpha \equiv 0$.
+%where in the second step,
+%we have assumed that all integral autocorrelation times are the same.
 
 This result shows that the entropy estimated
 from direct counting
-is expected to carry a negative bias
-that is inversely proportional to the trajectory length.
+is expected to carry a negative bias,
+which is, to the leading order,
+inversely proportional to the trajectory length,
+or sample size.
+
+
+
+\subsection{Corrections to the linear bias}
+
+
+The above bias can be readily corrected by the following blocking procedure.
 %
-As we will see, the same type of bias also exists
-in the more elaborate the MIE method.
+We will consider the estimate from Eq.~\eqref{eq:entropy_est}
+as a function of trajectory length, and denote it as $\hat S(t)$.
+%
+Then, we can define an estimate, $\hat S(t_b)$,
+from a trajectory segment of $t_b$ steps.
+%
+The ensemble average of $\hat S(t_b)$ also follows
+Eq.~\eqref{eq:Shat_ave}, but with $t$ replaced by $t_b$.
+%
+This allows us to deduce the constants, $S$ and $a$, in Eq.~\eqref{eq:Shat_ave}
+by solving the two equations for $\hat S(t)$ and $\hat S(t_b)$.
+%
+This process is equivalent to a two-point linear regression,
+and it results in an extrapolated estimate
+%
+\begin{align}
+    \hat S(t, t_b)
+    =
+    \frac{ t \, \hat S(t) - t_b \, \hat S(t_b) }
+         { t - t_b }
+    .
+    \label{eq:S_2point}
+\end{align}
+
+We can implement Eq.~\eqref{eq:S_2point} in a blocking procedure.
+%
+We can divide the trajectory into $b$ blocks of equal length,
+each of $t_b = t/b$ steps.
+%
+Then, we can form an estimate $S_{b, (l)}$ for each block $l = 1, \dots, b$ from Eq.~\eqref{eq:entropy_est}.
+%
+We then use the arithmetic mean of the $b$ block estimates
+as the $\hat S(t_b)$ in Eq.~\eqref{eq:S_2point}.
+%
+The advantage of using the block average instead of
+the value from the first block is that
+the former make the variance of $\hat S(t, t_b)$
+roughly as low as that of $\hat S(t)$,
+and thus minimizes the artifact of the extrapolation.
+
+
+\subsubsection{Higher-order improvement on the correction}
+
+Note that Eq.~\eqref{eq:Shat_ave} is only the first-order expansion
+to an infinite series,
+%
+\begin{equation}
+  \hat S = S - \frac{a_1}{t} - \frac{a_2}{t^2} - \cdots
+  .
+  \label{eq:S_series_invt}
+\end{equation}
+%
+Thus, it is possible, at least in theory,
+to further improve the estimate by a higher-order extrapolation
+against $1/t$ with more data points.
+%
+For example, if we can divide the entire trajectory to $c$ blocks
+with $c > b$ and obtain the block average of $\hat S(t_c)$
+as in the above procedure,
+%
+The three-point extrapolation estimate reads
+$$
+\hat S(t, t_b, t_c) =
+\frac{ t_b \, \hat S(t, t_b) - t_c \, \hat S(t, t_c) }
+     { t_b - t_c },
+$$
+which can eliminate not only the $1/t$ tail
+but also the higher-order $1/t^2$ tail.
+
+
+\subsubsection{Alternative improvement on the correction}
+
+Another direction to improve Eq.~\eqref{eq:S_2point}
+is to fit the function $\hat S(t)$ against a better functional.
+%
+We note that Eq.~\eqref{eq:Shat_ave} is an asymptotic expansion
+that only holds when the frequencies are close to the true probabilities,
+and we can expect series expansion, Eq.~\eqref{eq:S_series_invt},
+to be convergent only when the effective number of samples,
+$t^* = t/(\overline{2 \, \tau_\alpha + 1})$, is greater than
+the number of states $M$ (for a large $M$).
+%
+In the initial stage, $t^* \ll M$,
+we would expect the number of states visited to be proportional to $t^*$,
+and the entropy estimate, $\hat S(t)$,
+to be $\ln t^* = \ln t + \mathrm{const.}$
+%
+A phenomenological form to accommodate both the initial and asymptotic behavior
+would be
+$$
+  \bigl\langle \hat S \bigr\rangle
+  = S - \ln\left(1 + \frac{a}{t}\right).
+$$
+The two-point extrapolation from this form gives
+%
+\begin{equation}
+  \hat S(t, t_b) = \ln\left(
+    \frac{ t - t_b }
+         { t \, e^{-\hat S(t)} - t_b \, e^{-\hat S(t_b)} }
+  \right)
+  .
+  \label{eq:S_lnexp_2point}
+\end{equation}
+%
+Equation~\eqref{eq:S_lnexp_2point} is reduced to
+Eq.~\eqref{eq:S_2point} in the asymptotic regime,
+while it can hopefully improve the result for initial stages.
+
+%As we will see, the same type of bias also exists
+%in the more elaborate the MIE method.
 
 
 \subsection{Kirkwood superposition approximation}
 
 
 The direct counting method breaks down
-for a complex system of many degrees of freedom (DOFs),
-because as the number of states increases exponentially with the number of DOFs,
+for a complex system of many degrees of freedom (DOFs).
+%
+Because as the number of states increases exponentially with the number of DOFs,
 the rapidly diminishing number of samples collected in each state
 can readily deteriorate the precision of the entropy estimate.
 %
@@ -335,7 +469,8 @@ and define the joint PMF as
 %
 For example,
 the marginal PMF of a single DOF $i$ is given by $W_i$ (omitting the argument),
-the joint PMF of a pair $\{i, j\}$ by $W_{i, j}$,
+the joint PMF of a pair $\{i, j\}$ by $W_{i, j}$
+(dropping the braces ``$\{$'' and ``$\}$'' in the subscript, same below),
 that of a triplet $\{i, j, k\}$ by $W_{i, j, k}$, etc.
 
 Now by assuming that the DOFs are largely independent,
@@ -400,9 +535,9 @@ are special cases of Eq.~\eqref{eq:WI_dWJ}
 
 As Eq.~\eqref{eq:WI_dWJ} is a linear relation,
 we can invert it to get an explicit definition of $\delta W_J$
-through the inclusion-exclusion principle,
-or the inverse M\"{o}bius transform\cite{bjorklund2007},
-(cf. Appendix~\ref{sec:inclexcl})
+through the inclusion-exclusion principle\cite{bjorklund2007}
+% also known as or the inverse M\"{o}bius transform
+(cf. Appendix~\ref{sec:inclexcl}),
 %
 \begin{equation}
   \delta W_J(\alpha_J)
@@ -505,7 +640,7 @@ for orders greater than $k$ are negligible,
   %\label{eq:mie_trunc}
 \end{equation}
 %
-we can then approximate Eq.~\eqref{eq:WI_dWJ_MIE} as
+we can then approximate Eq.~\eqref{eq:WI_dWJ} as
 %
 \begin{equation}
   W_I(\alpha_I)
@@ -546,7 +681,7 @@ $\delta W_J(\alpha_J)$'s of $|J| \le k$ from Eq.~\eqref{eq:dWJ_WI}.
 %
 Then, we can use these lower-order corrections
 to construct higher-order PMFs, $W_I(\alpha_I)$'s,
-from Eq.~\eqref{eq:WI_dWJ_MIE}.
+by superposition using Eq.~\eqref{eq:WI_dWJ_MIE}.
 
 For example,
 in the second-order approximation,
@@ -558,7 +693,7 @@ Then,
 $$\delta W_{i, j}(\alpha_i, \alpha_j)
 = W_{i,j}(\alpha_i, \alpha_j) - W_i(\alpha_i) - W_j(\alpha_j),$$
 and the triplet PMF is expressed as a superposition
-of the pair and marginal PMFs,
+of the pair and marginal PMFs according to Eq.~\eqref{eq:W_ijk},
 %$$
 %W_{i, j, k} = W_{i,j} + W_{j,k} + W_{k,i} - W_i - W_j - W_k.
 %$$
@@ -693,7 +828,7 @@ by counting the occurrences in the subspace of $\alpha_I$ as
 $$
 \hat S_I = - k_B \sum_{\alpha_I} \hat p(\alpha_I) \, \ln \hat p(\alpha_I),
 $$
-the result, $\hat S_I$, would also suffer from the $1/t$-bias discussed
+the result, $\hat S_I$, would also suffer from the bias discussed
 in Sec.~\ref{sec:fsbias}, and thus should be corrected accordingly.
 %
 As the subspace of $\alpha_I$ is the direct product of

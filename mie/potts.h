@@ -217,7 +217,7 @@ static double potts_ent2(potts_t *p)
 }
 
 
-static double potts_entropy(potts_t *p, int npart, int blkave)
+static double potts_entropy(potts_t *p, int npart, int blk1st)
 {
   if ( p->trjn == 0 ) {
     potts_ent2(p);
@@ -230,7 +230,7 @@ static double potts_entropy(potts_t *p, int npart, int blkave)
 
     /* entropy estimated from trajectory block(s) */
     blksz = trjn / npart;
-    if ( blkave ) { /* average over several blocks */
+    if ( blk1st ) { /* just from the first block */
       for ( ip = 0; ip < npart; ip++ ) {
         potts_count(p, ip * blksz, (ip + 1) * blksz);
         potts_ent2(p);
@@ -239,7 +239,7 @@ static double potts_entropy(potts_t *p, int npart, int blkave)
       }
       ent1p /= npart;
       ent2p /= npart;
-    } else { /* just from the first block */
+    } else { /* average over several blocks */
       potts_count(p, 0, blksz);
       ent2p = potts_ent2(p);
       ent1p = p->ent1;

@@ -7,6 +7,7 @@ int q = 10000;
 int nsys = 1000;
 long nsteps = 10000;
 int npart = 2;
+int npart2 = 4;
 long nstrep = 100;
 char *fnlog = "walk.log";
 
@@ -21,6 +22,7 @@ static void doargs(int argc, char **argv)
   argopt_add(ao, "-t", "%ld", &nsteps, "number of steps");
   argopt_add(ao, "-r", "%ld", &nstrep, "number of steps to report");
   argopt_add(ao, "-P", "%d", &npart, "number of partitions for the block method");
+  argopt_add(ao, "-Q", "%d", &npart2, "number of partitions for the block method (2)");
   argopt_addhelp(ao, "-h");
   argopt_parse(ao, argc, argv);
   argopt_dump(ao);
@@ -32,7 +34,7 @@ typedef struct {
   int q;
   int trjn, trji, *trj;
   long tot, *cnt; /* histogram data */
-  double ent, entc, ents;
+  double ent, entc, entc2, ents, ents2;
   double mest;
 } walker_t;
 
@@ -86,15 +88,19 @@ static double walker_ent_seg(walker_t *w, int start, int end)
   return ent;
 }
 
-static double fc(double m, double t)
+static double ftail(double t, double m)
 {
-  return (t/m + 1) * log(1 + m/t) - 1 - 0.5/t;
+  // goodness
+  return log(1+0.5*m/t);  // goodness 20
+  //return (1+t/m)*log(1+m/t) - 1; // func1, goodness 10
+  //return 2*log(1+0.25*m/t);  // goodness 5
+  //return 0.5*m/t; // goodness 0;
 }
 
-static double walker_entropy(walker_t *w, int npart)
+static double walker_entropy(walker_t *w, int npart, int npart2, int verbose)
 {
-  int trjn = w->trji, ip, blksz;
-  double entp = 0, entt;
+  int trjn = w->trji, ip, blksz, blksz2;
+  double entp = 0, entp2 = 0, entt;
 
   /* entropy estimate from the entire trajectory */
   entt = walker_ent_seg(w, 0, trjn);
@@ -106,26 +112,86 @@ static double walker_entropy(walker_t *w, int npart)
   }
   entp /= npart;
 
-  /* since we have St = S - a/t, Sp = S - a*npart/t
-   * a/t = (St - Sp)/(npart-1)
-   * S = (npart*St - Sp)/(npart-1); */
-  w->ent = entt;
-  w->entc = (entt*npart - entp)/(npart - 1);
-
-  int tr;
-  double del, del0 = entt - entp;
-  w->mest = (entt - entp)*blksz*npart*2/(npart - 1) + 1;
-
-  for ( tr = 1; tr <= 100; tr++ ) {
-    del = fc(w->mest, blksz) - fc(w->mest, blksz*npart);
-    printf("%5d: m %g, del = %g, %g, corr %g\n", tr, w->mest, del0, del, fc(w->mest, trjn));
-    w->mest *= del0/del;
-    if ( fabs(del0 - del) < 1e-5 ) break;
+  blksz2 = trjn / npart2;
+  for ( ip = 0; ip < npart2; ip++ ) {
+    entp2 += walker_ent_seg(w, ip * blksz2, (ip + 1) * blksz2);
   }
-  getchar();
+  entp2 /= npart2;
 
-  w->ents = entt + fc(w->mest, trjn);
-  //w->ents = entt + 0.5*(w->mest - 1)/trjn;
+  /* since we have St = S - a/t, Sp = S - a/blksz
+   * S = (St*t - Sp*blksz)/(t-blksz); */
+  w->ent = entt;
+  w->entc = (entt*trjn - entp*blksz)/(trjn - blksz);
+  w->entc2 = (entt*trjn - entp2*blksz2)/(trjn - blksz2);
+  w->ents = (w->entc*blksz - w->entc2*blksz2)/(blksz - blksz2);
+
+  /* fitting to log(1+m/2/t) */
+  {
+    double ds = entt - entp, xp = exp(ds);
+    if ( xp >= 1.99 ) xp = 1.99;
+    w->mest = 2*trjn*(xp - 1)/(1.*trjn/blksz - xp);
+    w->ents2 = entt + log(1+w->mest/2/trjn);
+    //printf("m %g, ds %g=%g-%g, xp %g, S %g -> %g\n", w->mest, ds, entt, entp, xp, entt, w->ents2);
+    //getchar();
+  }
+
+#if 0
+  { // working out the polynomial interpolation
+    double a2 = (entt - entp)/(1.0/blksz - 1.0/trjn);
+    double S2 = entt + a2/trjn;
+    double a3 = (entt - entp2)/(1.0/blksz2 - 1.0/trjn);
+    double S3 = entt + a3/trjn;
+    double S = (S2*blksz - S3*blksz2)/(blksz - blksz2);
+    double b = (S2 - S3)*trjn*blksz*blksz2/(blksz - blksz2);
+    double a = (S - entt)*trjn + b/trjn;
+    printf("2: a %g, S %g,%g, entt %g, %g; entp %g, %g\n", a2, S2, w->entc, entt, S2-a2/trjn, entp, S2-a2/blksz);
+    printf("3: a %g, S %g,%g, entt %g, %g; entp %g, %g\n", a3, S3, w->entc2, entt, S3-a3/trjn, entp2, S3-a3/blksz2);
+    printf("S: %g/%g, a %g, b %g, entt %g, %g\n", S, w->ents, a, b, entt, S-a/trjn+b/trjn/trjn);
+  }
+#endif
+
+#if 0 /* fitting to S = S0*(1 + a/t)/(1 + c/t) */
+  {
+    double k2 = (entt - entp)/(trjn - blksz);
+    double k3 = (entt - entp2)/(trjn - blksz2);
+    double c = (w->entc - w->entc2)/(k3 - k2);
+    double S = w->entc + c*k2;
+    double a = (S - entt)*(trjn + c);
+    w->ents2 = S;
+    w->mest = 2 * (a - c);
+    //printf("S %g, a %g, c %g, entt %g, %g; entp %g, %g\n", S, a, c, entt, S-a/trjn/(1+c/trjn), entp, S-a/blksz/(1+c/blksz));
+  }
+#endif
+
+#if 0 /* brute-force extrapolation */
+  {
+    double del, delr = entt - entp, del2, del2r = entt - entp2;
+    double tailt = 0, tailp, tailp2;
+    int i;
+
+    w->mest = (entt - entp)/(1.0/blksz - 1.0/trjn);
+    for ( i = 0; i < 1000; i++ ) {
+      tailt = ftail(trjn, w->mest);
+      tailp = ftail(blksz, w->mest);
+      tailp2 = ftail(blksz2, w->mest);
+      del = tailp - tailt;
+      del2 = tailp2 - tailt;
+      if (verbose ) {
+        printf("%d: t %d, S %g, %g/%g, S %g(%g) mest %g, del %g, %g\n",
+          i, trjn, entt, entp, entp2, entt + tailt, log(q), w->mest, del/delr, del2/del2r);
+      }
+      w->mest *= sqrt(delr/del);
+      if ( fabs(del/delr - 1) < 0.001 ) break;
+      //w->mest *= delr/del*del2r/del2;
+      //if ( fabs(del/delr*del2/del2r - 1) < 0.01 ) break;
+    }
+    w->ents2 = entt + tailt;
+    if ( verbose ) {
+      getchar();
+    }
+  }
+#endif
+
   return w->ent;
 }
 
@@ -139,9 +205,9 @@ static void walker_close(walker_t *w)
 static void work(void)
 {
   walker_t **w;
-  av_t avent[1], aventc[1], avents[1];
-  double ent, entc, ents;
-  double var, varc, vars;
+  av_t avent[1], aventc[1], aventc2[1], avents[1], avents2[1], avmest[1];
+  double ent, entc, entc2, ents, ents2, mest;
+  double var, varc, varc2, vars, vars2, mvar;
   int i;
   long t;
   FILE *fplog;
@@ -165,20 +231,32 @@ static void work(void)
     if ( t % nstrep == 0 ) {
       av_clear(avent);
       av_clear(aventc);
+      av_clear(aventc2);
       av_clear(avents);
+      av_clear(avents2);
+      av_clear(avmest);
       for ( i = 0; i < nsys; i++ ) {
-        walker_entropy(w[i], npart);
+        walker_entropy(w[i], npart, npart2, i <= 0);
         av_add(avent,  w[i]->ent);
         av_add(aventc, w[i]->entc);
+        av_add(aventc2, w[i]->entc2);
         av_add(avents, w[i]->ents);
+        av_add(avents2, w[i]->ents2);
+        av_add(avmest, w[i]->mest);
       }
       ent  = av_getave(avent,  &var);
       entc = av_getave(aventc, &varc);
+      entc2 = av_getave(aventc2, &varc2);
       ents = av_getave(avents, &vars);
-      printf("%9ld: entropy %8.4f, %8.4f, %8.4f(%8.4f), %g\n",
-          t, ent, entc, ents, log(q), w[0]->mest);
-      fprintf(fplog, "%ld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", t,
-          ent, sqrt(var), entc, sqrt(varc), log(q), ents, sqrt(vars));
+      ents2 = av_getave(avents2, &vars2);
+      mest = av_getave(avmest, &mvar);
+      printf("%9ld: entropy %8.4f(%g), %8.4f, %8.4f; %8.4f, %8.4f(%8.4f), m %6.0f(%5.0f)\n",
+          t, ent, var, entc, entc2, ents, ents2, log(q), mest, sqrt(mvar));
+      fprintf(fplog, "%ld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", t,
+          ent, sqrt(var), entc, sqrt(varc), log(q),
+          entc2, sqrt(varc2), ents, sqrt(vars), ents2, sqrt(vars2),
+          mest, sqrt(mest));
+      fflush(fplog);
     }
   }
 
@@ -191,7 +269,7 @@ static void work(void)
 int main(int argc, char **argv)
 {
   doargs(argc, argv);
-  mtscramble(time(NULL) + clock());
+  //mtscramble(time(NULL) + clock());
   work();
   return 0;
 }

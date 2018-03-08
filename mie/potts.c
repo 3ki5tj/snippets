@@ -11,7 +11,7 @@ long nsttraj = 10;
 long nstrep = 1000;
 int npart = 2; /* number of partitions for the block method */
 char *fnlog = "potts.log";
-int blkave = 0;
+int blk1st = 0;
 
 
 static void doargs(int argc, char **argv)
@@ -28,7 +28,7 @@ static void doargs(int argc, char **argv)
   argopt_add(ao, "-j", "%ld", &nsttraj, "number of steps to deposit state");
   argopt_add(ao, "-r", "%ld", &nstrep, "number of steps to report");
   argopt_add(ao, "-P", "%d", &npart, "number of partitions for the block method");
-  argopt_add(ao, "-K", "%b", &blkave, "averaging over blocks for the block method");
+  argopt_add(ao, "-J", "%b", &blk1st, "use the first block instead of the block average");
   argopt_addhelp(ao, "-h");
   argopt_parse(ao, argc, argv);
   argopt_dump(ao);
@@ -74,7 +74,7 @@ int main(int argc, char **argv)
       av_clear(avent2);
       av_clear(avent2c);
       for ( i = 0; i < nsys; i++ ) {
-        potts_entropy(p[i], npart, blkave);
+        potts_entropy(p[i], npart, blk1st);
         av_add(avent1,  p[i]->ent1);
         av_add(avent1c, p[i]->ent1c);
         av_add(avent2,  p[i]->ent2);
