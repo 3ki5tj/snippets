@@ -325,44 +325,43 @@ roughly as low as that of $\hat S(t)$,
 and thus minimizes the artifact of the extrapolation.
 
 
-\subsubsection{Higher-order improvement on the correction}
-
-Note that Eq.~\eqref{eq:Shat_ave} is only the first-order expansion
-to an infinite series,
+%\subsubsection{Higher-order improvement on the correction}
 %
-\begin{equation}
-  \hat S = S - \frac{a_1}{t} - \frac{a_2}{t^2} - \cdots
-  .
-  \label{eq:S_series_invt}
-\end{equation}
-%
-Thus, it is possible, at least in theory,
-to further improve the estimate by a higher-order extrapolation
-against $1/t$ with more data points.
-%
-For example, if we can divide the entire trajectory to $c$ blocks
-with $c > b$ and obtain the block average of $\hat S(t_c)$
-as in the above procedure,
-%
-The three-point extrapolation estimate reads
-$$
-\hat S(t, t_b, t_c) =
-\frac{ t_b \, \hat S(t, t_b) - t_c \, \hat S(t, t_c) }
-     { t_b - t_c },
-$$
-which can eliminate not only the $1/t$ tail
-but also the higher-order $1/t^2$ tail.
+%Note that Eq.~\eqref{eq:Shat_ave} is only the first-order expansion
+%to an infinite series,
+%%
+%\begin{equation}
+%  \hat S = S - \frac{a_1}{t} - \frac{a_2}{t^2} - \cdots
+%  .
+%  \label{eq:S_series_invt}
+%\end{equation}
+%%
+%Thus, it is possible, at least in theory,
+%to further improve the estimate by a higher-order extrapolation
+%against $1/t$ with more data points.
+%%
+%For example, if we can divide the entire trajectory to $c$ blocks
+%with $c > b$ and obtain the block average of $\hat S(t_c)$
+%as in the above procedure,
+%%
+%The three-point extrapolation estimate reads
+%$$
+%\hat S(t, t_b, t_c) =
+%\frac{ t_b \, \hat S(t, t_b) - t_c \, \hat S(t, t_c) }
+%     { t_b - t_c },
+%$$
+%which can eliminate not only the $1/t$ tail
+%but also the higher-order $1/t^2$ tail.
 
 
 \subsubsection{Alternative improvement on the correction}
 
-Another direction to improve Eq.~\eqref{eq:S_2point}
-is to fit the function $\hat S(t)$ against a better functional.
+We can improve Eq.~\eqref{eq:S_2point} by
+fitting the function $\hat S(t)$ against a ``better'' function.
 %
 We note that Eq.~\eqref{eq:Shat_ave} is an asymptotic expansion
 that only holds when the frequencies are close to the true probabilities,
-and we can expect series expansion, Eq.~\eqref{eq:S_series_invt},
-to be convergent only when the effective number of samples,
+which usually means when the effective number of samples,
 $t^* = t/(\overline{2 \, \tau_\alpha + 1})$, is greater than
 the number of states $M$ (for a large $M$).
 %
@@ -377,7 +376,12 @@ $$
   \bigl\langle \hat S \bigr\rangle
   = S - \ln\left(1 + \frac{a}{t}\right).
 $$
-The two-point extrapolation from this form gives
+The above functional form means a linear relation between
+$e^{-\bigl\langle \hat S \bigr\rangle}$
+(instead of $\bigl\langle \hat S \bigr\rangle$ itself)
+and $1/t$.
+%
+The corresponding formula for the two-point extrapolation is
 %
 \begin{equation}
   \hat S(t, t_b) = \ln\left(
