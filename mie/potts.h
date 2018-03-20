@@ -20,10 +20,13 @@ typedef struct {
   long tot; /* total number of samples */
   long **cnt1d; /* raw counts for 1D entropy */
   long **cnt2d; /* raw counts for 2D entropy */
+  long **cnt3d; /* raw counts for 3D entropy */
   double *ent1d[STOT];
   double *ent2d[STOT];
+  double *ent3d[STOT];
   double ent1[STOT], ent1r;
   double ent2[STOT], ent2r;
+  double ent3[STOT], ent3r;
   double entr;
 
   int trjn, trji; /* trajectory length and current position */
@@ -60,6 +63,13 @@ static potts_t *potts_open(int q, int n, int trjlen)
       p->cnt2d[i][s] = 0;
   }
 
+  xnew(p->cnt3d, n*n*n);
+  for ( i = 0; i < n*n*n; i++ ) {
+    xnew(p->cnt3d[i], q*q*q);
+    for ( s = 0; s < q*q*q; s++ )
+      p->cnt3d[i][s] = 0;
+  }
+
   for ( k = 0; k < STOT; k++ ) {
     xnew(p->ent1d[k], n);
     for ( i = 0; i < n; i++ )
@@ -68,6 +78,10 @@ static potts_t *potts_open(int q, int n, int trjlen)
     xnew(p->ent2d[k], n*n);
     for ( i = 0; i < n*n; i++ )
       p->ent2d[k][i] = 0;
+
+    xnew(p->ent3d[k], n*n*n);
+    for ( i = 0; i < n*n*n; i++ )
+      p->ent3d[k][i] = 0;
   }
 
   /* initialize the trajectory data */
@@ -92,9 +106,12 @@ static void potts_close(potts_t *p)
   free(p->cnt1d);
   for ( i = 0; i < n*n; i++ ) free(p->cnt2d[i]);
   free(p->cnt2d);
+  for ( i = 0; i < n*n*n; i++ ) free(p->cnt3d[i]);
+  free(p->cnt3d);
   for ( k = 0; k < STOT; k++ ) {
     free(p->ent1d[k]);
     free(p->ent2d[k]);
+    free(p->ent3d[k]);
   }
   free(p->s);
   free(p->trj);
@@ -141,13 +158,17 @@ static void potts_resetcounts(potts_t *p)
   for ( i = 0; i < n*n; i++ )
     for ( s = 0; s < q*q; s++ )
       p->cnt2d[i][s] = 0;
+
+  for ( i = 0; i < n*n*n; i++ )
+    for ( s = 0; s < q*q*q; s++ )
+      p->cnt3d[i][s] = 0;
 }
 
 
 /* register the state ps into the counts */
 static void potts_reg(potts_t *p, const int *ps)
 {
-  int i, j, n = p->n, s, t, q = p->q;
+  int i, j, k, n = p->n, s, t, r, q = p->q;
 
   p->tot += 1;
 
@@ -161,6 +182,17 @@ static void potts_reg(potts_t *p, const int *ps)
     for ( j = i + 1; j < n; j++ ) {
       t = ps[j];
       p->cnt2d[i*n + j][s*q + t] += 1;
+    }
+  }
+
+  for ( i = 0; i < n; i++ ) {
+    s = ps[i];
+    for ( j = i + 1; j < n; j++ ) {
+      t = ps[j];
+      for ( k = j + 1; k < n; k++ ) {
+        r = ps[k];
+        p->cnt3d[(i*n + j)*n + k][(s*q + t)*q + r] += 1;
+      }
     }
   }
 }
@@ -240,6 +272,46 @@ static double potts_ent2(potts_t *p,
   return ent2;
 }
 
+/* compute the third-order approximation of the entropy */
+static double potts_ent3(potts_t *p,
+    const double *ent1d, const double *ent2d, double *ent3d)
+{
+  double ent3 = 0, eijk, tot = (double) p->tot, pr, ds;
+  int i, j, k, ij, ijk, n = p->n, s, t, r, str, q = p->q;
+
+  for ( i = 0; i < n; i++ )
+    ent3 += ent1d[i];
+
+  for ( i = 0; i < n; i++ ) {
+    for ( j = i + 1; j < n; j++ ) {
+      ij = i * n + j;
+      ent3 += ent2d[ij] - ent1d[i] - ent1d[j];
+      for ( k = j + 1; k < n; k++ ) {
+        ijk = ij * n + k;
+        eijk = 0;
+        for ( s = 0; s < q; s++ ) {
+          for ( t = 0; t < q; t++ ) {
+            for ( r = 0; r < q; r++ ) {
+              str = (s * q + t) * q + r;
+              long c = p->cnt3d[ijk][str];
+              if ( c <= 0 ) continue;
+              pr = 1.0*c/tot;
+              eijk += -pr*log(pr);
+            }
+          }
+        }
+        ent3d[ijk] = eijk;
+        ds = eijk - ent2d[ij] - ent2d[i*n+k] - ent2d[j*n+k]
+           + ent1d[i] + ent1d[j] + ent1d[k];
+        ent3 += ds;
+      }
+    }
+  }
+  //printf("%g, %g\n", ent3d[n+2], ent3); getchar();
+  return ent3;
+}
+
+
 
 /* linear extrapolation */
 __inline double linext(double xt, double xb, double t, double tb)
@@ -266,7 +338,7 @@ __inline double expext(double xt, double xb, double t, double tb)
 static double potts_entropy(potts_t *p, int npart)
 {
   int trjn = p->trji, ip, blksz;
-  int i, j, ij, n = p->n;
+  int i, j, k, ij, ijk, n = p->n;
   double ds;
 
   /* entropy estimated from trajectory block(s) */
@@ -275,23 +347,32 @@ static double potts_entropy(potts_t *p, int npart)
     p->ent1d[SBAV][i] = 0;
   for ( i = 0; i < n*n; i++ )
     p->ent2d[SBAV][i] = 0;
+  for ( i = 0; i < n*n*n; i++ )
+    p->ent3d[SBAV][i] = 0;
   p->ent1[SBAV] = 0;
   p->ent2[SBAV] = 0;
+  p->ent3[SBAV] = 0;
   /* average over the blocks */
   for ( ip = 0; ip < npart; ip++ ) {
     /* compute the entropy from the ith block */
     potts_count(p, ip * blksz, (ip + 1) * blksz);
     p->ent1[SBLK] = potts_ent1(p, p->ent1d[SBLK]);
     p->ent2[SBLK] = potts_ent2(p, p->ent1d[SBLK], p->ent2d[SBLK]);
+    p->ent3[SBLK] = potts_ent3(p, p->ent1d[SBLK], p->ent2d[SBLK], p->ent3d[SBLK]);
     for ( i = 0; i < n; i++ ) {
       p->ent1d[SBAV][i] += p->ent1d[SBLK][i];
       for ( j = i + 1; j < n; j++ ) {
         ij = i * n + j;
         p->ent2d[SBAV][ij] += p->ent2d[SBLK][ij];
+        for ( k = j + 1; k < n; k++ ) {
+          ijk = ij * n + k;
+          p->ent3d[SBAV][ijk] += p->ent3d[SBLK][ijk];
+        }
       }
     }
     p->ent1[SBAV] += p->ent1[SBLK];
     p->ent2[SBAV] += p->ent2[SBLK];
+    p->ent3[SBAV] += p->ent3[SBLK];
   }
   /* compute the block averages from the block sums */
   for ( i = 0; i < n; i++ ) {
@@ -299,21 +380,29 @@ static double potts_entropy(potts_t *p, int npart)
     for ( j = i + 1; j < n; j++ ) {
       ij = i * n + j;
       p->ent2d[SBAV][ij] /= npart;
+      for ( k = j + 1; k < n; k++ ) {
+        ijk = ij * n + k;
+        p->ent3d[SBAV][ijk] /= npart;
+      }
     }
   }
   p->ent1[SBAV] /= npart;
   p->ent2[SBAV] /= npart;
+  p->ent3[SBAV] /= npart;
 
   /* entropy estimate from the entire trajectory */
   potts_count(p, 0, trjn);
   p->ent1[SPLN] = potts_ent1(p, p->ent1d[SPLN]);
   p->ent2[SPLN] = potts_ent2(p, p->ent1d[SPLN], p->ent2d[SPLN]);
+  p->ent3[SPLN] = potts_ent3(p, p->ent1d[SPLN], p->ent2d[SPLN], p->ent3d[SPLN]);
 
   /* exponential extrapolation */
   p->ent1[SLIN] = 0;
   p->ent2[SLIN] = 0;
+  p->ent3[SLIN] = 0;
   p->ent1[SEXP] = 0;
   p->ent2[SEXP] = 0;
+  p->ent3[SEXP] = 0;
   for ( i = 0; i < n; i++ ) {
     if ( p->ent1d[SBAV][i] > p->ent1d[SPLN][i] ) {
       fprintf(stderr, "block average %d, is greater %g > %g\n", i, p->ent1d[SBAV][i], p->ent1d[SPLN][i]);
@@ -330,7 +419,7 @@ static double potts_entropy(potts_t *p, int npart)
         fprintf(stderr, "block average %d %d, is greater %g > %g\n", i, j, p->ent2d[SBAV][ij], p->ent2d[SPLN][ij]);
         exit(1);
       }
-      p->ent2d[SLIN][ij] = expext(p->ent2d[SPLN][ij], p->ent2d[SBAV][ij], trjn, blksz);
+      p->ent2d[SLIN][ij] = linext(p->ent2d[SPLN][ij], p->ent2d[SBAV][ij], trjn, blksz);
       ds = p->ent2d[SLIN][ij] - p->ent1d[SLIN][i] - p->ent1d[SLIN][j];
       if ( ds > 0 ) ds = 0;
       p->ent2[SLIN] += ds;
@@ -339,16 +428,33 @@ static double potts_entropy(potts_t *p, int npart)
       ds = p->ent2d[SEXP][ij] - p->ent1d[SEXP][i] - p->ent1d[SEXP][j];
       if ( ds > 0 ) ds = 0;
       p->ent2[SEXP] += ds;
+
+      for ( k = j + 1; k < n; k++ ) {
+        ijk = ij * n + k;
+        p->ent3d[SLIN][ijk] = linext(p->ent3d[SPLN][ijk], p->ent3d[SBAV][ijk], trjn, blksz);
+        ds = p->ent3d[SLIN][ijk] - p->ent2d[SLIN][ij]
+           - p->ent2d[SLIN][i*n + k] - p->ent2d[SLIN][j*n + k]
+           + p->ent1d[SLIN][i] + p->ent1d[SLIN][j] + p->ent1d[SLIN][k];
+        p->ent3[SLIN] += ds;
+
+        p->ent3d[SEXP][ijk] = expext(p->ent3d[SPLN][ijk], p->ent3d[SBAV][ijk], trjn, blksz);
+        ds = p->ent3d[SEXP][ijk] - p->ent2d[SEXP][ij]
+           - p->ent2d[SEXP][i*n + k] - p->ent2d[SEXP][j*n + k]
+           + p->ent1d[SEXP][i] + p->ent1d[SEXP][j] + p->ent1d[SEXP][k];
+        p->ent3[SEXP] += ds;
+      }
     }
   }
   p->ent2[SLIN] += p->ent1[SLIN];
   p->ent2[SEXP] += p->ent1[SEXP];
+  p->ent3[SLIN] += p->ent2[SLIN];
+  p->ent3[SEXP] += p->ent2[SEXP];
 
   //fprintf(stderr, "%g, %g\n", p->ent1[SLIN], p->ent2[SLIN]); getchar();
   //p->ent1[SEXP] = expext(p->ent1[SPLN], p->ent1[SBAV], trjn, blksz);
   //p->ent2[SEXP] = expext(p->ent2[SPLN], p->ent2[SBAV], trjn, blksz);
 
-  return p->ent2[SEXP];
+  return p->ent3[SEXP];
 }
 
 __inline static int potts_energy(potts_t *p)
@@ -428,10 +534,12 @@ __inline static void lnmatmul(double *a, double *b, double *c, int q)
 }
 
 /* compute the reference entropy */
-__inline static double potts_ent2ref(potts_t *p, double beta)
+__inline static double potts_entref(potts_t *p, double beta)
 {
   int q = p->q, k, n = p->n;
-  double f = exp(beta) - 1, lna, lnb, lnz, lnp1, lnp2, sk;
+  double f = exp(beta) - 1, lna, lnb, lnz, lnp1, lnp2, sk, dsk;
+
+  p->ent1r = n * log(q);
 
   /* compute the correction from pair information */
   p->ent2r = 0;
@@ -446,12 +554,14 @@ __inline static double potts_ent2ref(potts_t *p, double beta)
     /* entropy of the pair of k sites apart
        sk = -(p2*ln(p2)*(q^2 - q) + p1*ln(p1)*q) */
     sk = -(lnp2*exp(lnp2)*(q*q - q) + lnp1*exp(lnp1)*q);
-    p->ent2r += (sk - 2*log(q)) * (n - k);
+    dsk = sk - 2 * log(q);
+    p->ent2r += dsk * (n - k);
     //fprintf(stderr, "k %d: e^s %g\n", k, exp(sk));
+    p->ent3r += -dsk * (n - k) * (k - 1);
   }
   //fprintf(stderr, "ent2r %g\n", p->ent2r);
-  p->ent1r = n * log(q);
   p->ent2r += p->ent1r;
+  p->ent3r += p->ent2r;
   p->entr = log(q) + (n - 1) * (log(f + q) - beta * (f + 1) / (f + q));
 
   return p->ent2r;
