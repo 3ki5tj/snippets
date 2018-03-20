@@ -11,7 +11,6 @@ long nsttraj = 10;
 long nstrep = 1000;
 int npart = 2; /* number of partitions for the block method */
 char *fnlog = "potts.log";
-int blk1st = 0;
 
 
 static void doargs(int argc, char **argv)
@@ -28,7 +27,6 @@ static void doargs(int argc, char **argv)
   argopt_add(ao, "-j", "%ld", &nsttraj, "number of steps to deposit state");
   argopt_add(ao, "-r", "%ld", &nstrep, "number of steps to report");
   argopt_add(ao, "-P", "%d", &npart, "number of partitions for the block method");
-  argopt_add(ao, "-J", "%b", &blk1st, "use the first block instead of the block average");
   argopt_addhelp(ao, "-h");
   argopt_parse(ao, argc, argv);
   argopt_dump(ao);
@@ -38,12 +36,12 @@ static void doargs(int argc, char **argv)
 int main(int argc, char **argv)
 {
   potts_t **p;
-  int i;
+  int i, k;
   long t, t1;
   double a1, a2;
-  av_t avent1[1], avent1c[1], avent2[1], avent2c[1];
-  double s1, s1c, s2, s2c;
-  double g1, g1c, g2, g2c;
+  av_t avent1[STOT], avent2[STOT];
+  double s1[STOT], s2[STOT]; /* average entropies */
+  double g1[STOT], g2[STOT]; /* variances */
   FILE *fplog;
 
   doargs(argc, argv);
@@ -69,32 +67,33 @@ int main(int argc, char **argv)
     }
 
     if ( t % nstrep == 0 ) {
-      av_clear(avent1);
-      av_clear(avent1c);
-      av_clear(avent2);
-      av_clear(avent2c);
-      for ( i = 0; i < nsys; i++ ) {
-        potts_entropy(p[i], npart, blk1st);
-        av_add(avent1,  p[i]->ent1);
-        av_add(avent1c, p[i]->ent1c);
-        av_add(avent2,  p[i]->ent2);
-        av_add(avent2c, p[i]->ent2c);
+      for ( k = 0; k < STOT; k++ ) {
+        av_clear(&avent1[k]);
+        av_clear(&avent2[k]);
       }
-      s1  = av_getave(avent1,  &g1);
-      s1c = av_getave(avent1c, &g1c);
-      s2  = av_getave(avent2,  &g2);
-      s2c = av_getave(avent2c, &g2c);
+      for ( i = 0; i < nsys; i++ ) {
+        potts_entropy(p[i], npart);
+        for ( k = 0; k < STOT; k++ ) {
+          av_add(&avent1[k], p[i]->ent1[k]);
+          av_add(&avent2[k], p[i]->ent2[k]);
+        }
+      }
+      for ( k = 0; k < STOT; k++ ) {
+        s1[k] = av_getave(&avent1[k], &g1[k]);
+        s2[k] = av_getave(&avent2[k], &g2[k]);
+      }
       t1 = t / nsttraj;
-      printf("%9ld: entropy %8.4f,%8.4f(%8.4f), %8.4f,%8.4f(%8.4f),"
+      printf("%9ld: entropy %8.4f,%8.4f,%8.4f,%8.4f(%8.4f), "
+             "%8.4f,%8.4f,%8.4f,%8.4f(%8.4f),"
              " (%8.4f); %8.4f(%6.2f), %8.4f(%6.2f);\n", t,
-          s1, s1c, p[0]->ent1r,
-          s2, s2c, p[0]->ent2r,
+          s1[0], s1[SBAV], s1[SLIN], s1[SEXP], p[0]->ent1r,
+          s2[0], s2[SBAV], s2[SLIN], s2[SEXP], p[0]->ent2r,
           p[0]->entr,
-          (p[0]->ent1r - s1)*t1, a1,
-          (p[0]->ent2r - s2)*t1, a2);
-      fprintf(fplog, "%ld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", t,
-          s1, sqrt(g1), s1c, sqrt(g1c), p[0]->ent1r,
-          s2, sqrt(g2), s2c, sqrt(g2c), p[0]->ent2r);
+          (p[0]->ent1r - s1[0])*t1, a1,
+          (p[0]->ent2r - s2[0])*t1, a2);
+      fprintf(fplog, "%ld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", t,
+          s1[0], sqrt(g1[0]), s1[SLIN], sqrt(g1[SLIN]), s1[SEXP], sqrt(g1[SEXP]), p[0]->ent1r,
+          s2[0], sqrt(g2[0]), s2[SLIN], sqrt(g2[SLIN]), s2[SEXP], sqrt(g2[SEXP]), p[0]->ent2r);
     }
   }
   for ( i = 0; i < nsys; i++ ) {

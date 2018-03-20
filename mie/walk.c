@@ -88,6 +88,8 @@ static double walker_ent_seg(walker_t *w, int start, int end)
   return ent;
 }
 
+/*
+// for brute-force fitting, deprecated
 static double ftail(double t, double m)
 {
   // goodness
@@ -96,6 +98,7 @@ static double ftail(double t, double m)
   //return 2*log(1+0.25*m/t);  // goodness 5
   //return 0.5*m/t; // goodness 0;
 }
+*/
 
 static double walker_entropy(walker_t *w, int npart, int npart2, int verbose)
 {
@@ -139,9 +142,9 @@ static double walker_entropy(walker_t *w, int npart, int npart2, int verbose)
     //} else
     {
       if ( xp >= .99*trjn/blksz ) xp = .99*trjn/blksz;
-        xpc = (trjn - xp*blksz)/(trjn - blksz);
-        w->ents = entt - log(xpc);
-        w->mest = 2*trjn*(xp - 1)/(1.*trjn/blksz - xp);
+      xpc = (trjn - xp*blksz)/(trjn - blksz);
+      w->ents = entt - log(xpc);
+      w->mest = 2*trjn*(xp - 1)/(1.*trjn/blksz - xp);
 
       if ( xp2 >= .99*trjn/blksz2 ) xp2 = .99*trjn/blksz2;
       xpc2 = (trjn - xp2*blksz2)/(trjn - blksz2);
