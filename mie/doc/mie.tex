@@ -140,7 +140,7 @@ by imposing some restrictions on the higher-order tuples included.
 
 
 
-\section{Method}
+\section{Theory and methods}
 
 \subsection{\label{sec:fsbias}
 Finite-size bias in the direct counting method}
@@ -285,7 +285,7 @@ or sample size.
 The above bias can be readily corrected by the following blocking procedure.
 %
 We will consider the estimate from Eq.~\eqref{eq:entropy_est}
-as a function of trajectory length, and denote it as $\hat S(t)$.
+as a function of trajectory length, $t$, and denote it as $\hat S(t)$.
 %
 Then, we can define an estimate, $\hat S(t_b)$,
 from a trajectory segment of $t_b$ steps.
@@ -354,7 +354,7 @@ and thus minimizes the artifact of the extrapolation.
 %but also the higher-order $1/t^2$ tail.
 
 
-\subsubsection{Alternative improvement on the correction}
+%\subsubsection{Alternative extrapolation}
 
 We can improve Eq.~\eqref{eq:S_2point} by
 fitting the function $\hat S(t)$ against a ``better'' function.
@@ -394,7 +394,8 @@ The corresponding formula for the two-point extrapolation is
 %
 Equation~\eqref{eq:S_lnexp_2point} is reduced to
 Eq.~\eqref{eq:S_2point} in the asymptotic regime,
-while it can hopefully improve the result for initial stages.
+while in initial stages, it can sometimes
+improve the accuracy of the estimate.
 
 %As we will see, the same type of bias also exists
 %in the more elaborate the MIE method.
@@ -746,7 +747,7 @@ is arranged by the subset size as
   \label{eq:S_MIE}
 \end{equation}
 %
-where the $j$th-order mutual information, $\MI_j$, is defined as
+where the $j$th-order mutual or interaction information, $\MI_j$, is defined as
 \begin{align}
   \MI_j
   &\equiv (-1)^{j-1} \sum_{|J| = j} \overline{ \delta W_J(\alpha_J) }
@@ -846,6 +847,52 @@ the bias in uncorrected result would be much more noticeable
 in a higher-order version of MIE.
 
 
+\section{Results}
+
+\subsection{Direct-counting method}
+
+A random walker in a large state space
+(relation to the sampling of metastable states in MD simulations)
+
+\subsection{MIE method on a linear Potts model}
+
+Test MIE method on linear Potts model.
+
+Model for dihedral conformations in flexible peptides.
+
+Reduced units.
+
+Temperature $T = 0.5$.
+
+For the second-order MIE,
+the linear correction improved the entropy estimate significantly.
+The exponential correction improved over the linear one further.
+We have imposed the constraint that
+for any pair of spins,
+the pair correction has to be nonpositive,
+otherwise, zero will be used.
+
+For the third-order MIE,
+the linear correction again improved the entropy estimate
+significantly.
+However, the exponential correction was less satisfactory.
+Stability issue.
+
+\begin{figure}[h]\centering
+  \makebox[\linewidth][c]{
+    \includegraphics[angle=0, width=1.0\linewidth]{fig/potts_mie.pdf}
+  }
+  \caption{
+    \label{fig:potts_mie}
+    Estimated entropy from the (a) second- and (b) third-order
+    MIE method versus simulation time on the linear Potts model.
+    %
+    The results have been averaged over $1000$ independent trajectories.
+    The lines are a guide for the eye.
+  }
+\end{figure}
+
+
 \appendix
 
 \section{\label{sec:inclexcl}
@@ -895,6 +942,55 @@ as intended.
 %to the right-hand side of Eq.~\eqref{eq:dWJ_WI}
 %vanishes unless $K = J$,
 %which is the intended result.
+
+
+
+\section{\label{sec:Potts}
+Potts model
+}
+
+A linear Potts model.
+
+Model for dihedral conformation in disordered proteins.
+
+In this model, there are $n$ spins placed linearly on a string.
+%
+Each spin, $s_i$, has $q$ possibilities.
+%
+The direct coupling among the spins
+is limited to two neighboring spins, and the Hamiltonian reads
+$$
+H = -J \sum_{i = 1}^{n-1} s_i \, s_{i+1}.
+$$
+Below we will assume $J = 1$.
+
+The partition function is given by
+$Z_n = q (f + q)^{n-1}$,
+where $f = e^{\beta \, J} - 1$
+
+The correlation between two spins $k$ sites apart
+can be derived from the $k$th-order transition matrix,
+which is the $k$th power of the transition matrix
+of two neighboring sites:
+$$
+T_{i,i+k}(s, t) = f^k \, \delta_{s,t}
++ \frac{ (f + q)^k - f^k } { q }.
+$$
+The joint distribution of two spins of $k$ sites apart
+is given by
+$$
+p_{i, i+k}(s,t) = T_{i, i+k}(s,t) / Z_{k+1}.
+$$
+Because of the linear structure,
+the joint distribution of three sites, $i$, $j = i+k$, and $l = i+k+k'$,
+$$
+p_{i, j, l}(s,t,r) = p_{i, j}(s,t) \, p_{j, l}(t,r) \, q.
+$$
+
+We may drive for $i < j < l$, we have
+$\delta S_{i, j, l} = -\delta S_{i, l}$
+
+
 
 \bibliography{simul}
 \end{document}
