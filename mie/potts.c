@@ -68,22 +68,22 @@ int main(int argc, char **argv)
 
     if ( t % nstrep == 0 ) {
       for ( k = 0; k < STOT; k++ ) {
-        av_clear(&avent1[k]);
-        av_clear(&avent2[k]);
-        av_clear(&avent3[k]);
+        av_clear(&avent1[k]); /* first-order */
+        av_clear(&avent2[k]); /* second-order */
+        av_clear(&avent3[k]); /* third-order */
       }
       for ( i = 0; i < nsys; i++ ) {
         potts_entropy(p[i], npart);
         for ( k = 0; k < STOT; k++ ) {
-          av_add(&avent1[k], p[i]->ent1[k]);
-          av_add(&avent2[k], p[i]->ent2[k]);
-          av_add(&avent3[k], p[i]->ent3[k]);
+          av_add(&avent1[k], p[i]->ent1[k]); /* first-order */
+          av_add(&avent2[k], p[i]->ent2[k]); /* second-order */
+          av_add(&avent3[k], p[i]->ent3[k]); /* third-order */
         }
       }
       for ( k = 0; k < STOT; k++ ) {
-        s1[k] = av_getave(&avent1[k], &g1[k]);
-        s2[k] = av_getave(&avent2[k], &g2[k]);
-        s3[k] = av_getave(&avent3[k], &g3[k]);
+        s1[k] = av_getave(&avent1[k], &g1[k]); /* first-order */
+        s2[k] = av_getave(&avent2[k], &g2[k]); /* second-order */
+        s3[k] = av_getave(&avent3[k], &g3[k]); /* third-order */
       }
       //t1 = t / nsttraj;
       printf("%9ld: entropy %6.2f,%6.2f,%6.2f,%6.2f(%6.2f), "
@@ -94,9 +94,9 @@ int main(int argc, char **argv)
           s2[0], s2[SBAV], s2[SLIN], s2[SEXP], p[0]->ent2r,
           s3[0], s3[SBAV], s3[SLIN], s3[SEXP], p[0]->ent3r,
           p[0]->entr);
-      fprintf(fplog, "%ld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t"
-                          "%g\t%g\t%g\t%g\t%g\t%g\t%g\t"
-                          "%g\t%g\t%g\t%g\t%g\t%g\t%g\n", t,
+      fprintf(fplog, "%ld\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t"
+                          "%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t"
+                          "%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\n", t,
           s1[0], sqrt(g1[0]), s1[SLIN], sqrt(g1[SLIN]), s1[SEXP], sqrt(g1[SEXP]), p[0]->ent1r,
           s2[0], sqrt(g2[0]), s2[SLIN], sqrt(g2[SLIN]), s2[SEXP], sqrt(g2[SEXP]), p[0]->ent2r,
           s3[0], sqrt(g3[0]), s3[SLIN], sqrt(g3[SLIN]), s3[SEXP], sqrt(g3[SEXP]), p[0]->ent3r);

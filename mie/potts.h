@@ -2,9 +2,9 @@
 #include "util.h"
 
 enum {
-  SPLN,
+  SDRT, /* direct */
   SLIN, /* linear extrapolation */
-  SEXP,
+  SEXP, /* exponential extrapolation */
   SBLK,
   SBAV,
   STOT
@@ -314,17 +314,17 @@ static double potts_ent3(potts_t *p,
 
 
 /* linear extrapolation */
-__inline double linext(double xt, double xb, double t, double tb)
+static double linext(double xt, double xb, double t, double tb)
 {
   /* since we have St = S - a/t, Sp = S - a*npart/t
    * a/t = (St - Sp)/(npart-1)
    * S = (npart*St - Sp)/(npart-1); */
-  return (t*xt - tb*xb)/(t - tb);
+  return (xt*t - xb*tb)/(t - tb);
 }
 
 
 /* exponential extrapolation */
-__inline double expext(double xt, double xb, double t, double tb)
+static double expext(double xt, double xb, double t, double tb)
 {
   double ds, xp, xpmax = 0.99 * t / tb, xpc;
   ds = xt - xb;
@@ -392,9 +392,9 @@ static double potts_entropy(potts_t *p, int npart)
 
   /* entropy estimate from the entire trajectory */
   potts_count(p, 0, trjn);
-  p->ent1[SPLN] = potts_ent1(p, p->ent1d[SPLN]);
-  p->ent2[SPLN] = potts_ent2(p, p->ent1d[SPLN], p->ent2d[SPLN]);
-  p->ent3[SPLN] = potts_ent3(p, p->ent1d[SPLN], p->ent2d[SPLN], p->ent3d[SPLN]);
+  p->ent1[SDRT] = potts_ent1(p, p->ent1d[SDRT]);
+  p->ent2[SDRT] = potts_ent2(p, p->ent1d[SDRT], p->ent2d[SDRT]);
+  p->ent3[SDRT] = potts_ent3(p, p->ent1d[SDRT], p->ent2d[SDRT], p->ent3d[SDRT]);
 
   /* exponential extrapolation */
   p->ent1[SLIN] = 0;
@@ -404,40 +404,40 @@ static double potts_entropy(potts_t *p, int npart)
   p->ent2[SEXP] = 0;
   p->ent3[SEXP] = 0;
   for ( i = 0; i < n; i++ ) {
-    if ( p->ent1d[SBAV][i] > p->ent1d[SPLN][i] ) {
-      fprintf(stderr, "block average %d, is greater %g > %g\n", i, p->ent1d[SBAV][i], p->ent1d[SPLN][i]);
+    if ( p->ent1d[SBAV][i] > p->ent1d[SDRT][i] ) {
+      fprintf(stderr, "block average %d, is greater %g > %g\n", i, p->ent1d[SBAV][i], p->ent1d[SDRT][i]);
       exit(1);
     }
-    p->ent1d[SLIN][i] = linext(p->ent1d[SPLN][i], p->ent1d[SBAV][i], trjn, blksz);
-    p->ent1[SLIN] += p->ent1d[SPLN][i];
+    p->ent1d[SLIN][i] = linext(p->ent1d[SDRT][i], p->ent1d[SBAV][i], trjn, blksz);
+    p->ent1[SLIN] += p->ent1d[SLIN][i];
 
-    p->ent1d[SEXP][i] = expext(p->ent1d[SPLN][i], p->ent1d[SBAV][i], trjn, blksz);
+    p->ent1d[SEXP][i] = expext(p->ent1d[SDRT][i], p->ent1d[SBAV][i], trjn, blksz);
     p->ent1[SEXP] += p->ent1d[SEXP][i];
     for ( j = i + 1; j < n; j++ ) {
       ij = i * n + j;
-      if ( p->ent2d[SBAV][ij] > p->ent2d[SPLN][ij] ) {
-        fprintf(stderr, "block average %d %d, is greater %g > %g\n", i, j, p->ent2d[SBAV][ij], p->ent2d[SPLN][ij]);
+      if ( p->ent2d[SBAV][ij] > p->ent2d[SDRT][ij] ) {
+        fprintf(stderr, "block average %d %d, is greater %g > %g\n", i, j, p->ent2d[SBAV][ij], p->ent2d[SDRT][ij]);
         exit(1);
       }
-      p->ent2d[SLIN][ij] = linext(p->ent2d[SPLN][ij], p->ent2d[SBAV][ij], trjn, blksz);
+      p->ent2d[SLIN][ij] = linext(p->ent2d[SDRT][ij], p->ent2d[SBAV][ij], trjn, blksz);
       ds = p->ent2d[SLIN][ij] - p->ent1d[SLIN][i] - p->ent1d[SLIN][j];
       if ( ds > 0 ) ds = 0;
       p->ent2[SLIN] += ds;
 
-      p->ent2d[SEXP][ij] = expext(p->ent2d[SPLN][ij], p->ent2d[SBAV][ij], trjn, blksz);
+      p->ent2d[SEXP][ij] = expext(p->ent2d[SDRT][ij], p->ent2d[SBAV][ij], trjn, blksz);
       ds = p->ent2d[SEXP][ij] - p->ent1d[SEXP][i] - p->ent1d[SEXP][j];
       if ( ds > 0 ) ds = 0;
       p->ent2[SEXP] += ds;
 
       for ( k = j + 1; k < n; k++ ) {
         ijk = ij * n + k;
-        p->ent3d[SLIN][ijk] = linext(p->ent3d[SPLN][ijk], p->ent3d[SBAV][ijk], trjn, blksz);
+        p->ent3d[SLIN][ijk] = linext(p->ent3d[SDRT][ijk], p->ent3d[SBAV][ijk], trjn, blksz);
         ds = p->ent3d[SLIN][ijk] - p->ent2d[SLIN][ij]
            - p->ent2d[SLIN][i*n + k] - p->ent2d[SLIN][j*n + k]
            + p->ent1d[SLIN][i] + p->ent1d[SLIN][j] + p->ent1d[SLIN][k];
         p->ent3[SLIN] += ds;
 
-        p->ent3d[SEXP][ijk] = expext(p->ent3d[SPLN][ijk], p->ent3d[SBAV][ijk], trjn, blksz);
+        p->ent3d[SEXP][ijk] = expext(p->ent3d[SDRT][ijk], p->ent3d[SBAV][ijk], trjn, blksz);
         ds = p->ent3d[SEXP][ijk] - p->ent2d[SEXP][ij]
            - p->ent2d[SEXP][i*n + k] - p->ent2d[SEXP][j*n + k]
            + p->ent1d[SEXP][i] + p->ent1d[SEXP][j] + p->ent1d[SEXP][k];
@@ -451,8 +451,8 @@ static double potts_entropy(potts_t *p, int npart)
   p->ent3[SEXP] += p->ent2[SEXP];
 
   //fprintf(stderr, "%g, %g\n", p->ent1[SLIN], p->ent2[SLIN]); getchar();
-  //p->ent1[SEXP] = expext(p->ent1[SPLN], p->ent1[SBAV], trjn, blksz);
-  //p->ent2[SEXP] = expext(p->ent2[SPLN], p->ent2[SBAV], trjn, blksz);
+  //p->ent1[SEXP] = expext(p->ent1[SDRT], p->ent1[SBAV], trjn, blksz);
+  //p->ent2[SEXP] = expext(p->ent2[SDRT], p->ent2[SBAV], trjn, blksz);
 
   return p->ent3[SEXP];
 }

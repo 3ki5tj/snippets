@@ -273,8 +273,8 @@ static void work(void)
       ents = av_getave(avents, &vars);
       entsb = av_getave(aventsb, &varsb);
       mest = av_getave(avmest, &mvar);
-      printf("%9ld: entropy %8.4f(%g), %8.4f, %8.4f; %8.4f, %8.4f(%8.4f), m %6.0f(%5.0f)\n",
-          t, ent, var, entc, entcb, ents, entsb, log(q), mest, sqrt(mvar));
+      printf("%9ld: entropy %8.4f(%.4f), %8.4f, %8.4f; %8.4f, %8.4f(%8.4f), m %6.0f(%5.0f)\n",
+          t, ent, sqrt(var), entc, entcb, ents, entsb, log(q), mest, sqrt(mvar));
       fprintf(fplog, "%ld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", t,
           ent, sqrt(var), log(q),
           entc, sqrt(varc), entcb, sqrt(varcb),

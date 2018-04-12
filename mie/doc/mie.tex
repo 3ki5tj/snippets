@@ -63,10 +63,10 @@ Baylor College of Medicine, Houston, Texas 77030, USA}
 \begin{abstract}
 We show that the configuration entropy estimated from methods based on counting occurrences
 carries a negative bias
-that is inversely proportional to the simulation length.
+that is roughly inversely proportional to the simulation length.
 %
-In particular, for the mutual information expansion method,
-we show that the magnitude of the bias can grow rapidly with the order of the expansion.
+Here we propose a simple correction to the bias
+and discuss its application to the mutual information expansion method.
 \end{abstract}
 
 \maketitle
@@ -122,7 +122,8 @@ often cannot fully sample the state space.
 Thus, it is useful to understand the nature of this bias
 and its dependence on the sample size.
 %
-This knowledge can hopefully help us derive a finite-size correction.
+This knowledge can hopefully help us
+derive a suitable finite-size correction.
 
 Here we wish to show that the configuration entropy derived
 from the counting-based methods (including the MIE method)
@@ -132,11 +133,11 @@ that roughly scales inversely with the trajectory length.
 Such a bias can be readily corrected to the leading order
 by a blocking procedure.
 %
-In addition, the bias of the MIE method, in particular,
-can grow dramatically with the order of tuples.
+%In addition, the bias of the MIE method, in particular,
+%can grow dramatically with the order of tuples.
 %
-In some cases, we can reduce the magnitude of the bias
-by imposing some restrictions on the higher-order tuples included.
+%In some cases, we can reduce the magnitude of the bias
+%by imposing some restrictions on the higher-order tuples included.
 
 
 
@@ -198,9 +199,9 @@ around $x_0$,
 }
 %
 Assuming the sampling is unbiased,
-we have $\langle \hat{p}(\alpha) \rangle = p(\alpha)$.
-%
-Thus, after ensemble averaging, we get
+we have $\langle \hat{p}(\alpha) \rangle = p(\alpha)$,
+and the linear term would vanish
+after ensemble averaging, and
 %
 \begin{align}
   \bigl\langle \hat S \bigr\rangle
@@ -210,10 +211,16 @@ Thus, after ensemble averaging, we get
   =
   S - k_B \sum_{\alpha = 1}^M
     \frac{ \operatorname{var} \hat{n}(\alpha) } { 2 \, p(\alpha) \, t^2 }
-  .
+  ,
   \label{eq:entest_2nd}
 \end{align}
+%
+which shows that the quadratic term in the correction
+is always nonpositive, hence a bias.
 
+Next we will show that the bias is inversely proportional
+to the number of steps.
+%
 By definition, we have
 %
 \begin{equation*}
@@ -270,10 +277,10 @@ and $a = (M-1)/2$ for perfect sampling, where $\tau_\alpha \equiv 0$.
 %where in the second step,
 %we have assumed that all integral autocorrelation times are the same.
 
-This result shows that the entropy estimated
+In summary, we have shown that the entropy estimated
 from direct counting
 is expected to carry a negative bias,
-which is, to the leading order,
+and, to the leading order, the bias is
 inversely proportional to the trajectory length,
 or sample size.
 
@@ -305,10 +312,10 @@ and it results in an extrapolated estimate
     \frac{ t \, \hat S(t) - t_b \, \hat S(t_b) }
          { t - t_b }
     .
-    \label{eq:S_2point}
+    \label{eq:S_2pt}
 \end{align}
 
-We can implement Eq.~\eqref{eq:S_2point} in a blocking procedure.
+We can implement Eq.~\eqref{eq:S_2pt} in a blocking procedure.
 %
 We can divide the trajectory into $b$ blocks of equal length,
 each of $t_b = t/b$ steps.
@@ -316,7 +323,7 @@ each of $t_b = t/b$ steps.
 Then, we can form an estimate $S_{b, (l)}$ for each block $l = 1, \dots, b$ from Eq.~\eqref{eq:entropy_est}.
 %
 We then use the arithmetic mean of the $b$ block estimates
-as the $\hat S(t_b)$ in Eq.~\eqref{eq:S_2point}.
+as the $\hat S(t_b)$ in Eq.~\eqref{eq:S_2pt}.
 %
 The advantage of using the block average instead of
 the value from the first block is that
@@ -356,7 +363,7 @@ and thus minimizes the artifact of the extrapolation.
 
 %\subsubsection{Alternative extrapolation}
 
-We can improve Eq.~\eqref{eq:S_2point} by
+We can improve Eq.~\eqref{eq:S_2pt} by
 fitting the function $\hat S(t)$ against a ``better'' function.
 %
 We note that Eq.~\eqref{eq:Shat_ave} is an asymptotic expansion
@@ -389,11 +396,11 @@ The corresponding formula for the two-point extrapolation is
          { t \, e^{-\hat S(t)} - t_b \, e^{-\hat S(t_b)} }
   \right)
   .
-  \label{eq:S_lnexp_2point}
+  \label{eq:S_2pt_exp}
 \end{equation}
 %
-Equation~\eqref{eq:S_lnexp_2point} is reduced to
-Eq.~\eqref{eq:S_2point} in the asymptotic regime,
+Equation~\eqref{eq:S_2pt_exp} is reduced to
+Eq.~\eqref{eq:S_2pt} in the asymptotic regime,
 while in initial stages, it can sometimes
 improve the accuracy of the estimate.
 
@@ -401,7 +408,7 @@ improve the accuracy of the estimate.
 %in the more elaborate the MIE method.
 
 
-\subsection{Kirkwood superposition approximation}
+\subsection{Mutual information expansion}
 
 
 The direct counting method breaks down
@@ -409,14 +416,225 @@ for a complex system of many degrees of freedom (DOFs).
 %
 Because as the number of states increases exponentially with the number of DOFs,
 the rapidly diminishing number of samples collected in each state
-can readily deteriorate the precision of the entropy estimate.
+can quickly deteriorate the precision of the entropy estimate.
 %
 For these many-body systems,
 we may alternatively adopt
 the mutual information expansion (MIE) method,
 which is a more advanced, albeit approximate, method designed for a system
 with many largely-independent DOFs.
+
+The basic idea is that the full distribution of a multi-body system
+can often be approximately derived
+from the marginal and joint distributions of small subsets of DOFs,
+such as single DOFs, pairs, triplets, etc.
 %
+To the first order,
+we may approximate the full distribution as a product
+of the marginal distributions of all DOFs,
+as if the DOFs were independent.
+%
+The correlations among pairs and triplets of DOFs
+are taken into account in the second- and third-order MIE,
+respectively.
+%
+Accordingly, the entropy of the entire system,
+can be obtained from a superposition of the entropies
+derived from the marginal and joint distributions
+of small subsets.
+%
+A more detailed discussion is presented in Appendix~\ref{sec:Kirkwood}.
+%
+If the entropies of the small subsets are estimated
+using the direct counting method,
+the estimate of the total entropy from MIE
+naturally suffers from the bias discussed below.
+%
+Such a bias can be readily removed
+if we apply the above corrections
+to each of subsets.
+
+
+
+\section{Results}
+
+\subsection{Direct-counting method}
+
+To test the corrections we proposed for the direct-counting method,
+we performed simulations on a random walker.
+%
+In each step, the random walker can assume any of the $M$ states
+with equal probability without any memory,
+and we wish to see how the entropy estimated
+from Eq.~\eqref{eq:entropy_est} converges to the exact value of $k_B \, \ln M$,
+and how the correct accelerate the convergence.
+%
+Despite its simplicity, the model may bear relevance
+to the sampling of metastable states of a glassy biomolecule,
+which is frustrated by many moderate energetic barriers
+separating metastable states.
+
+\begin{figure}[h]\centering
+  \makebox[\linewidth][c]{
+    \includegraphics[angle=0, width=1.0\linewidth]{fig/walk_q1e3.pdf}
+  }
+  \caption{
+    \label{fig:walk_q1e3}
+    Estimated entropy, $\hat S$,
+    versus simulation time, $t$, for a random walk over $M = 10^3$ states.
+    %
+    The results have been averaged over $10^5$ independent trajectories.
+    The lines are a guide for the eye.
+  }
+\end{figure}
+
+As shown in Fig.~\ref{fig:walk_q1e3}, for a walker of $M = 10^3$ states,
+both the linear and exponential corrections,
+Eqs.~\eqref{eq:S_2pt} and \eqref{eq:S_2pt_exp},
+improved the convergence.
+%
+The errors of the entropy estimates are shown in the inset.
+%
+The error of the uncorrected result
+was indeed roughly proportional to the inverse simulation time,
+and both corrections removed the asymptotic bias.
+%
+The exponential correction was more advantageous
+at the beginning of the simulation,
+where as linear one performed better in long times.
+%
+This suggests that the exponential correction
+can offer greater accuracy in initial stages
+of the simulation.
+
+
+\begin{figure}[h]\centering
+  \makebox[\linewidth][c]{
+    \includegraphics[angle=0, width=1.0\linewidth]{fig/walk_Svsq.pdf}
+  }
+  \caption{
+    \label{fig:walk_Svsq}
+    Estimated entropy, $\hat S$,
+    against the number of states
+    after $t = 10^3$ steps.
+    %
+    The results have been averaged over independent trajectories.
+    The lines are a guide for the eye.
+  }
+\end{figure}
+
+To investigate the difference between the linear and exponential corrections,
+we performed simulations with different number states, $M$,
+and plotted the estimated entropy against $M$
+after $t = 10^3$ steps in Fig.~\ref{fig:walk_Svsq}.
+%
+Roughly speaking, the exponential correction performed better
+when the number of states is greater than the number of steps,
+and it allows a reasonable extension to
+a number of states roughly $10$-times as great as the number of steps.
+%
+But for larger numbers of states, all methods would fail.
+%
+This comparison also suggests that there can be
+better functional form than the linear or exponential ones used here
+for correcting the entropy estimate in initial stages.
+
+
+
+\subsection{MIE method on a linear Potts model}
+
+For the MIE method, we performed a tested on a linear Potts model,
+that is, a linear chain of spins with only nearest-neighbor interactions.
+%
+We intend to use such a model
+to capture the dihedral conformations in flexible peptides.
+%
+Each spin, representing the dihedral conformation of an amino-acid residue,
+can take one of $q = 6$ different states with equal probability.
+%
+The interaction between two nearest neighboring spins
+is such that there is a favorable energetic contribution of $-J$
+when the two spins assume the same state.
+%
+The details can be found in Appendix~\ref{sec:Potts}.
+%
+Although non-neighboring spins have no direct coupling,
+they are still correlated though successive coupling,
+especially at a low temperature.
+
+
+We will report our results in reduced units (in which $k_B = J = 1$).
+%
+The temperature is $T = 0.5$.
+
+The results from the second-order MIE
+(where only the correlations of pairs are considered)
+are shown in Fig.~\ref{fig:potts_mie2nd}.
+%
+As shown in the inset, the error of the uncorrected estimate
+scaled roughly inversely with the simulation time, $t$.
+%
+The linear correction largely removed the inverse-time bias
+and improved the entropy estimate significantly.
+%
+However, the remaining error dropped slowly than $t^{-2}$.
+%
+The exponential correction further improved over
+the linear one in the initial stages,
+while the improvement in the asymptotic regime is negligible.
+%
+We have imposed the constraint that
+for any pair of spins,
+the pair correction, $\overline{ \delta W_{i, j} }$,
+has to be nonpositive,
+otherwise, zero will be used.
+
+For the third-order MIE,
+the linear correction again improved the entropy estimate
+significantly.
+However, the exponential correction was less satisfactory.
+Stability issue.
+
+\begin{figure}[h]\centering
+  \makebox[\linewidth][c]{
+    \includegraphics[angle=0, width=1.0\linewidth]{fig/potts_mie2nd.pdf}
+  }
+  \caption{
+    \label{fig:potts_mie2nd}
+    Estimated entropy from the second-order MIE method
+    versus simulation time on the linear Potts model.
+    %
+    Inset: error of the estimated entropy
+    versus simulation time.
+    %
+    The results have been averaged over $1000$ independent trajectories.
+    The lines are a guide for the eye.
+  }
+\end{figure}
+
+\begin{figure}[h]\centering
+  \makebox[\linewidth][c]{
+    \includegraphics[angle=0, width=1.0\linewidth]{fig/potts_mie3rd.pdf}
+  }
+  \caption{
+    \label{fig:potts_mie3rd}
+    Estimated entropy from the third-order MIE method
+    versus simulation time on the linear Potts model.
+    %
+    Inset: error of the estimated entropy
+    versus simulation time.
+    %
+    The results have been averaged over $1000$ independent trajectories.
+    The lines are a guide for the eye.
+  }
+\end{figure}
+
+
+\appendix
+
+\section{\label{sec:Kirkwood}
+Kirkwood superposition approximation and the mutual information expansion}
+
 The MIE method is based on the idea of
 the Kirkwood superposition approximation (KAS)\cite{kirkwood1935, born1946},
 or that of interaction information\cite{mcgill1954},
@@ -751,27 +969,22 @@ where the $j$th-order mutual or interaction information, $\MI_j$, is defined as
 \begin{align}
   \MI_j
   &\equiv (-1)^{j-1} \sum_{|J| = j} \overline{ \delta W_J(\alpha_J) }
-  \notag \\
-  &=
-  \sum_{ |I| \le j }
-  (-1)^{|I| - 1}
-  {n - |I| \choose j - |I|}
-  \, \frac{S_I}{k_B}
-  ,
+  %\notag \\
+  %&=
+  %\sum_{ |I| \le j }
+  %(-1)^{|I| - 1}
+  %{n - |I| \choose j - |I|}
+  %\, \frac{S_I}{k_B}
+  .
   \label{eq:MI_comb}
 \end{align}
-where we have used Eq.~\eqref{eq:dWJ_WI}
-in the second step,
-and we have defined, in analogous to Eq.~\eqref{eq:S_W},
-the entropy of the subset $I$ as
-$S_I / k_B \equiv \overline{ W_I(\alpha_I) }$.
 %$$
 %\frac{ S_I } { k_B } \equiv \overline{ W_I(\alpha_I) }.
 %$$
 %
-Thus, Eq.~\eqref{eq:MI_comb} shows that
-the mutual information is a linear combination of
-the entropies of the subsets.
+%Thus, Eq.~\eqref{eq:MI_comb} shows that
+%the mutual information is a linear combination of
+%the entropies of the subsets.
 
 %Using Eq.~\eqref{eq:dWJ_WI}, we have for $j \le k$,
 %\begin{align}
@@ -828,7 +1041,13 @@ the entropies of the subsets.
 %\note{ See, for example, \url{https://en.wikipedia.org/wiki/Binomial\_coefficient\#Partial\_sums} }
 
 
-If we estimate $S_I$ using the direct counting method,
+From Eq.~\eqref{eq:dWJ_WI},
+we can see that the mutual information, $\MI_j$, is just a linear combination
+of the entropies,
+$S_I / k_B \equiv \overline{ W_I(\alpha_I) }$,
+of the subsets, $I$'s, of size no greater than $j$.
+%
+If we estimate $S_I$ using the direct counting method
 by counting the occurrences in the subspace of $\alpha_I$ as
 $$
 \hat S_I = - k_B \sum_{\alpha_I} \hat p(\alpha_I) \, \ln \hat p(\alpha_I),
@@ -847,53 +1066,6 @@ the bias in uncorrected result would be much more noticeable
 in a higher-order version of MIE.
 
 
-\section{Results}
-
-\subsection{Direct-counting method}
-
-A random walker in a large state space
-(relation to the sampling of metastable states in MD simulations)
-
-\subsection{MIE method on a linear Potts model}
-
-Test MIE method on linear Potts model.
-
-Model for dihedral conformations in flexible peptides.
-
-Reduced units.
-
-Temperature $T = 0.5$.
-
-For the second-order MIE,
-the linear correction improved the entropy estimate significantly.
-The exponential correction improved over the linear one further.
-We have imposed the constraint that
-for any pair of spins,
-the pair correction has to be nonpositive,
-otherwise, zero will be used.
-
-For the third-order MIE,
-the linear correction again improved the entropy estimate
-significantly.
-However, the exponential correction was less satisfactory.
-Stability issue.
-
-\begin{figure}[h]\centering
-  \makebox[\linewidth][c]{
-    \includegraphics[angle=0, width=1.0\linewidth]{fig/potts_mie.pdf}
-  }
-  \caption{
-    \label{fig:potts_mie}
-    Estimated entropy from the (a) second- and (b) third-order
-    MIE method versus simulation time on the linear Potts model.
-    %
-    The results have been averaged over $1000$ independent trajectories.
-    The lines are a guide for the eye.
-  }
-\end{figure}
-
-
-\appendix
 
 \section{\label{sec:inclexcl}
 Proof of the inversion formula }
