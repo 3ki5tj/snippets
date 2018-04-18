@@ -53,8 +53,8 @@ plot [:][:] \
     ref w l ls 7 t "Reference"
 
 
-set size 0.6, 0.52
-set origin 0.35, 0.15
+set size 0.63, 0.52
+set origin 0.32, 0.15
 
 unset key
 
@@ -69,7 +69,7 @@ set xlabel "Simulation time, {/Times-Italic  t}" offset 0, 0.3
 set format y "10^{/*0.7 %T}"
 set ytics auto
 set mytics default
-set ylabel '{/*1.8 |} ~{/Times-Italic S}{0.5\^} - {/Times-Italic S}^{ {/Times ref} }{/*1.8 |}'
+set ylabel '{/*1.8 |} ~{/Times-Italic S}{0.5\^} - {/Times-Italic S}^{ {/Times ref} }{/*1.8 |}' offset -1, 0
 
 #set style arrow 3 head filled size screen 0.01,15,45 ls 1
 #set arrow 1 from 6e3, 10 to 3e3, 7 arrowstyle 3
@@ -80,8 +80,8 @@ set ylabel '{/*1.8 |} ~{/Times-Italic S}{0.5\^} - {/Times-Italic S}^{ {/Times re
 
 plot [1e3:1e5][0.01:80] \
     fn u ($1):(abs($16-$22)) every 1 w lp ls 1 ps 0.7 t "Uncorrected", \
-    fn u ($1):(abs($18-$22)) every 1 w lp ls 2 ps 0.7 t "Linearly corrected", \
-    fn u ($1):(abs($20-$22)) every 1 w lp ls 4 ps 0.7 t "Exponentially corrected", \
+    fn u ($1):(abs($18-$22)) every 1 w lp ls 2 ps 0.7 t "Linear", \
+    fn u ($1):(abs($20-$22)) every 1 w lp ls 4 ps 0.7 t "Exponential", \
 
 
 unset multiplot

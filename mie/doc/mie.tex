@@ -74,10 +74,12 @@ and discuss its application to the mutual information expansion method.
 
 \section{Introduction}
 
-Entropy is a key concept of statistical mechanics that provides a quantitative measure of
-the number of possible states a system can go through during its evolution.
+Entropy is a key concept in statistical mechanics.
 %
-In particular, the configuration entropy is defined,
+It provides a quantitative measure of
+the number of possible states a system can go through during its time evolution.
+%
+In particular, we can define the configuration entropy,
 for $M$ coarse-grained states in the configuration space, as
 %
 \begin{equation}
@@ -93,7 +95,9 @@ and $k_B$ is the Boltzmann constant.
 %
 For the even distribution, $p(\alpha) \equiv 1/M$,
 we can readily verify that $S \equiv k_B \, \ln M$
-is proportional to the logarithm of the number of states.
+is proportional to the logarithm (hence a measure) of the number of states,
+whereas Eq.~\eqref{eq:entropy_def}
+provides a natural extension of the measure to nonuniform distributions.
 
 We can readily apply Eq.~\eqref{eq:entropy_def} to a trajectory
 obtained from a molecular dynamics (MD) or Monte Carlo (MC) simulation,
@@ -101,37 +105,38 @@ with the probabilities, $p(\alpha)$'s,
 estimated from the observed occurrences of the states.
 %
 This straightforward application also furnishes the basis
-of many more-advanced counting-based methods for estimating the configuration entropy\cite{hnizdo2007, killian2007}.
+of many advanced counting-based methods for estimating the configuration entropy\cite{hnizdo2007, killian2007}.
 %
 Among them, the method of mutual information expansion (MIE)\cite{killian2007} is notable
 for its potential to handle a vast but decomposable state space common in a complex system.
 %
-The MIE method applies to a many-body system
-whose degrees of freedom are only loosely coupled.
+The MIE method is suitable for a many-body system
+whose degrees of freedom (DOFs) are only loosely coupled.
 %
-Starting from the sum of marginal entropies of individual components,
+Starting from the sum of marginal entropies of individual DOFs,
 the method offers a cascade of levels of corrections
 to systematically absorb the contributions of higher-order correlations
 of increasingly larger groups, such as pairs, triplets, quartets, etc.
 
 However, the above counting-based methods
-tends to underestimate the configuration entropy
+tend to underestimate the configuration entropy
 because a realistic simulation of finite length
 often cannot fully sample the state space.
 %
 Thus, it is useful to understand the nature of this bias
 and its dependence on the sample size.
 %
-This knowledge can hopefully help us
-derive a suitable finite-size correction.
+With this understanding,
+we hope to derive a suitable finite-size correction.
 
-Here we wish to show that the configuration entropy derived
+Here we show that the configuration entropy derived
 from the counting-based methods (including the MIE method)
 generally carries a negative bias
 that roughly scales inversely with the trajectory length.
 %
-Such a bias can be readily corrected to the leading order
-by a blocking procedure.
+We also propose a blocking procedure
+that can readily remove the bias
+to the leading order.
 %
 %In addition, the bias of the MIE method, in particular,
 %can grow dramatically with the order of tuples.
@@ -152,8 +157,9 @@ which will be referred to as the direct counting method below.
 %
 Here, we estimate the probability, $p(\alpha)$,
 by the frequency, $\hat{p}(\alpha) = \hat{n}(\alpha) / t$,
-where $\hat{n}(\alpha)$ is the number of times state $\alpha$ occurring in the trajectory of $t$ steps,
-and the entropy estimate is
+where $\hat{n}(\alpha)$ is the number of times that state $\alpha$ occurs in the trajectory of $t$ steps.
+%
+Then, the entropy estimate is
 %
 \begin{equation}
   \hat S
@@ -164,9 +170,11 @@ and the entropy estimate is
 \end{equation}
 %
 To investigate the error of Eq.~\eqref{eq:entropy_est},
-we will imagine an ensemble of trajectories of replica systems
-that differ only by the random forces
-and define the bias from the difference
+we will introduce an ensemble of replica systems,
+each of which undergoes an independent simulation.
+%
+We can then define the error of the entropy estimate
+from the difference
 between the ensemble average,
 $\bigl\langle \hat S \bigr\rangle$,
 and the true value, $S$.
@@ -216,7 +224,8 @@ after ensemble averaging, and
 \end{align}
 %
 which shows that the quadratic term in the correction
-is always nonpositive, hence a bias.
+is always nonpositive, and hence characterizes
+the bias to the leading order.
 
 Next we will show that the bias is inversely proportional
 to the number of steps.
@@ -261,7 +270,7 @@ Thus, we can rewrite Eq.~\eqref{eq:entest_2nd} as
 \begin{align}
   \bigl\langle \hat S \bigr\rangle
   &\approx
-  S - \frac{ a } { t }
+  S - \frac{ C } { t }
   %\notag\\
   %&\approx
   %S - k_B
@@ -270,10 +279,10 @@ Thus, we can rewrite Eq.~\eqref{eq:entest_2nd} as
   \label{eq:Shat_ave}
 \end{align}
 %
-where $a = k_B \sum_{\alpha = 1}^M
-    \bigl(1 - p(\alpha)\bigr) ( 2 \, \tau_\alpha + 1)/2$,
+where $C = k_B \sum_{\alpha = 1}^M
+    \bigl(1 - p(\alpha)\bigr) ( 2 \, \tau_\alpha + 1)/2$.
 %
-and $a = (M-1)/2$ for perfect sampling, where $\tau_\alpha \equiv 0$.
+For perfect sampling, $\tau_\alpha \equiv 0$, so we have $C = (M-1)/2$.
 %where in the second step,
 %we have assumed that all integral autocorrelation times are the same.
 
@@ -289,10 +298,10 @@ or sample size.
 \subsection{Corrections to the linear bias}
 
 
-The above bias can be readily corrected by the following blocking procedure.
+We now propose a blocking procedure to correct the bias to the leading order.
 %
 We will consider the estimate from Eq.~\eqref{eq:entropy_est}
-as a function of trajectory length, $t$, and denote it as $\hat S(t)$.
+as a function of the trajectory length, $t$, and denote it as $\hat S(t)$.
 %
 Then, we can define an estimate, $\hat S(t_b)$,
 from a trajectory segment of $t_b$ steps.
@@ -300,7 +309,7 @@ from a trajectory segment of $t_b$ steps.
 The ensemble average of $\hat S(t_b)$ also follows
 Eq.~\eqref{eq:Shat_ave}, but with $t$ replaced by $t_b$.
 %
-This allows us to deduce the constants, $S$ and $a$, in Eq.~\eqref{eq:Shat_ave}
+This allows us to deduce the constants, $S$ and $C$, in Eq.~\eqref{eq:Shat_ave}
 by solving the two equations for $\hat S(t)$ and $\hat S(t_b)$.
 %
 This process is equivalent to a two-point linear regression,
@@ -322,7 +331,7 @@ each of $t_b = t/b$ steps.
 %
 Then, we can form an estimate $S_{b, (l)}$ for each block $l = 1, \dots, b$ from Eq.~\eqref{eq:entropy_est}.
 %
-We then use the arithmetic mean of the $b$ block estimates
+We then use the average of the $b$ block estimates
 as the $\hat S(t_b)$ in Eq.~\eqref{eq:S_2pt}.
 %
 The advantage of using the block average instead of
@@ -369,39 +378,45 @@ fitting the function $\hat S(t)$ against a ``better'' function.
 We note that Eq.~\eqref{eq:Shat_ave} is an asymptotic expansion
 that only holds when the frequencies are close to the true probabilities,
 which usually means when the effective number of samples,
-$t^* = t/(\overline{2 \, \tau_\alpha + 1})$, is greater than
-the number of states $M$ (for a large $M$).
+$t^* = t/(\overline{2 \, \tau_\alpha + 1})$, is much greater than
+the number of states $M$.
 %
-In the initial stage, $t^* \ll M$,
+In initial stages, when $t^* \ll M$,
 we would expect the number of states visited to be proportional to $t^*$,
 and the entropy estimate, $\hat S(t)$,
 to be $\ln t^* = \ln t + \mathrm{const.}$
 %
 A phenomenological form to accommodate both the initial and asymptotic behavior
 would be
-$$
+%
+\begin{equation}
   \bigl\langle \hat S \bigr\rangle
-  = S - \ln\left(1 + \frac{a}{t}\right).
-$$
-The above functional form means a linear relation between
+  = S - \ln\left(1 + \frac{C}{t}\right)
+  .
+  \label{eq:expform}
+\end{equation}
+%
+To derive a correction based on the above functional form,
+we note that Eq.~\eqref{eq:expform} represents a linear relation between
 $e^{-\bigl\langle \hat S \bigr\rangle}$
 (instead of $\bigl\langle \hat S \bigr\rangle$ itself)
 and $1/t$.
 %
-The corresponding formula for the two-point extrapolation is
+Thus, we can readily adapt the correction, Eq.~\eqref{eq:S_2pt},
+to the exponential form as
 %
 \begin{equation}
-  \hat S(t, t_b) = \ln\left(
-    \frac{ t - t_b }
-         { t \, e^{-\hat S(t)} - t_b \, e^{-\hat S(t_b)} }
+  \hat S(t, t_b) = -\ln\left(
+    \frac{ t \, e^{-\hat S(t)} - t_b \, e^{-\hat S(t_b)} }
+         { t - t_b }
   \right)
   .
   \label{eq:S_2pt_exp}
 \end{equation}
 %
-Equation~\eqref{eq:S_2pt_exp} is reduced to
-Eq.~\eqref{eq:S_2pt} in the asymptotic regime,
-while in initial stages, it can sometimes
+The linear, Eq.~\eqref{eq:S_2pt}, and exponential, Eq.~\eqref{eq:S_2pt_exp}, corrections
+have a similar asymptotic behavior,
+but in initial stages, the latter can sometimes 
 improve the accuracy of the estimate.
 
 %As we will see, the same type of bias also exists
@@ -426,33 +441,40 @@ with many largely-independent DOFs.
 
 The basic idea is that the full distribution of a multi-body system
 can often be approximately derived
-from the marginal and joint distributions of small subsets of DOFs,
+from the marginal and joint distributions of small groups of DOFs,
 such as single DOFs, pairs, triplets, etc.
 %
 To the first order,
-we may approximate the full distribution as a product
+we may simply approximate the full distribution as a product
 of the marginal distributions of all DOFs,
 as if the DOFs were independent.
 %
 The correlations among pairs and triplets of DOFs
-are taken into account in the second- and third-order MIE,
+are incrementally taken into account in the second- and third-order MIE,
 respectively.
 %
 Accordingly, the entropy of the entire system,
 can be obtained from a superposition of the entropies
 derived from the marginal and joint distributions
-of small subsets.
+of small DOF groups.
 %
-A more detailed discussion is presented in Appendix~\ref{sec:Kirkwood}.
-%
-If the entropies of the small subsets are estimated
+A more detailed discussion is presented in Appendix~\ref{sec:MIE_review}.
+
+If the entropies of the small DOF groups are estimated
 using the direct counting method,
 the estimate of the total entropy from MIE
 naturally suffers from the bias discussed below.
 %
 Such a bias can be readily removed
 if we apply the above corrections
-to each of subsets.
+to each of groups.
+%
+This procedure is particularly simple for the linear correction.
+%
+Because of the linear structure of MIE,
+we can apply Eq.~\eqref{eq:S_2pt}
+to the final output of MIE
+instead of individually to the entropy of every DOF group.
 
 
 
@@ -467,7 +489,7 @@ In each step, the random walker can assume any of the $M$ states
 with equal probability without any memory,
 and we wish to see how the entropy estimated
 from Eq.~\eqref{eq:entropy_est} converges to the exact value of $k_B \, \ln M$,
-and how the correct accelerate the convergence.
+and how the corrections accelerate the convergence.
 %
 Despite its simplicity, the model may bear relevance
 to the sampling of metastable states of a glassy biomolecule,
@@ -495,17 +517,17 @@ improved the convergence.
 %
 The errors of the entropy estimates are shown in the inset.
 %
-The error of the uncorrected result
-was indeed roughly proportional to the inverse simulation time,
-and both corrections removed the asymptotic bias.
+The uncorrected result
+indeed carried an error roughly proportional to the inverse simulation time,
+and both corrections removed the asymptotic error.
 %
 The exponential correction was more advantageous
 at the beginning of the simulation,
-where as linear one performed better in long times.
+whereas the linear one performed better at long times.
 %
 This suggests that the exponential correction
-can offer greater accuracy in initial stages
-of the simulation.
+can offer greater accuracy than the linear one,
+especially in initial stages.
 
 
 \begin{figure}[h]\centering
@@ -523,13 +545,14 @@ of the simulation.
   }
 \end{figure}
 
-To investigate the difference between the linear and exponential corrections,
+To further investigate the difference between the two corrections,
 we performed simulations with different number states, $M$,
 and plotted the estimated entropy against $M$
 after $t = 10^3$ steps in Fig.~\ref{fig:walk_Svsq}.
 %
 Roughly speaking, the exponential correction performed better
-when the number of states is greater than the number of steps,
+when the number of states is greater than the number of steps
+(i.e. in initial stages of a simulation),
 and it allows a reasonable extension to
 a number of states roughly $10$-times as great as the number of steps.
 %
@@ -543,57 +566,58 @@ for correcting the entropy estimate in initial stages.
 
 \subsection{MIE method on a linear Potts model}
 
-For the MIE method, we performed a tested on a linear Potts model,
-that is, a linear chain of spins with only nearest-neighbor interactions.
+We further tested the corrections for the MIE method
+on a linear Potts model,
+which is a linear chain of identical spins
+with only nearest-neighbor interactions.
 %
-We intend to use such a model
-to capture the dihedral conformations in flexible peptides.
+We wish to use the simplistic model
+to capture the dihedral conformation variety
+observed in disordered or flexible peptides.
 %
 Each spin, representing the dihedral conformation of an amino-acid residue,
 can take one of $q = 6$ different states with equal probability.
 %
-The interaction between two nearest neighboring spins
+The interaction between two neighboring spins
 is such that there is a favorable energetic contribution of $-J$
-when the two spins assume the same state.
+when the two spins assume the same state, or none otherwise.
 %
-The details can be found in Appendix~\ref{sec:Potts}.
+A more detailed description of the model is given in Appendix~\ref{sec:Potts}.
 %
-Although non-neighboring spins have no direct coupling,
-they are still correlated though successive coupling,
+Note that although non-neighboring spins have no direct coupling,
+they are still correlated though successive or higher-order coupling,
 especially at a low temperature.
-
-
-We will report our results in reduced units (in which $k_B = J = 1$).
+%
+We will report our results in reduced units (with $k_B = J = 1$).
 %
 The temperature is $T = 0.5$.
 
+
 The results from the second-order MIE
-(where only the correlations of pairs are considered)
+(which takes into account the correlations of pairs,
+but not those of triplets or larger groups)
 are shown in Fig.~\ref{fig:potts_mie2nd}.
 %
-As shown in the inset, the error of the uncorrected estimate
-scaled roughly inversely with the simulation time, $t$.
+The error of the uncorrected estimate
+scaled roughly inversely with the simulation time, $t$,
+as can be seen from the inset.
 %
 The linear correction largely removed the inverse-time bias
 and improved the entropy estimate significantly.
 %
-However, the remaining error dropped slowly than $t^{-2}$.
+However, the remaining error dropped more slowly than $t^{-2}$.
+%
+This might be due to an implementation detail:
+we imposed that for any pair of spins,
+the entropic correction,
+$\overline{ \delta W_{i, j} }$ (see Appendix~\ref{sec:MIE_review}),
+has to be nonpositive,
+otherwise, zero will be used.
 %
 The exponential correction further improved over
 the linear one in the initial stages,
 while the improvement in the asymptotic regime is negligible.
 %
-We have imposed the constraint that
-for any pair of spins,
-the pair correction, $\overline{ \delta W_{i, j} }$,
-has to be nonpositive,
-otherwise, zero will be used.
-
-For the third-order MIE,
-the linear correction again improved the entropy estimate
-significantly.
-However, the exponential correction was less satisfactory.
-Stability issue.
 
 \begin{figure}[h]\centering
   \makebox[\linewidth][c]{
@@ -604,6 +628,9 @@ Stability issue.
     Estimated entropy from the second-order MIE method
     versus simulation time on the linear Potts model.
     %
+    The reference value is the theoretical expectation
+    of the second-order MIE method.
+    %
     Inset: error of the estimated entropy
     versus simulation time.
     %
@@ -611,6 +638,24 @@ Stability issue.
     The lines are a guide for the eye.
   }
 \end{figure}
+
+
+For the third-order MIE,
+the linear correction again improved the entropy estimate
+significantly.
+However, the exponential correction was less satisfactory.
+%
+Unlike in the second-order case,
+we can no longer ascertain the sign of
+the third-order correction for each triplet,
+$\overline{ \delta W_{i, j, k} }$ (see Appendix~\ref{sec:MIE_review});
+and thus the estimates on triplet entropies
+were more susceptible to random errors,
+especially for the exponential correction.
+%
+On balance, it appeared to be safer
+to use the linear extrapolation for the MIE method,
+at least for the third or higher order.
 
 \begin{figure}[h]\centering
   \makebox[\linewidth][c]{
@@ -621,6 +666,9 @@ Stability issue.
     Estimated entropy from the third-order MIE method
     versus simulation time on the linear Potts model.
     %
+    The reference value is the theoretical expectation
+    of the third-order MIE method.
+    %
     Inset: error of the estimated entropy
     versus simulation time.
     %
@@ -630,15 +678,20 @@ Stability issue.
 \end{figure}
 
 
+
 \appendix
 
-\section{\label{sec:Kirkwood}
-Kirkwood superposition approximation and the mutual information expansion}
+\section{\label{sec:MIE_review}
+Mutual information expansion}
 
 The MIE method is based on the idea of
 the Kirkwood superposition approximation (KAS)\cite{kirkwood1935, born1946},
-or that of interaction information\cite{mcgill1954},
-which we will briefly review below.
+or that of interaction information\cite{mcgill1954}.
+%
+Below, we will discuss the idea and its application to MIE.
+
+\subsection{\label{sec:Kirkwood}
+Kirkwood superposition approximation}
 
 We first recall that the (dimensionless) potential of mean force (PMF)
 is defined for a distribution, $p(\alpha)$,
@@ -669,8 +722,9 @@ which shows that the configuration entropy
 is the mean PMF.
 %
 The superposition approximation is based on the intuition
-that for a physical or extensive system composed of multiple DOFs,
-the PMF of the entire system is roughly decomposable to
+that for a physical or extensive system composed of
+multiple loosely-coupled DOFs,
+the PMF of the entire system is largely
 the sum of the marginal PMFs of individual DOFs.
 
 Consider a many-body system of $n$ DOFs.
@@ -746,7 +800,8 @@ implicitly through the recurrence relation,
 %
 where the sum goes through all subsets $J$'s of $I$,
 and we have defined
-$\delta W_\emptyset \equiv W_\emptyset \equiv 0$.
+$\delta W_\emptyset \equiv W_\emptyset \equiv 0$
+for the empty set $\emptyset$.
 %
 Note that in this definition,
 $\delta W_i \equiv W_i$
@@ -757,10 +812,36 @@ Eqs.~\eqref{eq:W_ij} and \eqref{eq:W_ijk}
 are special cases of Eq.~\eqref{eq:WI_dWJ}
 
 As Eq.~\eqref{eq:WI_dWJ} is a linear relation,
-we can invert it to get an explicit definition of $\delta W_J$
-through the inclusion-exclusion principle\cite{bjorklund2007}
-% also known as or the inverse M\"{o}bius transform
-(cf. Appendix~\ref{sec:inclexcl}),
+by using the inclusion-exclusion principle\cite{bjorklund2007},
+we can invert it to get an explicit definition of $\delta W_J$\footnote{
+  We can verify Eq.~\eqref{eq:dWJ_WI}
+  by a direct expansion using Eq.~\eqref{eq:WI_dWJ}.
+  %
+  Consider a particular subset $K \subseteq J$.
+  Let us compute the contribution of $\delta W_K$
+  to the right-hand side of Eq.~\eqref{eq:dWJ_WI}.
+  %
+  Note that $\delta W_K$ contributes only to those terms
+  whose $I$ is a superset of $K$,
+  and the contribution coefficient is $(-1)^{|J|-|I|}$.
+  %
+  If $K$ is strict subset of $J$,
+  then there is at least one component $j^*$ that belongs to $J$
+  but not to $K$,
+  and all supersets, $I$'s,
+  satisfying the above condition, and that given by Eq.~\eqref{eq:dWJ_WI},
+  $K \subseteq I \subseteq J$,
+  can be partitioned to two equally populated groups,
+  according to whether the $I$ has $j^*$ or not.
+  %
+  However, because the corresponding members of the two groups
+  contribute the same value with opposite signs to the sum,
+  the total contribution is zero.
+  %
+  This means $\delta W_K$ can contribute to the right-hand side
+  if and only if $K = J$, and the contribution is $1 \cdot W_J$,
+  as intended.
+}
 %
 \begin{equation}
   \delta W_J(\alpha_J)
@@ -812,13 +893,12 @@ For example, we have, for a pair, $\{i, j\}$,\footnote{
   W_{i,j}(\alpha_i, \alpha_j)
   - W_{i}(\alpha_i) - W_{j}(\alpha_j)
   ,
-  \notag
-  %\label{eq:dWij}
+  \label{eq:dWij}
 \end{equation}
 %
 or, for a triplet, $\{i, j, k\}$,
 %
-\begin{align*}
+\begin{align}
   &\delta W_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
   =
   W_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
@@ -833,8 +913,8 @@ or, for a triplet, $\{i, j, k\}$,
   + W_j(\alpha_j)
   + W_k(\alpha_k)
   .
-  %\label{eq:dWijk}
-\end{align*}
+  \label{eq:dWijk}
+\end{align}
 
 
 
@@ -911,11 +991,8 @@ in the second-order approximation,
 we assume that
 $\delta W_{i, j, k} = \delta W_{i,j,k, l} = \cdots = 0$.
 %
-Then,
-%$\delta W_{i, j} = W_{i,j} - W_i - W_j$,
-$$\delta W_{i, j}(\alpha_i, \alpha_j)
-= W_{i,j}(\alpha_i, \alpha_j) - W_i(\alpha_i) - W_j(\alpha_j),$$
-and the triplet PMF is expressed as a superposition
+Then, $\delta W_{i,j}$ is given by Eq.~\eqref{eq:dWij}.
+The triplet PMF is expressed as a superposition
 of the pair and marginal PMFs according to Eq.~\eqref{eq:W_ijk},
 %$$
 %W_{i, j, k} = W_{i,j} + W_{j,k} + W_{k,i} - W_i - W_j - W_k.
@@ -929,6 +1006,8 @@ W_{i,j}(\alpha_i, \alpha_j) + W_{j,k}(\alpha_j, \alpha_k)\\
 .
 \end{align*}
 %
+This result can also be obtained from Eq.~\eqref{eq:dWijk} with $\delta W_{i,j,k}$ set to zero.
+%
 Written in terms of the distributions, $p_I(\alpha_I)$'s,
 [cf. Eq.~\eqref{eq:WI_def}], the above relation gives
 %
@@ -938,18 +1017,39 @@ p_{i,j,k}(\alpha_i, \alpha_j, \alpha_k)
 \frac{ p_{i,j}(\alpha_i, \alpha_j) \, p_{j,k}(\alpha_j, \alpha_k) \, p_{k,i}(\alpha_k, \alpha_i) }{ p_i(\alpha_i) \, p_j(\alpha_j) \, p_k(\alpha_k) }
 ,
 $$
-recovers the classical version of the superposition approximation\cite{kirkwood1935, born1946}.
+which recovers the classical version of the superposition approximation\cite{kirkwood1935, born1946}.
 \note{Eq.~(4.6) in \cite{born1946}.}
+
+
 
 \subsection{Mutual information expansion (MIE)}
 
 
+The MIE method uses the above framework to derive approximate expressions of the entropy.
+%
+Let us first define, in analogy to Eq.~\eqref{eq:S_W},
+the marginal entropies and their corrections for subsets as
+%
+\begin{align*}
+  S_I
+  &= k_B \, \overline{ W_I(\alpha_I) }
+  ,
+  \\
+  \delta S_J
+  &= k_B \, \overline{ \delta W_J(\alpha_J) }
+  ,
+\end{align*}
+%
 Using Eq.~\eqref{eq:WI_dWJ_MIE} in Eq.~\eqref{eq:S_W},
 we get an expression for the entropy for the $k$th-order MIE,
 \begin{equation}
-  \frac{S}{k_B}
+  S
   =
-  \sum_{|J| \le k} \overline{ \delta W_J(\alpha_J) },
+  \sum_{|J| \le k} \delta S_J
+  =
+  k_B \,
+  \sum_{|J| \le k} \overline{ \delta W_J(\alpha_J) }
+  ,
   \label{eq:ent_MIE1}
 \end{equation}
 where $J$ goes through all subsets of $\{1, \dots, n\}$ satisfying $|J| \le k$,
@@ -968,7 +1068,9 @@ is arranged by the subset size as
 where the $j$th-order mutual or interaction information, $\MI_j$, is defined as
 \begin{align}
   \MI_j
-  &\equiv (-1)^{j-1} \sum_{|J| = j} \overline{ \delta W_J(\alpha_J) }
+  &\equiv (-1)^{j-1} \sum_{|J| = j}
+  \delta S_J / k_B
+  %\overline{ \delta W_J(\alpha_J) }
   %\notag \\
   %&=
   %\sum_{ |I| \le j }
@@ -1043,8 +1145,7 @@ where the $j$th-order mutual or interaction information, $\MI_j$, is defined as
 
 From Eq.~\eqref{eq:dWJ_WI},
 we can see that the mutual information, $\MI_j$, is just a linear combination
-of the entropies,
-$S_I / k_B \equiv \overline{ W_I(\alpha_I) }$,
+of the entropies, $S_I$'s,
 of the subsets, $I$'s, of size no greater than $j$.
 %
 If we estimate $S_I$ using the direct counting method
@@ -1063,57 +1164,8 @@ grows exponentially with the size of $I$.
 %
 Thus, according to Eq.~\eqref{eq:Shat_ave},
 the bias in uncorrected result would be much more noticeable
-in a higher-order version of MIE.
+in a higher-order MIE.
 
-
-
-\section{\label{sec:inclexcl}
-Proof of the inversion formula }
-
-We can verify Eq.~\eqref{eq:dWJ_WI}
-by a direct expansion using Eq.~\eqref{eq:WI_dWJ}.
-%
-Consider a particular subset $K \subseteq J$.
-Let us compute the contribution of $\delta W_K$
-to the right-hand side of Eq.~\eqref{eq:dWJ_WI}.
-%
-Note that $\delta W_K$ contributes only to those terms
-whose $I$ is a superset of $K$,
-and the contribution coefficient is $(-1)^{|J|-|I|}$.
-%
-If $K$ is strict subset of $J$,
-then there is at least one component $j^*$ that belongs to $J$
-but not to $K$,
-and all supersets, $I$'s,
-satisfying the above condition, and that given by Eq.~\eqref{eq:dWJ_WI},
-$K \subseteq I \subseteq J$,
-can be partitioned to two equally populated groups,
-according to whether the $I$ has $j^*$ or not.
-%
-However, because the corresponding members of the two groups
-contribute the same value with opposite signs to the sum,
-the total contribution is zero.
-%
-This means $\delta W_K$ can contribute to the right-hand side
-if and only if $K = J$, and the contribution is $1 \cdot W_J$,
-as intended.
-
-%If we limit ourselves to supersets, $I$'s, of size $i$,
-%then there are
-%${|J| - |K| \choose i - |K|}$ ways
-%of including components other than those in $K$ into $I$,
-%and the total contribution is
-%$(-1)^{|J|-i} {|J| - |K| \choose i - |K|}$.
-%%
-%Summing over the possible sizes yields
-%$$
-%\sum_{j=|K|}^{|J|} (-1)^{|J|-i} {|J| - |K| \choose i - |K|}
-%= (1 - 1)^{|J| - |K|} = \delta_{|J|, |K|}.
-%$$
-%This shows that the total contribution of $\delta W_K$
-%to the right-hand side of Eq.~\eqref{eq:dWJ_WI}
-%vanishes unless $K = J$,
-%which is the intended result.
 
 
 
@@ -1121,47 +1173,152 @@ as intended.
 Potts model
 }
 
-A linear Potts model.
-
-Model for dihedral conformation in disordered proteins.
-
-In this model, there are $n$ spins placed linearly on a string.
+Here we give details of the Potts model used in our numerical tests.
 %
-Each spin, $s_i$, has $q$ possibilities.
+This model consists of $n$ spins that spread evenly on a line.
 %
-The direct coupling among the spins
-is limited to two neighboring spins, and the Hamiltonian reads
+Each spin, $s_i$, can assume one of the $q$ states with equal probability.
+%
+The Hamiltonian is given by
 $$
 H = -J \sum_{i = 1}^{n-1} s_i \, s_{i+1}.
 $$
-Below we will assume $J = 1$.
 
+This model is analytically solvable. % because of its linear structure.
+%
 The partition function is given by
-$Z_n = q (f + q)^{n-1}$,
-where $f = e^{\beta \, J} - 1$
-
+$Z_n = q \, (r + q)^{n-1}$,
+where $r = e^{\beta \, J} - 1$.
+%
+The transition matrix between two neighboring sites is
+$T_{i,i+1}(t_1, t_2) = r \, \delta_{t_1, t_2} + 1$.
+%
 The correlation between two spins $k$ sites apart
 can be derived from the $k$th-order transition matrix,
-which is the $k$th power of the transition matrix
-of two neighboring sites:
+which is the $k$th power of the above transition matrix
+for nearest neighbors:
 $$
-T_{i,i+k}(s, t) = f^k \, \delta_{s,t}
-+ \frac{ (f + q)^k - f^k } { q }.
+T_{i,i+k}(t_1, t_2) = r^k \, \delta_{t_1, t_2}
++ \frac{ (r + q)^k - r^k } { q }.
 $$
-The joint distribution of two spins of $k$ sites apart
+The joint distribution of two spins of $k$ sites apart, $i$ and $j = i+k$,
 is given by
 $$
-p_{i, i+k}(s,t) = T_{i, i+k}(s,t) / Z_{k+1}.
+p_{i, j}(t_1, t_2) = T_{i, j}(t_1, t_2) / Z_{k+1},
+$$
+and the conditional probability of $s_j$ assuming the value of $t_2$
+given that $s_i = t_1$ is
+$$
+p\left(s_j = t_2 \middle| s_i = t_1 \right) = \frac{ p_{i, j}(t_1, t_2) } { 1/q }.
 $$
 Because of the linear structure,
-the joint distribution of three sites, $i$, $j = i+k$, and $l = i+k+k'$,
-$$
-p_{i, j, l}(s,t,r) = p_{i, j}(s,t) \, p_{j, l}(t,r) \, q.
-$$
+the joint distribution of $m$ sites, $i_1, i_2, \dots, i_m$
+($i_1 < i_2 < \cdots < i_m$),
+can be derived from a product of conditional probabilities
+\begin{align}
+  &p_{i_1, \dots, i_m}(t_1,\dots,t_m)\
+  \notag\\
+  &\qquad
+  = p_{i_1, i_2}(t_1,t_2) \,
+  p(s_{i_3} = t_3 | s_{i_2} = t_2)
+  \notag\\
+  &\qquad \qquad \quad \cdots
+  p(s_{i_{m}} = t_{m} | s_{i_{m-1}} = t_{m-1})
+  \notag\\
+  &\qquad
+  =
+  q^{m-2} \, p_{i_1, i_2}(t_1,t_2) \cdots p_{i_{m-1}, i_m}(t_{m-1}, t_m)
+  ,
+  \label{eq:Potts_jointp}
+\end{align}
 
-We may drive for $i < j < l$, we have
-$\delta S_{i, j, l} = -\delta S_{i, l}$
 
+From the above results, we can derive the exact entropy
+and the values we expect to obtain from the MIE method.
+%
+First, for a pair of spins $k$ sites apart,
+the entropic correction is given by
+\begin{align}
+  \delta S_{i, i+k}
+  &=
+  -k_B \left[
+    (1 - q^{-1}) \, A_k \ln A_k
+  + q^{-1} \, B_k \ln B_k \right]
+  \notag\\
+  &=
+  -\frac{k_B}{2} (q-1) R^{2k}
+  +\mathcal{O}(R^{3k})
+ ,
+\end{align}
+where
+$A_k = 1 - R^k$,
+$B_k = 1 + (q-1) R^k$,
+and $R = r/(r+q)$.
+%
+This result shows the pair correction is of the order of magnitude of $R^k$.
+%
+Next, from Eq.~\eqref{eq:Potts_jointp},
+we have for $m$ sites,
+$i_1$, $i_2$, \dots, $i_m$ ($i_1 < i_2 < \cdots < i_m$),
+\begin{align}
+S_{i_1, \dots, i_m}
+  &= - k_B \, \overline{\ln p_{i_1,\dots, i_m}}
+  \notag\\
+  &= S_{i_1,i_2} + \cdots + S_{i_{m-1},i_m} - (m-2) \, k_B \, \ln q
+  \notag\\
+  &= \delta S_{i_1,i_2} + \cdots + \delta S_{i_{m-1},i_m} + m \, k_B \, \ln q
+  .
+  \label{eq:Potts_jointS}
+\end{align}
+By induction, we can show that
+%
+\begin{equation}
+  \delta S_{i_1, i_2, \dots, i_m} = (-1)^m \delta S_{i_1, i_m}.
+  \label{eq:Potts_jointdS}
+\end{equation}
+%
+We can obtain the exact entropy of the system
+by applying Eq.~\eqref{eq:Potts_jointS} to all sites:
+\begin{align*}
+  S =
+  n \, k_B \, \ln q
+  + \sum_{i=1}^{n-1} \delta S_{i,i+1}
+  ,
+\end{align*}
+which is the sum of the marginal entropies of the $n$ sites
+and the pair corrections of nearest neighbors.
+%
+This result, however, is different from that from the second-order MIE,
+because the latter also includes pair corrections
+of non-neighboring sites, i.e.,
+$$
+S^{(2)} = S + \sum_{i, j \ge i+2} \delta S_{i, j}
+,
+$$
+which shows the error of second-order MIE is $\mathcal O(R^4)$.
+By Eq.~\eqref{eq:Potts_jointdS}, we can further show that
+for the $m$th order\footnote{
+  For two spins $i$ and $j = i + k$ that are $k$ sites apart (assuming $k \ge m$),
+  the contribution of $\delta S_{i, j}$ to the $m$th-order MIE
+  can be computed as follows.
+  In the 2nd-order, it is taken into account once for the pair $i$ and $j$.
+  In the 3rd-order, it also contributes via the $k-1$ triplets, namely,
+  $\{i, i+1, j\}, \dots, \{i, j-1, j\}$,
+  and each with a negative sign [because $\delta S_{i,i_1,j} = -\delta S_{i,j}$,
+  according to Eq.~\eqref{eq:Potts_jointdS}].
+  In the 4th-order, it also contributes via the ${k-1 \choose 2}$ quartet,
+  (where the binomial coefficient represents the number of ways
+  of selecting the two middle spins).
+  The total contribution is thus
+  $1 - {k-1 \choose 1} + {k-1 \choose 2} - \cdots + (-1)^{m}{k-1 \choose m-2}
+  = (-1)^m {k-2 \choose m-2}$.
+}
+
+$$
+S^{(m)} = S + \sum_{i, j \ge i+m} (-1)^m {j-i-2 \choose m-2} \, \delta S_{i,j}
+,
+$$
+and thus the error of the $m$-order MIE is $\mathcal O(R^{2m})$.
 
 
 \bibliography{simul}
