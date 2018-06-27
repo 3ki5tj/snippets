@@ -5,11 +5,16 @@
 
 int q = 10000;
 int nsys = 1000;
+double mean = 1.0; /* mean of the relative probability */
+double width = 0.0; /* width of the relative probability */
 long nsteps = 10000;
 int npart = 2;
 int npart2 = 4;
+double gam = 1.0;
 long nstrep = 100;
 char *fnlog = "walk.log";
+int randomize = 0; // random seed from the current time
+
 
 static void doargs(int argc, char **argv)
 {
@@ -17,17 +22,30 @@ static void doargs(int argc, char **argv)
 
   ao = argopt_open(0);
   ao->desc = "Random walk";
-  argopt_add(ao, "-q", "%d", &q, "number of states");
-  argopt_add(ao, "-M", "%d", &nsys, "number of replica systems (walkers)");
-  argopt_add(ao, "-t", "%ld", &nsteps, "number of steps");
-  argopt_add(ao, "-r", "%ld", &nstrep, "number of steps to report");
-  argopt_add(ao, "-P", "%d", &npart, "number of partitions for the block method");
-  argopt_add(ao, "-Q", "%d", &npart2, "number of partitions for the block method (2)");
+  argopt_add(ao, "-q", "%d",  &q,         "number of states");
+  argopt_add(ao, "-M", "%d",  &nsys,      "number of replica systems (walkers)");
+  argopt_add(ao, "-m", "%lf", &mean,      "mean of the relative probability");
+  argopt_add(ao, "-w", "%lf", &width,     "width of the relative probability");
+  argopt_add(ao, "-t", "%ld", &nsteps,    "number of steps");
+  argopt_add(ao, "-r", "%ld", &nstrep,    "number of steps to report");
+  argopt_add(ao, "-P", "%d",  &npart,     "number of partitions for the block method");
+  argopt_add(ao, "-Q", "%d",  &npart2,    "number of partitions for the block method (2)");
+  argopt_add(ao, "-g", "%lf", &gam,       "gamma factor for the exponential extrapolation");
+  argopt_add(ao, "-R", "%b",  &randomize, "using the current time as the seed of the random number generator");
   argopt_addhelp(ao, "-h");
   argopt_parse(ao, argc, argv);
+  if ( npart2 == npart ) npart2 = npart * 2;
   argopt_dump(ao);
   argopt_close(ao);
 }
+
+typedef struct {
+  int q;
+  double mean;
+  double width;
+  double entref;
+  double *proba, *Proba;
+} distr_t;
 
 typedef struct {
   int s;
@@ -37,6 +55,79 @@ typedef struct {
   double ent, entc, entcb, ents, entsb;
   double mest;
 } walker_t;
+
+static distr_t *distr_open(int q, double mean, double width)
+{
+  distr_t *d;
+  int s;
+  double x;
+
+  xnew(d, 1);
+  d->q = q;
+  d->mean = mean;
+  d->width = width;
+
+  /* initialize the probabilities of the states */
+  xnew(d->proba, q);
+  for ( s = 0; s < q; s++ ) {
+    d->proba[s] = mean - width + width * 2 * rand01();
+  }
+  /* compute the cumulative probabilities */
+  xnew(d->Proba, q + 1);
+  d->Proba[0] = 0;
+  for ( s = 0; s < q; s++ ) {
+    d->Proba[s+1] = d->Proba[s] + d->proba[s];
+    printf("%4d: %8.3f %8.3f\n", s, d->proba[s], d->Proba[s+1]);
+  }
+  x = d->Proba[q];
+  for ( s = 0; s < q; s++ ) {
+    d->proba[s] /= x;
+    d->Proba[s+1] /= x;
+  }
+  /* compute the entropy */
+  d->entref = 0;
+  for ( s = 0; s < q; s++ ) {
+    x = d->proba[s];
+    d->entref += -log(x) * x;
+  }
+  printf("%d states, entropy %g\n", q, d->entref);
+  //getchar();
+  return d;
+}
+
+static int distr_sample(distr_t *d)
+{
+  int q = d->q;
+  double x;
+
+  if ( d->width <= 0 ) {
+    return (int) (rand01() * q);
+  } else {
+    x = rand01();
+    /* binary search to find the brackets that contain x */
+    int l = 0, r = q, m;
+    while ( l + 1 < r ) {
+      m = (l + r)/2;
+      //printf("l %d, r %d, m %d, x %g\n", l, r, m, x);
+      if ( d->Proba[m] > x ) {
+        r = m;
+      } else {
+        l = m;
+      }
+    }
+    //getchar();
+    return l;
+  }
+}
+
+
+static void distr_close(distr_t *d)
+{
+  free(d->proba);
+  free(d->Proba);
+  free(d);
+}
+
 
 static walker_t *walker_open(int q, int trjlen)
 {
@@ -56,6 +147,7 @@ static walker_t *walker_open(int q, int trjlen)
   w->trjn = trjlen;
   w->trji = 0;
   xnew(w->trj, w->trjn);
+
   return w;
 }
 
@@ -71,9 +163,10 @@ static void walker_count(walker_t *w, int start, int end)
   }
 }
 
+/* compute the entropy from a segment [start, end) */
 static double walker_ent_seg(walker_t *w, int start, int end)
 {
-  double ent = 0, tot = (double) (end - start), pr;
+  double ent = 0, tot = (double) (end - start), pr; // ent1 = log(w->q);
   int s;
 
   walker_count(w, start, end);
@@ -82,23 +175,9 @@ static double walker_ent_seg(walker_t *w, int start, int end)
     if ( c <= 0 ) continue;
     pr = 1.0*c/tot;
     ent += -pr*log(pr);
-    //printf("state %4d: %ld, tot %g, ent %g\n", s, c, tot, ent);
   }
-  //printf("ent %g\n", ent); getchar();
   return ent;
 }
-
-/*
-// for brute-force fitting, deprecated
-static double ftail(double t, double m)
-{
-  // goodness
-  return log(1+0.5*m/t);  // goodness 20
-  //return (1+t/m)*log(1+m/t) - 1; // func1, goodness 10
-  //return 2*log(1+0.25*m/t);  // goodness 5
-  //return 0.5*m/t; // goodness 0;
-}
-*/
 
 static double walker_entropy(walker_t *w, int npart, int npart2, int verbose)
 {
@@ -125,25 +204,21 @@ static double walker_entropy(walker_t *w, int npart, int npart2, int verbose)
    * S = (St*t - Sp*blksz)/(t-blksz); */
   w->ent = entt;
   w->entc = (entt*trjn - entp*blksz)/(trjn - blksz);
-  entc2 = (entt*trjn - entp2*blksz2)/(trjn - blksz2);
-  w->entcb = (w->entc*blksz - entc2*blksz2)/(blksz - blksz2);
-
-  /* fitting to log(1+m/2/t) */
   {
-    double ds = entt - entp, xp = exp(ds);
-    double ds2 = entt - entp2, xp2 = exp(ds2);
+    double x = (entt - entp)/(trjn - blksz);
+    w->entcb = w->entc - trjn*blksz/3*x*x;
+  }
+
+  /* fitting to log(1+gam*c/t)/gam */
+  {
+    double ds = entt - entp, xp = exp(gam*ds);
+    double ds2 = entt - entp2, xp2 = exp(gam*ds2);
     double xpc, xpc2, xpcb;
 
-    //double alpha = 0.5, threshold = log((1 + alpha*trjn/blksz)/(1 + alpha));
-    //printf("ds %g vs %g\n", ds, threshold); getchar();
-    //if ( ds < threshold ) {
-    //  w->ents = w->entc;
-    //  w->entsb = w->entcb;
-    //} else
     {
       if ( xp >= .99*trjn/blksz ) xp = .99*trjn/blksz;
       xpc = (trjn - xp*blksz)/(trjn - blksz);
-      w->ents = entt - log(xpc);
+      w->ents = entt - log(xpc)/gam;
       w->mest = 2*trjn*(xp - 1)/(1.*trjn/blksz - xp);
 
       if ( xp2 >= .99*trjn/blksz2 ) xp2 = .99*trjn/blksz2;
@@ -152,68 +227,11 @@ static double walker_entropy(walker_t *w, int npart, int npart2, int verbose)
 
       xpcb = (xpc*blksz - xpc2*blksz2)/(blksz - blksz2);
       if ( xpcb < 0 ) xpcb = xpc;
-      w->entsb = entt - log(xpcb);
-      //printf("m %g, ds %g,%g xp %g,%g xpc %g,%g S %g -> %g, %g\n", w->mest, ds, ds2, xp, xp2, xpc, xpc2, entt, w->ents, w->entsb);
-      //getchar();
+      w->entsb = entt - log(xpcb)/gam;
+
+      w->entsb = 2*w->entc - w->ents;
     }
   }
-
-#if 0
-  { // working out the polynomial interpolation
-    double a2 = (entt - entp)/(1.0/blksz - 1.0/trjn);
-    double S2 = entt + a2/trjn;
-    double a3 = (entt - entp2)/(1.0/blksz2 - 1.0/trjn);
-    double S3 = entt + a3/trjn;
-    double S = (S2*blksz - S3*blksz2)/(blksz - blksz2);
-    double b = (S2 - S3)*trjn*blksz*blksz2/(blksz - blksz2);
-    double a = (S - entt)*trjn + b/trjn;
-    printf("2: a %g, S %g,%g, entt %g, %g; entp %g, %g\n", a2, S2, w->entc, entt, S2-a2/trjn, entp, S2-a2/blksz);
-    printf("3: a %g, S %g,%g, entt %g, %g; entp %g, %g\n", a3, S3, w->entcb, entt, S3-a3/trjn, entp2, S3-a3/blksz2);
-    printf("S: %g/%g, a %g, b %g, entt %g, %g\n", S, w->ents, a, b, entt, S-a/trjn+b/trjn/trjn);
-  }
-#endif
-
-#if 0 /* fitting to S = S0*(1 + a/t)/(1 + c/t) */
-  {
-    double k2 = (entt - entp)/(trjn - blksz);
-    double k3 = (entt - entp2)/(trjn - blksz2);
-    double c = (w->entc - w->entcb)/(k3 - k2);
-    double S = w->entc + c*k2;
-    double a = (S - entt)*(trjn + c);
-    w->entsb = S;
-    w->mest = 2 * (a - c);
-    //printf("S %g, a %g, c %g, entt %g, %g; entp %g, %g\n", S, a, c, entt, S-a/trjn/(1+c/trjn), entp, S-a/blksz/(1+c/blksz));
-  }
-#endif
-
-#if 0 /* brute-force extrapolation */
-  {
-    double del, delr = entt - entp, del2, del2r = entt - entp2;
-    double tailt = 0, tailp, tailp2;
-    int i;
-
-    w->mest = (entt - entp)/(1.0/blksz - 1.0/trjn);
-    for ( i = 0; i < 1000; i++ ) {
-      tailt = ftail(trjn, w->mest);
-      tailp = ftail(blksz, w->mest);
-      tailp2 = ftail(blksz2, w->mest);
-      del = tailp - tailt;
-      del2 = tailp2 - tailt;
-      if (verbose ) {
-        printf("%d: t %d, S %g, %g/%g, S %g(%g) mest %g, del %g, %g\n",
-          i, trjn, entt, entp, entp2, entt + tailt, log(q), w->mest, del/delr, del2/del2r);
-      }
-      w->mest *= sqrt(delr/del);
-      if ( fabs(del/delr - 1) < 0.001 ) break;
-      //w->mest *= delr/del*del2r/del2;
-      //if ( fabs(del/delr*del2/del2r - 1) < 0.01 ) break;
-    }
-    w->entsb = entt + tailt;
-    if ( verbose ) {
-      getchar();
-    }
-  }
-#endif
 
   return w->ent;
 }
@@ -231,6 +249,7 @@ static void work(void)
   av_t avent[1], aventc[1], aventcb[1], avents[1], aventsb[1], avmest[1];
   double ent, entc, entcb, ents, entsb, mest;
   double var, varc, varcb, vars, varsb, mvar;
+  distr_t *distr = NULL;
   int i;
   long t;
   FILE *fplog;
@@ -240,6 +259,8 @@ static void work(void)
     fplog = stderr;
   }
 
+  distr = distr_open(q, mean, width);
+
   xnew(w, nsys);
   for ( i = 0; i < nsys; i++ ) {
     w[i] = walker_open(q, nsteps);
@@ -247,7 +268,7 @@ static void work(void)
 
   for ( t = 1; t <= nsteps; t++ ) {
     for ( i = 0; i < nsys; i++ ) {
-      w[i]->s = (int) (rand01() * q);
+      w[i]->s = distr_sample(distr);
       w[i]->trj[ w[i]->trji++ ] = w[i]->s;
     }
 
@@ -274,9 +295,9 @@ static void work(void)
       entsb = av_getave(aventsb, &varsb);
       mest = av_getave(avmest, &mvar);
       printf("%9ld: entropy %8.4f(%.4f), %8.4f, %8.4f; %8.4f, %8.4f(%8.4f), m %6.0f(%5.0f)\n",
-          t, ent, sqrt(var), entc, entcb, ents, entsb, log(q), mest, sqrt(mvar));
+          t, ent, sqrt(var), entc, entcb, ents, entsb, distr->entref, mest, sqrt(mvar));
       fprintf(fplog, "%ld\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\t%g\n", t,
-          ent, sqrt(var), log(q),
+          ent, sqrt(var), distr->entref,
           entc, sqrt(varc), entcb, sqrt(varcb),
           ents, sqrt(vars), entsb, sqrt(varsb),
           mest, sqrt(mest));
@@ -284,6 +305,7 @@ static void work(void)
     }
   }
 
+  distr_close(distr);
   for ( i = 0; i < nsys; i++ )
     walker_close(w[i]);
   free(w);
@@ -293,7 +315,9 @@ static void work(void)
 int main(int argc, char **argv)
 {
   doargs(argc, argv);
-  //mtscramble(time(NULL) + clock());
+  if ( randomize ) {
+    mtscramble(time(NULL) + clock());
+  }
   work();
   return 0;
 }

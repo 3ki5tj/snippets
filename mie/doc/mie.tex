@@ -36,29 +36,29 @@
 \begin{document}
 \title{Bias of the configuration entropy estimated from counting-based methods}
 
-\author{Justin A. Drake}
-\affiliation{
-Sealy Center for Structural Biology and Molecular Biophysics,
-The University of Texas Medical Branch,
-Galveston, Texas 77555-0304, USA}
-\author{Danielle D. Seckfort}
-\affiliation{
-Quantitative and Computational Biosciences,
-Baylor College of Medicine, Houston, Texas 77030, USA}
-\author{Omneya Nassar}
-\affiliation{
-Sealy Center for Structural Biology and Molecular Biophysics,
-The University of Texas Medical Branch,
-Galveston, Texas 77555-0304, USA}
-\author{B. Montgomery Pettitt}
-\email{mpettitt@utmb.edu}
-\affiliation{
-Sealy Center for Structural Biology and Molecular Biophysics,
-The University of Texas Medical Branch,
-Galveston, Texas 77555-0304, USA}
-\affiliation{
-Quantitative and Computational Biosciences,
-Baylor College of Medicine, Houston, Texas 77030, USA}
+%\author{Justin A. Drake}
+%\affiliation{
+%Sealy Center for Structural Biology and Molecular Biophysics,
+%The University of Texas Medical Branch,
+%Galveston, Texas 77555-0304, USA}
+%\author{Danielle D. Seckfort}
+%\affiliation{
+%Quantitative and Computational Biosciences,
+%Baylor College of Medicine, Houston, Texas 77030, USA}
+%\author{Omneya Nassar}
+%\affiliation{
+%Sealy Center for Structural Biology and Molecular Biophysics,
+%The University of Texas Medical Branch,
+%Galveston, Texas 77555-0304, USA}
+%\author{B. Montgomery Pettitt}
+%\email{mpettitt@utmb.edu}
+%\affiliation{
+%Sealy Center for Structural Biology and Molecular Biophysics,
+%The University of Texas Medical Branch,
+%Galveston, Texas 77555-0304, USA}
+%\affiliation{
+%Quantitative and Computational Biosciences,
+%Baylor College of Medicine, Houston, Texas 77030, USA}
 
 \begin{abstract}
 We show that the configuration entropy estimated from methods based on counting occurrences
@@ -108,7 +108,7 @@ This straightforward application also furnishes the basis
 of many advanced counting-based methods for estimating the configuration entropy\cite{hnizdo2007, killian2007}.
 %
 Among them, the method of mutual information expansion (MIE)\cite{killian2007} is notable
-for its potential to handle a vast but decomposable state space common in a complex system.
+for its potential to handle a vast but decomposable state space common in complex systems.
 %
 The MIE method is suitable for a many-body system
 whose degrees of freedom (DOFs) are only loosely coupled.
@@ -192,7 +192,8 @@ By the series expansion of $\hat{p}(\alpha)$ around $p(\alpha)$, we have
   &- k_B \sum_{\alpha = 1}^M
     \frac{ \bigl[ \hat{p}(\alpha) - p(\alpha) \bigr]^2 } { 2 \, p(\alpha) }
   .
-  \label{eq:Shat_series}
+  \notag
+  %\label{eq:Shat_series}
 \end{align}
 %
 \note{The series expansion of the function, $h(x) = -x \, \ln x$,
@@ -208,7 +209,7 @@ around $x_0$,
 %
 Assuming the sampling is unbiased,
 we have $\langle \hat{p}(\alpha) \rangle = p(\alpha)$,
-and the linear term would vanish
+and the linear term vanishes
 after ensemble averaging, and
 %
 \begin{align}
@@ -223,9 +224,8 @@ after ensemble averaging, and
   \label{eq:entest_2nd}
 \end{align}
 %
-which shows that the quadratic term in the correction
-is always nonpositive, and hence characterizes
-the bias to the leading order.
+which shows that the quadratic term in the expansion
+represents a nonpositive bias to the leading order.
 
 Next we will show that the bias is inversely proportional
 to the number of steps.
@@ -416,7 +416,7 @@ to the exponential form as
 %
 The linear, Eq.~\eqref{eq:S_2pt}, and exponential, Eq.~\eqref{eq:S_2pt_exp}, corrections
 have a similar asymptotic behavior,
-but in initial stages, the latter can sometimes 
+but in initial stages, the latter can sometimes
 improve the accuracy of the estimate.
 
 %As we will see, the same type of bias also exists
@@ -429,9 +429,9 @@ improve the accuracy of the estimate.
 The direct counting method breaks down
 for a complex system of many degrees of freedom (DOFs).
 %
-Because as the number of states increases exponentially with the number of DOFs,
-the rapidly diminishing number of samples collected in each state
-can quickly deteriorate the precision of the entropy estimate.
+As the number of states increases exponentially with the number of DOFs,
+the number of samples collected in each state rapidly diminishes,
+which in turn deteriorates the precision of the entropy estimate.
 %
 For these many-body systems,
 we may alternatively adopt
@@ -455,7 +455,7 @@ respectively.
 %
 Accordingly, the entropy of the entire system,
 can be obtained from a superposition of the entropies
-derived from the marginal and joint distributions
+of the marginal and joint distributions
 of small DOF groups.
 %
 A more detailed discussion is presented in Appendix~\ref{sec:MIE_review}.
@@ -483,12 +483,14 @@ instead of individually to the entropy of every DOF group.
 \subsection{Direct-counting method}
 
 To test the corrections we proposed for the direct-counting method,
-we performed simulations on a random walker.
+we performed simulations of a simple random walker.
 %
 In each step, the random walker can assume any of the $M$ states
-with equal probability without any memory,
+with equal probability without any memory.
+%
+The entropy of the system is simply $k_B \, \ln M$,
 and we wish to see how the entropy estimated
-from Eq.~\eqref{eq:entropy_est} converges to the exact value of $k_B \, \ln M$,
+from Eq.~\eqref{eq:entropy_est} converges to the true value,
 and how the corrections accelerate the convergence.
 %
 Despite its simplicity, the model may bear relevance
@@ -568,15 +570,15 @@ for correcting the entropy estimate in initial stages.
 
 We further tested the corrections for the MIE method
 on a linear Potts model,
-which is a linear chain of identical spins
-with only nearest-neighbor interactions.
+which is a linear chain of $n$ identical spins
+that interact with only their nearest neighbors.
 %
 We wish to use the simplistic model
 to capture the dihedral conformation variety
-observed in disordered or flexible peptides.
+observed in disordered or flexible peptides.\note{cite Drake,Pettitt 2018}
 %
 Each spin, representing the dihedral conformation of an amino-acid residue,
-can take one of $q = 6$ different states with equal probability.
+can take one of the $q = 6$ different states with equal probability.
 %
 The interaction between two neighboring spins
 is such that there is a favorable energetic contribution of $-J$
@@ -588,9 +590,10 @@ Note that although non-neighboring spins have no direct coupling,
 they are still correlated though successive or higher-order coupling,
 especially at a low temperature.
 %
-We will report our results in reduced units (with $k_B = J = 1$).
+In our test, the number of spins is $n=10$,
+and the temperature is $T = 0.5$.
 %
-The temperature is $T = 0.5$.
+We will report our results in reduced units (with $k_B = J = 1$).
 
 
 The results from the second-order MIE
@@ -610,7 +613,7 @@ However, the remaining error dropped more slowly than $t^{-2}$.
 This might be due to an implementation detail:
 we imposed that for any pair of spins,
 the entropic correction,
-$\overline{ \delta W_{i, j} }$ (see Appendix~\ref{sec:MIE_review}),
+$\delta S_{i, j}$ (cf. Appendix~\ref{sec:MIE_review}),
 has to be nonpositive,
 otherwise, zero will be used.
 %
@@ -648,7 +651,7 @@ However, the exponential correction was less satisfactory.
 Unlike in the second-order case,
 we can no longer ascertain the sign of
 the third-order correction for each triplet,
-$\overline{ \delta W_{i, j, k} }$ (see Appendix~\ref{sec:MIE_review});
+$\delta S_{i, j, k}$ (see Appendix~\ref{sec:MIE_review});
 and thus the estimates on triplet entropies
 were more susceptible to random errors,
 especially for the exponential correction.
@@ -677,6 +680,19 @@ at least for the third or higher order.
   }
 \end{figure}
 
+\section{Conclusions}
+
+We have shown that the configuration entropy estimated from counting-based methods
+generally carries a negative bias whose magnitude
+is roughly inversely proportional to the simulation length.
+%
+Based on this observation, we have proposed a simple blocking procedure
+to remove the bias to the leading order.
+%
+We hope the findings presented here to be useful
+for the biophysical community
+in investigating the thermodynamic properties of
+biologically important systems.
 
 
 \appendix
@@ -1062,10 +1078,12 @@ is arranged by the subset size as
   =
   \sum_{j = 1}^k (-1)^{j-1} \MI_j
   ,
-  \label{eq:S_MIE}
+  \notag
+  %\label{eq:S_MIE}
 \end{equation}
 %
 where the $j$th-order mutual or interaction information, $\MI_j$, is defined as
+%
 \begin{align}
   \MI_j
   &\equiv (-1)^{j-1} \sum_{|J| = j}
@@ -1078,7 +1096,8 @@ where the $j$th-order mutual or interaction information, $\MI_j$, is defined as
   %{n - |I| \choose j - |I|}
   %\, \frac{S_I}{k_B}
   .
-  \label{eq:MI_comb}
+  \notag
+  %\label{eq:MI_comb}
 \end{align}
 %$$
 %\frac{ S_I } { k_B } \equiv \overline{ W_I(\alpha_I) }.
@@ -1202,10 +1221,11 @@ T_{i,i+k}(t_1, t_2) = r^k \, \delta_{t_1, t_2}
 + \frac{ (r + q)^k - r^k } { q }.
 $$
 The joint distribution of two spins of $k$ sites apart, $i$ and $j = i+k$,
-is given by
-$$
+is then given by
+\begin{equation}
 p_{i, j}(t_1, t_2) = T_{i, j}(t_1, t_2) / Z_{k+1},
-$$
+  \label{eq:Potts_pij}
+\end{equation}
 and the conditional probability of $s_j$ assuming the value of $t_2$
 given that $s_i = t_1$ is
 $$
@@ -1237,7 +1257,7 @@ From the above results, we can derive the exact entropy
 and the values we expect to obtain from the MIE method.
 %
 First, for a pair of spins $k$ sites apart,
-the entropic correction is given by
+the entropic correction can be deduced from Eq.~\eqref{eq:Potts_pij} as
 \begin{align}
   \delta S_{i, i+k}
   &=
@@ -1270,6 +1290,7 @@ S_{i_1, \dots, i_m}
   .
   \label{eq:Potts_jointS}
 \end{align}
+%
 By induction, we can show that
 %
 \begin{equation}
@@ -1301,24 +1322,37 @@ for the $m$th order\footnote{
   For two spins $i$ and $j = i + k$ that are $k$ sites apart (assuming $k \ge m$),
   the contribution of $\delta S_{i, j}$ to the $m$th-order MIE
   can be computed as follows.
-  In the 2nd-order, it is taken into account once for the pair $i$ and $j$.
-  In the 3rd-order, it also contributes via the $k-1$ triplets, namely,
+  %
+  In the 2nd order, it is taken into account once for the pair $i$ and $j$.
+  %
+  In the 3rd order, it also contributes via the $k-1$ triplets, namely,
   $\{i, i+1, j\}, \dots, \{i, j-1, j\}$,
   and each with a negative sign [because $\delta S_{i,i_1,j} = -\delta S_{i,j}$,
   according to Eq.~\eqref{eq:Potts_jointdS}].
-  In the 4th-order, it also contributes via the ${k-1 \choose 2}$ quartet,
-  (where the binomial coefficient represents the number of ways
-  of selecting the two middle spins).
+  %
+  Generally, in the $m$th order,
+  it contributes via the ${k-1 \choose m-2}$ unordered $m$-tuples
+  with a sign of $(-1)^m$,
+  where the binomial coefficient represents the number of ways
+  of selecting the $m-2$ middle spins from the $k-1$ spins
+  between spins $i$ and $j$.
+  %
   The total contribution is thus
   $1 - {k-1 \choose 1} + {k-1 \choose 2} - \cdots + (-1)^{m}{k-1 \choose m-2}
   = (-1)^m {k-2 \choose m-2}$.
 }
-
+%
 $$
 S^{(m)} = S + \sum_{i, j \ge i+m} (-1)^m {j-i-2 \choose m-2} \, \delta S_{i,j}
 ,
 $$
 and thus the error of the $m$-order MIE is $\mathcal O(R^{2m})$.
+%
+This suggests that the MIE method would reach convergence
+for this linear system when $R < 1$, or when the temperature is sufficiently high.
+%
+However, it can be more difficult to reach convergence along the order
+for higher-dimensional or more complex systems.\cite{goethe2017}
 
 
 \bibliography{simul}
