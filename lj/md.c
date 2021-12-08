@@ -48,15 +48,16 @@ int main(void)
     thermostat(lj, dt * 0.5);
     if ( t % 1000 == 0 && !tstat )
       printf("%d, ep %g, ek %g, e %g\n", t, lj->epot, lj->ekin, lj->epot + lj->ekin);
-    if ( t <= nequil ) continue;
-    epsm += lj->epot;
-    eksm += lj->ekin;
+    if ( t > nequil ) {
+      epsm += lj->epot;
+      eksm += lj->ekin;
+    }
   }
   lj_writepos(lj, lj->x, lj->v, fnpos);
-  lj_close(lj);
   printf("rho %g, tp %g(%g), ep %g (ref. %g)\n", rho,
       tp, 2*eksm/nsteps/lj->dof, epsm/nsteps/n,
       ljeos3d_get(rho, tp, NULL, NULL, NULL));
+  lj_close(lj);
   return 0;
 }
 

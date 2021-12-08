@@ -3,7 +3,7 @@
 
 int main(int argc, char **argv)
 {
-  int n = 4, m = 4;
+  int n = 32, m = 32;
   double tp = 2.3;
   double *p;
 

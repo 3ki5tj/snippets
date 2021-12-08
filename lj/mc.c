@@ -30,9 +30,9 @@ int main(void)
     accsm += acc;
   }
   lj_writepos(lj, lj->x, lj->v, fnpos);
-  lj_close(lj);
   printf("rho %g, tp %g, ep %g, acc %g%%\n",
       rho, tp, epsm/nsteps/n, 100.*accsm/nsteps);
+  lj_close(lj);
   return 0;
 }
 

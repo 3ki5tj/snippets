@@ -24,7 +24,7 @@ static void run(is2_t *is, double tp, int method, long nsteps)
     if ( method == 0 ) { /* Metropolis algorithm */
       //id = is2_pick(is, &h);
       IS2_PICK(is, id, h);
-      if ( h <= 0 || mtrand() <= is->uproba[h] ) {
+      if ( h <= 0 || randuint32() <= is->uproba[h] ) {
         //is2_flip(is, id, h);
         IS2_FLIP(is, id, h);
       }
@@ -53,7 +53,7 @@ int main(int argc, char **argv)
   if ( argc > 2 ) tp = atof( argv[2] );
   if ( argc > 3 ) nsteps = atol( argv[3] );
   if ( nsteps <= 0 )
-    nsteps = ( method == 0 ) ? 100000000L : 50000;
+    nsteps = ( method == 0 ) ? 200000000L : 50000;
 
   is = is2_open(IS2_L);
   run(is, tp, method, nsteps);

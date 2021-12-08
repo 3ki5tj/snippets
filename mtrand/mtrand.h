@@ -7,6 +7,22 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
+
+
+/* Permuted congurential generator
+ * return an unsigned random number */
+__inline static uint32_t pcgrand(void)
+{
+  static uint64_t pcg_state_ = 0x4d595df4d0f33173ULL;
+  static uint64_t pcg_inc_ = 1442695040888963407ULL;
+
+  uint64_t old_state = pcg_state_;
+  pcg_state_ = old_state * 6364136223846793005ULL + pcg_inc_;
+  uint32_t xor_shifted = ((old_state >> 18u) ^ old_state) >> 27u;
+  uint32_t rot = old_state >> 59u;
+  return (xor_shifted >> rot) | (xor_shifted << ((-rot) & 31));
+}
 
 
 
@@ -74,10 +90,12 @@ __inline static unsigned mtrand(void)
 }
 
 
+#define randuint32() pcgrand()
+//#define randuint32() mtrand()
 
 __inline static double rand01(void)
 {
-  return mtrand() / 4294967296.0;
+  return randuint32() / 4294967296.0;
 }
 
 

@@ -73,6 +73,9 @@ __inline static void is2_close(is2_t *is)
 __inline static void is2_setuproba(double bet, unsigned *p)
 {
   double x = exp(-4 * bet);
+  /* the index of `p` is `h` computed from `pick()`
+   * the change of the energy is given by `2*h`
+   * p[h] = exp(-2*h*beta); */
   p[2] = (unsigned) ((double)(0xffffffff) * x);
   p[4] = (unsigned) ((double)(0xffffffff) * x*x);
 }

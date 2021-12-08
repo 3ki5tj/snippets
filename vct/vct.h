@@ -115,6 +115,18 @@ __inline static double *vnadd(double *c, const double *a, const double *b)
 
 
 
+/* c = a * s + b * t */
+__inline static double *vlincomb(double *c, const double *a, const double *b, double s, double t)
+{
+  int d;
+
+  for ( d = 0; d < D; d++ )
+    c[d] = a[d] * s + b[d] * t;
+  return c;
+}
+
+
+
 /* x *= s */
 __inline static double *vsmul(double *x, double s)
 {
@@ -164,8 +176,8 @@ __inline static double *vwrap(double *x, double l)
 
 
 
-/* return the norm the vector */
-__inline static double vnorm(double *a)
+/* return the norm of the vector */
+__inline static double vnorm(const double *a)
 {
   return sqrt( vsqr(a) );
 }
@@ -180,21 +192,21 @@ __inline static double vdistx(double *dx, const double *a, const double *b)
 
 
 
+/* return the distance */
+__inline static double vdist(const double *a, const double *b)
+{
+  double dx[D];
+  return vnorm( vdiff(dx, a, b) );
+}
+
+
+
 /* return the square of the distance */
 __inline static double vdist2(const double *a, const double *b)
 {
   double dx[D];
   vdiff(dx, a, b);
   return vsqr( dx );
-}
-
-
-
-/* return the distance */
-__inline static double vdist(const double *a, const double *b)
-{
-  double dx[D];
-  return vnorm( vdiff(dx, a, b) );
 }
 
 

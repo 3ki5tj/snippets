@@ -1,5 +1,5 @@
-#CC = gcc -O3 -Wall -Wextra
-CC = icc -Wall -Wremarks
+CC = gcc -g -O3 -Wall -Wextra
+#CC = icc -Wall -Wremarks
 LM = -lm
 
 srcs = $(wildcard *.c)

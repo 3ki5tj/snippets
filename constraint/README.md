@@ -11,7 +11,7 @@ The potential is
 $$
 V(x, y) = (1/2) x^2  + (k/2) y^2 (1 + a x^2).
 $$
-Here, $k$ is supposed to tend to infinity.
+Here, $k$ would tend to infinity ultimately.
 
 With the scaling is $z = \sqrt{k} y$, we get
 $$

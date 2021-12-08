@@ -67,7 +67,7 @@ static double randchisqr_simple(int K)
   int i;
 
   for ( i = 0; i < K; i++ ) {
-    x = gaussrand();
+    x = randgaus();
     s += x * x;
   }
   return s;
@@ -97,5 +97,6 @@ int main(void)
 {
   cmpgam();
   cmpchisqr();
+  printf("%u\n", mtrand());
   return 0;
 }

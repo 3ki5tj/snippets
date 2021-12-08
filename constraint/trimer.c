@@ -8,10 +8,10 @@
 #include "mdutil.h"
 
 /* parameters */
-int constraint = 0; /* whether to apply the constraint */
+int constraint = 1; /* whether to apply the constraint */
 int thermostat = 1; /* whether to use thermostat */
-int norot = 0; /* annihilate rotation */
-double dt = 0.01; /* MD time step */
+int norot = 0; /* annihilate rotations out of the current molecular plane */
+double dt = 0.002; /* MD time step */
 double kappa = 100; /* spring stiffness for the length */
 int nsteps = 100000000;
 int nequil = 10000;
@@ -27,10 +27,10 @@ double f[][D] = {{0, 0}, {0, 0}, {0, 0}};
 double ep, ek;
 
 /* histogram variables */
+#define HIST_N      181
 #define HIST_XMAX   M_PI
 #define HIST_XMIN   (-HIST_XMAX)
-#define HIST_DX     (HIST_XMAX/60)
-#define HIST_N      ((int)(((HIST_XMAX - HIST_XMIN)/HIST_DX) + 1))
+#define HIST_DX     ((HIST_XMAX-HIST_XMIN)/(HIST_N-1))
 double hist[HIST_N] = {0};
 const char *fnhist = "ang.his";
 
@@ -40,7 +40,7 @@ const char *fnhist = "ang.his";
 static void trimer_rmcom(int norotation)
 {
   rmcom(x, NULL, N);
-  if ( norotation ) {
+  if (norotation) {
     rmcom(v, NULL, N);
     shiftang(x, v, NULL, N);
   }
@@ -54,7 +54,7 @@ static double potbond(double *a, double *b,
 {
   double dx[D], r, dr, amp;
 
-  r = vnorm( vdiff(dx, a, b) );
+  r = vnorm(vdiff(dx, a, b));
   dr = r - r0;
   amp = kr * dr / r;
   vsinc(fa, dx, -amp);
@@ -72,10 +72,8 @@ static double force(void)
   int i;
 
   for ( i = 0; i < N; i++ ) {
-    vzero( f[i] );
+    vzero(f[i]);
   }
-
-  if ( constraint ) return ep;
 
   /* bonds 0-1 and 0-2 */
   for ( i = 1; i < N; i++ ) {
@@ -99,22 +97,26 @@ static void constrain(int itmax, double tol)
   }
 
   /* SHAKE */
-  for ( it = 0; it < itmax; it++ ) {
+  for (it = 0; it < itmax; it++) {
     maxdev = 0;
-    for ( i = 1; i < N; i++ ) {
+    for (i = 1; i < N; i++) {
       /* constraint the distance between atoms 0 and i */
       vdiff(dx, x[i], x[0]);
-      dev = vsqr(dx) - 1;
-      if ( dev > maxdev ) maxdev = dev;
+      dev = fabs(vsqr(dx) - 1);
+      if (dev > maxdev) {
+        maxdev = dev;
+      }
       dot = vdot(dx, dx0[i]);
-      if ( dot < 0.2 ) { /* really bad */
+      if (dot < 0.2) { /* really bad */
         dot = 0.2;
       }
       dev = dev / (2 * dot);
       vsinc(x[i], dx0[i], -dev * 0.5);
       vsinc(x[0], dx0[i],  dev * 0.5);
     }
-    if ( maxdev < tol ) break;
+    if (maxdev < tol) {
+      break;
+    }
   }
 
   /* RATTLE */
@@ -136,7 +138,9 @@ static void constrain(int itmax, double tol)
         maxdev = dev;
       }
     }
-    if ( maxdev < tol ) break;
+    if ( maxdev < tol ) {
+      break;
+    }
   }
 }
 
@@ -149,22 +153,22 @@ static void runmd(void)
   double ang;
 
   /* degrees of freedom for the thermostat */
-  if ( norot ) {
+  if (norot) {
     dof = ( constraint ? 1 : 3);
   } else {
     dof = constraint ? D * N - 2 : D * N;
   }
 
-  for ( i = 0; i < N; i++ ) {
-    for ( j = 0; j < D; j++ ) {
+  for (i = 0; i < N; i++) {
+    for (j = 0; j < D; j++) {
       v[i][j] = randgaus();
     }
-    #if D == 3
+#if D == 3
     /* annihilate the last dimension velocities */
-    if ( norot ) {
+    if (norot) {
       v[i][2] = 0;
     }
-    #endif
+#endif
   }
   trimer_rmcom(norot);
 
@@ -174,9 +178,12 @@ static void runmd(void)
       vsinc(v[i], f[i], 0.5 * dt);
       vsinc(x[i], v[i], dt);
     }
-    if ( !constraint ) {
+    if (!constraint) {
       ep = force();
+    } else {
+      ep = 0;
     }
+
     for ( i = 0; i < N; i++ ) {
       vsinc(v[i], f[i], 0.5 * dt);
     }
@@ -187,19 +194,19 @@ static void runmd(void)
       // getchar();
     }
     /* apply the constraint */
-    if ( constraint ) {
+    if (constraint) {
       constrain(1000, 1e-6);
     }
 
     /* apply the thermostat */
-    if ( thermostat ) {
-      if ( !norot && t % 20 == 0 ) {
+    if (thermostat) {
+      if ( !norot && (t % 20 == 0) ) {
         /* Andersen thermostat */
         i = (int) (rand01() * N);
         for ( j = 0; j < D; j++ ) {
           v[i][j] = randgaus() * sqrt(tp);
         }
-        if ( constraint ) {
+        if (constraint) {
           constrain(1000, 1e-6);
         }
         /* constraint? */
@@ -207,23 +214,24 @@ static void runmd(void)
         ek = md_vrescale(v, NULL, N, dof, tp, thermdt);
       }
     } else {
-      for ( ek = 0, i = 0; i < N; i++ ) {
-        ek += 0.5 * vsqr( v[i] );
+      for (ek = 0, i = 0; i < N; i++) {
+        ek += 0.5 * vsqr(v[i]);
       }
     }
 
-    if ( t % 10000 == 0 ) {
+    if (t % 10000 == 0) {
       trimer_rmcom(norot);
     }
 
-    if ( t < nequil ) continue;
+    if (t < nequil) continue;
     /* accumulate histogram of the angle */
     if ( ang > HIST_XMIN && ang < HIST_XMAX ) {
-      i = (int) ( (ang - HIST_XMIN) / HIST_DX);
+      i = (int) ((ang - HIST_XMIN)/HIST_DX);
       hist[i] += 1;
     }
   }
 }
+
 
 /* plot the x-distribution from histogram */
 static int mkplot(void)
@@ -233,10 +241,10 @@ static int mkplot(void)
   FILE *fp;
 
   /* search the range of x */
-  for ( i = 0; i < HIST_N; i++ ) {
-    if ( hist[i] > 0 || hist[i] > 0 ) {
-      if ( i > imax ) imax = i;
-      if ( i < imin ) imin = i;
+  for (i = 0; i < HIST_N; i++) {
+    if (hist[i] > 0 || hist[i] > 0) {
+      if (i > imax) imax = i;
+      if (i < imin) imin = i;
       tot += hist[i];
     }
   }
@@ -257,9 +265,12 @@ static int mkplot(void)
   return -1;
 }
 
+
+
 int main(void)
 {
   runmd();
   mkplot();
   return 0;
 }
+

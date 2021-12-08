@@ -40,20 +40,20 @@ static double ewald(double sigma, int xm, int km)
 
   /* background energy */
   ebg = -sigma*sigma;
-  //printf("real %g, recip %g, self %g, background %g\n", ereal, erecip, eself, ebg);
+  printf("real %g, recip %g, self %g, background %g\n", ereal, erecip, eself, ebg);
   return eself + ereal + erecip + ebg;
 }
 
 
 int main(int argc, char **argv)
 {
-  double ene, sigma = 0.0;
+  double ene, sigma = 1.2;
   int nterms = 20, kterms = 20;
 
   if ( argc > 1 ) sigma = atof(argv[1]);
   if ( argc > 2 ) nterms = atoi(argv[2]);
   if ( argc > 3 ) kterms = atoi(argv[3]);
-  ene = ewald(sigma, nterms, kterms, mat);
+  ene = ewald(sigma, nterms, kterms);
   printf("%.15lf %g %d %d\n", ene, sigma, nterms, kterms);
   return 0;
 }

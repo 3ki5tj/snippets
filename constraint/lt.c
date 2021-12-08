@@ -8,8 +8,8 @@
 #include "mtrand.h"
 
 /* parameters */
-int constraint = 0; /* whether to apply the constraint */
-int thermostat = 0; /* whether to use thermostat */
+int constraint = 1; /* whether to apply the constraint */
+int thermostat = 1; /* whether to use thermostat */
 double dt = 0.01; /* MD time step */
 double alpha = 16.0; /* stiffness for length */
 double kappa = 100; /* spring stiffness for the theta */
@@ -22,17 +22,18 @@ double thermdt = 0.01;
 
 /* MD variables */
 #define N 2 /* number of particles */
-double x[] = {1.0, 0};
-double v[] = {1.0, 1.0};
-double f[] = {0, 0};
+double x0[] = {1.0, 0.0};
+double x[] = {1.0, 0.0};
+double v[] = {0.0, 1.0};
+double f[] = {0.0, 0.0};
 double ep, ek;
 
 /* histogram variables */
 #define HIST_XMAX   10.0
 #define HIST_XMIN   (-HIST_XMAX)
-#define HIST_DX     0.02
+#define HIST_DX     0.0005
 #define HIST_N      (int)(((HIST_XMAX - HIST_XMIN)/HIST_DX) + 1)
-double hist[2][HIST_N];
+double hist[2][HIST_N] = {{0}};
 const char *fnhist[2] = {"l.his", "th.his"};
 
 
@@ -44,51 +45,41 @@ const char *fnhist[2] = {"l.his", "th.his"};
  * */
 static double force(void)
 {
-  double ep = 0, l2, l, dl, c;
+  double ep = 0, l2, l, dl, c, s, fs;
 
   f[0] = f[1] = 0;
 
-  /* 1. length force
+  /* 1. radial force
    * Vl(x, y) = 0.5 alpha (l - l0)^2
    * fx = -dVl/dx = -alpha (l - l0) x / l
-   * fy = -dVl/dy = -alpha (l - l0) y / l */
+   * fy = -dVl/dy = -alpha (l - l0) y / l
+   *
+   * Here,
+   * cos(theta) = x/l
+   * sin(theta) = y/l
+   * */
   l2 = x[0] * x[0] + x[1] * x[1];
   l = sqrt(l2);
+  c = x[0] / l;
+  s = x[1] / l;
   dl = l - 1;
-  f[0] += -alpha * dl * x[0] / l;
-  f[1] += -alpha * dl * x[1] / l;
+  fs = -alpha * dl;
+  f[0] += fs * c;
+  f[1] += fs * s;
   ep += 0.5 * alpha * dl * dl;
 
   /* 2. angular force
    * Va(x, y) = -k cos(theta) = -k x / l = -k x / sqrt(x^2 + y^2)
    * fx = -dVa/dx = k y^2 / l^3
    * fy = -dVa/dx = -k x y / l^3 */
-  c = x[0] / l;
-  f[0] +=  kappa * x[1] * x[1] / (l * l2);
-  f[1] += -kappa * x[0] * x[1] / (l * l2);
+  fs = kappa * x[1] / l2;
+  f[0] +=  fs * s;
+  f[1] += -fs * c;
   ep += -kappa * c;
+
   return ep;
 }
 
-
-
-/* apply the angular constraint */
-static void constrain(void)
-{
-  double l2, l, vl;
-
-  /* compute the length */
-  l2 = x[0] * x[0] + x[1] * x[1];
-  l = sqrt(l2);
-
-  /* compute the parallel velocity */
-  vl = v[0] * x[0] + v[1] * x[1];
-
-  x[0] = l;
-  x[1] = 0;
-  v[0] = vl / l;
-  v[1] = 0;
-}
 
 
 
@@ -99,8 +90,9 @@ static double vrescale(double temp, double thdt, int dof)
   double ek1, ek2, s, c, r, r2;
 
   /* normal velocity rescaling */
-  for ( ek1 = 0, i = 0; i < N; i++ )
+  for ( ek1 = 0, i = 0; i < N; i++ ) {
     ek1 += 0.5 * v[i] * v[i];
+  }
 
   c = (thdt < 700) ? exp(-thdt) : 0;
   r = randgaus();
@@ -110,11 +102,30 @@ static double vrescale(double temp, double thdt, int dof)
 
   if (ek2 < 1e-30) ek2 = 1e-30;
   s = sqrt(ek2/ek1);
-  for (i = 0; i < N; i++) v[i] *= s;
+  for (i = 0; i < N; i++) {
+    v[i] *= s;
+  }
 
   return ek2;
 }
 
+
+
+static void constrain_coordinates(double *x, double *x0)
+{
+  /* x0 always lies on the x-axis
+   * angular force is always along the y-axis
+   * apply a force along the y-axis, such that x[1] == 0 */
+  x[1] = 0;
+}
+
+
+static void constrain_velocities(double *v, double *x)
+{
+  /* now x should be along the x-axis
+   * make sure that the velocity is along the y-axis */
+  v[0] = 0;
+}
 
 
 static void runmd(void)
@@ -124,22 +135,30 @@ static void runmd(void)
   double l, sth; /* scaled, theta */
 
   /* degrees of freedom for the thermostat */
-  dof = ( constraint ? N - 1 : N );
+  dof = (constraint ? N - 1 : N);
 
   for ( t = 1; t <= nsteps + nequil; t++ ) {
     /* basic velocity verlet */
-    for ( i = 0; i < N; i++ ) {
+    for (i = 0; i < N; i++) {
       v[i] += f[i] * 0.5 * dt;
+    }
+
+    for (i = 0; i < N; i++) {
+      x0[i] = x[i];
       x[i] += v[i] * dt;
     }
+    if (constraint) {
+      constrain_coordinates(x, x0);
+    }
+
     ep = force();
     for ( i = 0; i < N; i++ ) {
       v[i] += f[i] * 0.5 * dt;
     }
 
     /* apply the constraint */
-    if ( constraint ) {
-      constrain();
+    if (constraint) {
+      constrain_velocities(v, x);
     }
 
     /* apply the thermostat */
@@ -152,14 +171,15 @@ static void runmd(void)
     }
 
     if ( t < nequil ) continue;
-    /* accumulate histogram */
+    /* accumulate histogram for the length */
     l = sqrt(x[0] * x[0] + x[1] * x[1]);
     if ( l > HIST_XMIN && l < HIST_XMAX ) {
       i = (int) ( (l - HIST_XMIN) / HIST_DX);
       hist[0][i] += 1;
     }
 
-    if ( !constraint ) {
+    if (!constraint) {
+      /* histogram for the angle */
       sth = sqrtk * atan2(x[1], x[0]);
       if ( sth > HIST_XMIN && sth < HIST_XMAX ) {
         i = (int) ( ( sth - HIST_XMIN) / HIST_DX );
@@ -206,7 +226,7 @@ int main(void)
   sqrtk = sqrt(kappa);
   runmd();
   mkplot(hist[0], fnhist[0]);
-  if ( !constraint ) {
+  if (!constraint) {
     mkplot(hist[1], fnhist[1]);
   }
   return 0;

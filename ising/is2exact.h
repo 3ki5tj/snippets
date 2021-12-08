@@ -133,7 +133,10 @@ __inline static double is2exact(int n, int m, double beta, double *eav, double *
 
 
 /* return the exact logarithmic partition function
- * also compute the average energy and heat capacity */
+ * also compute the average energy and heat capacity
+ *
+ * same as is2exact() but using `lnum_t` API
+ * */
 __inline static double is2_exact(int n, int m, double beta, double *eav, double *cv)
 {
   lnum_t a, b, c, d, ch, sh, ccs, dg, ddg, cg, sg, z[4];
@@ -156,6 +159,7 @@ __inline static double is2_exact(int n, int m, double beta, double *eav, double 
   lnum_imul(lnum_setln(&dg, 2*beta), &d);
   /* ddg = ccs'' */
   lnum_setln(&ddg, sh.ln + ln2*2 + log(1 + ish2 + 2*ish2*ish2));
+  //printf("xp %g, dg %g, ddg %g\n", xp, lnum_get(&dg), lnum_get(&ddg));
   for ( i = 0; i < 4; i++ ) {
     lnum_set(&z[i], 1);
     dlnz[i] = ddlnz[i] = 0;
