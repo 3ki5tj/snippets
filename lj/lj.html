@@ -2,183 +2,605 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1;user-scalable=no">
   <title> Lennard-Jones fluid </title>
   <link rel="stylesheet" type="text/css" href="./css/default.css" />
-  <script type="text/javascript" src="./js/util.js"></script>
-  <script type="text/javascript" src="./js/mtrand.js"></script>
-  <script type="text/javascript" src="./js/draw.js"></script>
-  <script type="text/javascript" src="./js/mouse3d.js"></script>
-  <script type="text/javascript" src="./js/vct.js"></script>
-  <script type="text/javascript" src="./js/mat.js"></script>
-  <script type="text/javascript" src="./js/mdutil.js"></script>
-  <script type="text/javascript" src="./js/ljeos.js"></script>
-  <script type="text/javascript" src="./js/ljcore.js"></script>
-  <script type="text/javascript" src="./js/ljdraw.js"></script>
-  <script type="text/javascript" src="./js/ljmain.js"></script>
-  <script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
 </head>
 <body>
 
-<h2 class="center">
-  Molecular dynamics and Monte Carlo of the Lennard-Jones fluid
-</h2>
 
+<h1>
+  Simulation of the Lennard-Jones fluid
+</h1>
 
-
-<form>
-  <div class="columncontainer">
-  <div class="column">
-
-  <div class="panel">
-  <div class="panel-title">System</div>
-
-  Dimension,
-  <span class="math"><i>D</i></span>:
-  <select id="dimension" onchange="changeparams()">
-    <option value="2">2</option>
-    <option value="3" selected>3</option>
-  </select>.
-  &nbsp;
-  <br>
-
-  Number of particles,
-  <span class="math"><i>N</i></span>:
-  <input type="text" size="6" value="55" id="n"
-    onchange="changeparams()">.
-
-  Density,
-  <span class="math"><i>&rho;</i></span>:
-  <input type="text" size="6" value="0.7" id="density"
-    onchange="changeparams()">.
-
-  Temperature,
-  <span class="math"><i>T</i></span>:
-  <input type="text" size="6" value="1.5" id="temperature"
-    onchange="changeparams()">.
-  &nbsp;
-
-  Cutoff,
-  <span class="math"><i>r<sub>c</sub></i></span>:
-  <input type="text" size="6" value="2.5" id="rcutoff"
-    onchange="changeparams()">.
-  &nbsp;
-  <br>
-
-  Simulation method
-  <select id="simulmethod" onchange="changeparams()">
-    <option value="MD">molecular dynamics (MD)</option>
-    <option value="MC">Monte Carlo (MC)</option>
-  </select>.
+<div>
+  <div class="qr-wrapper">
+    <img id="qr-page">
   </div>
 
-  <div class="panel">
-  <div class="panel-title">Monte Carlo (MC)</div>
+  <h2>Key features:</h2>
 
-  Number of MC steps per second:
-  <input type="text" size="10" value="10000"
-    id="nstepspersecmc" onchange="changeparams()">.
-  <br>
+  <ul class="summary">
+    <li>Molecular dynamics simulation</li>
+    <li>Monte Carlo simulation</li>
+    <li>Radial distribution function</li>
+    <li>Velocity auto-correlation function</li>
+    <li>Thermostat methods</li>
+  </ul>
 
-  MC move amplitude:
-  <input type="text" size="6" value="0.2" id="mcamp"
-    onchange="changeparams()">.
-  <br>
-  </div>
-
-  </div> <!-- column 1 -->
+  <div class="clear-fix"></div>
+</div>
 
 
-  <div class="column">
+<div class="content">
+  <div class="row">
+    <div class="column">
 
-  <div class="panel">
-  <div class="panel-title">Molecular dynamics (MD)</div>
+      <div class="panel">
+        <div class="panel-title">System</div>
 
-  Number of MD steps per second:
-  <input type="text" size="10" value="1000"
-    id="nstepspersecmd" onchange="changeparams()">.
-  <br>
+        <div class="input-group">
+          Dimension:
+          <select id="dimension"
+                  class="c-param">
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+          </select>
+        </div>
 
-  MD time step:
-  <input type="text" size="6" value="0.002" id="mddt"
-    onchange="changeparams()">.
-  <br>
+        <div class="input-group">
+          Number of particles:
+          <input type="text"
+                 id="n"
+                 size="6"
+                 value="216"
+                 class="c-param">
+        </div>
 
-  Thermostat type
-  <select id="thermostattype" onchange="changeparams()">
-    <option value="v-rescale">(Langevin) velocity-rescaling</option>
-    <option value="Nose-Hoover">Nos&eacute;-Hoover chain</option>
-    <option value="Langevin">Langevin dynamics</option>
-    <option value="adapt-v-rescale">Adaptive velocity-rescaling</option>
-  </select>.
-  <br>
+        <div class="input-group">
+          Density:
+          <input type="text"
+                 id="density"
+                 size="6"
+                 value="0.8"
+                 class="c-param">
+        </div>
 
-  Velocity-rescaling damping:
-  <input type="text" size="6" value="20.0" id="vresdamp"
-    onchange="changeparams()">.
-  <br>
+        <div class="input-group">
+          Temperature:
+          <input type="text"
+                 id="temperature"
+                 size="6"
+                 value="1.5"
+                 class="d-param">
+        </div>
 
-  Langevin-dynamics damping:
-  <input type="text" size="6" value="1.0" id="langdamp"
-    onchange="changeparams()">.
-  <br>
+        <div class="input-group">
+          Potential cutoff:
+          <input type="text"
+                 id="rcutoff"
+                 size="6"
+                 value="3.5"
+                 class="c-param">
+          <div class="help-text">
+            The pair potential beyond the cutoff distance is assumed to be zero.
+            This value specified here is the preferred cutoff distance.
+            If it is greater than half of the box size,
+            the latter will be adopted.
+          </div>
+          <div class="help-text">
+            Actual cutoff:
+            <span id="rcutoff-actual">(to be computed when the simulation starts)</span>
+          </div>
+        </div>
 
-  Nos&eacute;-Hoover chain length:
-  <input type="text" size="6" value="5" id="nhclen"
-    onchange="changeparams()">.
-  <br>
+      </div> <!-- .panel -->
 
-  Nos&eacute;-Hoover chain masses:<br>
-  first
-  <input type="text" size="6" value="5.0" id="nhcmass1"
-    onchange="changeparams()">;
-  rest
-  <input type="text" size="6" value="1.0" id="nhcmass2"
-    onchange="changeparams()">.
-  &nbsp;
-  <br>
+    </div> <!-- column 1 -->
 
-  Number of particles for the velocity <span title="autocorrelation function">ACF</span>:
-  <input type="text" size="6" value="5" id="vactsize"
-    onchange="changeparams()">.
-  </div>
+    <div class="column">
 
-  </div> <!-- column 2 -->
-  </div> <!-- column container -->
+      <div class="panel">
+        <div class="panel-title">Simulation</div>
+
+        <div class="input-group">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-ui-radios" viewBox="0 0 16 16">
+              <path d="M7 2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-1zM0 12a3 3 0 1 1 6 0 3 3 0 0 1-6 0zm7-1.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-1zm0-5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 8a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zM3 1a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm0 4.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>
+            </svg>
+          </span>
+          Method:
+          <select id="simul-method"
+                  class="c-param">
+            <option value="md">Molecular Dynamics</option>
+            <option value="mc">Monte Carlo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="panel simul-method-param mc-param">
+        <div class="panel-title">Monte Carlo</div>
+
+        <div class="input-group">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-speedometer" viewBox="0 0 16 16">
+              <path d="M8 2a.5.5 0 0 1 .5.5V4a.5.5 0 0 1-1 0V2.5A.5.5 0 0 1 8 2zM3.732 3.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 8a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 8zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.389.389 0 0 0-.527-.02L7.547 7.31A.91.91 0 1 0 8.85 8.569l3.434-4.297a.389.389 0 0 0-.029-.518z"/>
+              <path fill-rule="evenodd" d="M6.664 15.889A8 8 0 1 1 9.336.11a8 8 0 0 1-2.672 15.78zm-4.665-4.283A11.945 11.945 0 0 1 8 10c2.186 0 4.236.585 6.001 1.606a7 7 0 1 0-12.002 0z"/>
+            </svg>
+          </span>
+          Speed:
+          <input type="text"
+                 id="mc-nsteps-ps"
+                 size="8"
+                 value="10000"
+                 class="">
+          steps/s
+        </div>
+
+        <div class="input-group">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrows-move" viewBox="0 0 16 16">
+              <path fill-rule="evenodd" d="M7.646.146a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 1.707V5.5a.5.5 0 0 1-1 0V1.707L6.354 2.854a.5.5 0 1 1-.708-.708l2-2zM8 10a.5.5 0 0 1 .5.5v3.793l1.146-1.147a.5.5 0 0 1 .708.708l-2 2a.5.5 0 0 1-.708 0l-2-2a.5.5 0 0 1 .708-.708L7.5 14.293V10.5A.5.5 0 0 1 8 10zM.146 8.354a.5.5 0 0 1 0-.708l2-2a.5.5 0 1 1 .708.708L1.707 7.5H5.5a.5.5 0 0 1 0 1H1.707l1.147 1.146a.5.5 0 0 1-.708.708l-2-2zM10 8a.5.5 0 0 1 .5-.5h3.793l-1.147-1.146a.5.5 0 0 1 .708-.708l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L14.293 8.5H10.5A.5.5 0 0 1 10 8z"/>
+            </svg>
+          </span>
+          MC move amplitude:
+          <input type="text"
+                 id="mc-amp"
+                 size="6"
+                 value="0.2"
+                 class="d-param">
+        </div>
+      </div> <!-- .panel -->
+
+      <div class="panel simul-method-param md-param">
+        <div class="panel-title">Molecular Dynamics</div>
+
+        <div class="input-group">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-speedometer2" viewBox="0 0 16 16">
+              <path d="M8 4a.5.5 0 0 1 .5.5V6a.5.5 0 0 1-1 0V4.5A.5.5 0 0 1 8 4zM3.732 5.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707zM2 10a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 10zm9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5zm.754-4.246a.389.389 0 0 0-.527-.02L7.547 9.31a.91.91 0 1 0 1.302 1.258l3.434-4.297a.389.389 0 0 0-.029-.518z"/>
+              <path fill-rule="evenodd" d="M0 10a8 8 0 1 1 15.547 2.661c-.442 1.253-1.845 1.602-2.932 1.25C11.309 13.488 9.475 13 8 13c-1.474 0-3.31.488-4.615.911-1.087.352-2.49.003-2.932-1.25A7.988 7.988 0 0 1 0 10zm8-7a7 7 0 0 0-6.603 9.329c.203.575.923.876 1.68.63C4.397 12.533 6.358 12 8 12s3.604.532 4.923.96c.757.245 1.477-.056 1.68-.631A7 7 0 0 0 8 3z"/>
+            </svg>
+          </span>
+          Speed:
+          <input type="text"
+                 id="md-nsteps-ps"
+                 size="6"
+                 value="200"
+                 class="">
+          steps/s
+        </div>
+
+        <div class="input-group">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-hr" viewBox="0 0 16 16">
+              <path d="M2 9.5h1V12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V9.5h1V12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.5zm-1.5-2a.5.5"/>
+            </svg>
+          </span>
+          Time step:
+          <input type="text"
+                 id="md-dt"
+                 size="6"
+                 value="0.002"
+                 class="d-param">
+        </div>
+
+        <div class="input-group">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-thermometer-half" viewBox="0 0 16 16">
+              <path d="M9.5 12.5a1.5 1.5 0 1 1-2-1.415V6.5a.5.5 0 0 1 1 0v4.585a1.5 1.5 0 0 1 1 1.415z"/>
+              <path d="M5.5 2.5a2.5 2.5 0 0 1 5 0v7.55a3.5 3.5 0 1 1-5 0V2.5zM8 1a1.5 1.5 0 0 0-1.5 1.5v7.987l-.167.15a2.5 2.5 0 1 0 3.333 0l-.166-.15V2.5A1.5 1.5 0 0 0 8 1z"/>
+            </svg>
+          </span>
+          Thermostat type:
+          <select id="thermostat-type"
+                  class="d-param">
+            <option value="v-rescaling">Velocity Rescaling</option>
+            <option value="nh">Nos&eacute;-Hoover Chain</option>
+            <option value="langevin">Langevin Dynamics</option>
+            <option value="adaptive-v-rescaling">Adaptive Adjustment</option>
+          </select>
+        </div>
+
+      </div>
+
+
+      <div class="simul-method-param md-param">
+
+        <div class="panel thstat-param v-rescaling-param">
+          <div class="panel-title">
+            Velocity Rescaling
+            <span class="folder"
+                  data-target="#v-rescaling-descr"
+                  data-init-hide="true">?</span>
+          </div>
+
+          <div id="v-rescaling-descr"
+               class="help-text">
+            <p>
+              The velocity rescaling method helps the system sample the Boltzmann distribution.
+            </p>
+            <p>
+              By leveraging a Langevin equation of the kinetic energy,
+              it is able to sample the correct distribution of the kinetic energy,
+              which in turn ensures the proper sampling in the canonical ensemble.
+            </p>
+            <p>
+              This method is stochastic.
+              Several pseudorandom numbers are used to
+              help the kinetic energy find its correct values.
+            </p>
+          </div>
+
+          <div class="input-group">
+            Damping:
+            <input type="text"
+                   id="vr-damp"
+                   size="6"
+                   value="10.0"
+                   class="d-param">
+            <div class="help-text">
+              A larger damping factor means a faster sampling rate for the kinetic energy,
+              i.e., the kinetic energy will more readily forget its currently value
+              and pick up a new random value according to its distribution.
+            </div>
+          </div>
+        </div>
+
+        <div class="panel thstat-param nh-param">
+          <div class="panel-title">
+            Nos&eacute;-Hoover Chain
+            <span class="folder"
+                  data-target="#nh-descr"
+                  data-init-hide="true">?</span>
+          </div>
+
+          <div id="nh-descr"
+               class="help-text">
+            <p>
+              The Nos&eacute;-Hoover chain method is
+              one of oldest and most popular thermostat algorithms
+              for MD simulations in the canonical ensemble.
+            </p>
+            <p>
+              The method is based on an extended ensemble formalism, in which the system
+              and a few artifical springs are coupled together to form an extended system.
+              It is now the extended system instead of the original system
+              that conserves the total energy.
+              By a careful design, the algorithm can further ensure that the original system
+              samples the correct Boltzmann distribution under the ergodicity hypothesis.
+            </p>
+            <p>
+              This method is still deterministic.
+              It means that if we included the variables for the artificial springs into account,
+              the future is completely determine by the initial conditions.
+              Like many deterministic dynamic systems, the ergodicity is somewhat questionable,
+              that is, certain areas of the phase space are not quickly populated
+              according to the Boltzmann distribution as we want them to be.
+            </p>
+          </div>
+
+          <div class="input-group">
+            Chain length:
+            <input type="text"
+                   id="nhc-len"
+                   size="5"
+                   value="5"
+                   class="d-param">
+          </div>
+
+          <div class="input-group">
+            Chain masses:
+            <div class="input-group">
+              First:
+              <input type="text"
+                     id="nhc-mass1"
+                     size="6"
+                     value="10.0"
+                     class="d-param">
+            </div>
+            <div class="input-group">
+              Rest:
+              <input type="text"
+                     id="nhc-mass2"
+                     size="6"
+                     value="1.0"
+                     class="d-param">
+            </div>
+
+            <div class="help-text">
+              The mass of the first artificial spring should be
+              proportional to the number of degrees of freedom.
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel thstat-param langevin-param">
+          <div class="panel-title">
+            Langevin Dynamics
+            <span class="folder"
+                  data-target="#langevin-descr"
+                  data-init-hide="true">?</span>
+          </div>
+
+          <div id="langevin-descr"
+               class="help-text">
+            <p>
+              Langevin dynamics is able to sample the correct Boltzmann distribution.
+              However, it greatly alters the dynamic behavior.
+              Many dynamic properties, such as the velocity auto-correlation function
+              and diffusitivity computed from this method will be very different
+              from those computed from other gentler thermostat methods.
+            </p>
+          </div>
+
+          <div class="input-group">
+            Damping:
+            <input type="text"
+                   id="langevin-damp"
+                   size="6"
+                   value="1.0"
+                   class="d-param">
+            <div class="help-text">
+              A larger damping factor means a faster sampling rate for the velocity,
+              i.e., the velocity will more readily forget its currently value
+              and pick up a new random value according to the Maxwell distribution.
+            </div>
+          </div>
+
+        </div>
+
+        <div class="panel thstat-param adaptive-v-rescaling-param">
+          <div class="panel-title">
+            Adaptive Adjustment
+          </div>
+
+          <div id="adaptive-v-rescaling-descr"
+               class="help-text">
+            <p>
+              Unlike other methods, this method works on the microcanonical ensemble,
+              where the total energy is fixed.
+            </p>
+            <p>
+              It adaptively adjusts the total energy of the microcanonical ensemble
+              such that the average temperature approaches the input value.
+              The rate of adjustment however decreases as the inverse simulation time.
+            </p>
+          </div>
+
+        </div>
+
+      </div> <!-- various thermostat parameters -->
+
+    </div> <!-- .column 2 -->
+  </div> <!-- .row 1 -->
+
+  <div class="row">
+    <div class="column">
+
+      <div class="panel">
+        <div class="panel-title">Radial Distribution Function</div>
+
+        <div class="input-group simul-method-param mc-param">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clock-history" viewBox="0 0 16 16">
+              <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022l-.074.997zm2.004.45a7.003 7.003 0 0 0-.985-.299l.219-.976c.383.086.76.2 1.126.342l-.36.933zm1.37.71a7.01 7.01 0 0 0-.439-.27l.493-.87a8.025 8.025 0 0 1 .979.654l-.615.789a6.996 6.996 0 0 0-.418-.302zm1.834 1.79a6.99 6.99 0 0 0-.653-.796l.724-.69c.27.285.52.59.747.91l-.818.576zm.744 1.352a7.08 7.08 0 0 0-.214-.468l.893-.45a7.976 7.976 0 0 1 .45 1.088l-.95.313a7.023 7.023 0 0 0-.179-.483zm.53 2.507a6.991 6.991 0 0 0-.1-1.025l.985-.17c.067.386.106.778.116 1.17l-1 .025zm-.131 1.538c.033-.17.06-.339.081-.51l.993.123a7.957 7.957 0 0 1-.23 1.155l-.964-.267c.046-.165.086-.332.12-.501zm-.952 2.379c.184-.29.346-.594.486-.908l.914.405c-.16.36-.345.706-.555 1.038l-.845-.535zm-.964 1.205c.122-.122.239-.248.35-.378l.758.653a8.073 8.073 0 0 1-.401.432l-.707-.707z"/>
+              <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0v1z"/>
+              <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5z"/>
+            </svg>
+          </span>
+          Frequency: every
+          <input type="text"
+                 size="6"
+                 value="2000"
+                 id="rdf-mc-nst-deposit"
+                 class="d-param">
+          steps
+        </div>
+
+        <div class="input-group simul-method-param md-param">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-clock-history" viewBox="0 0 16 16">
+              <path d="M8.515 1.019A7 7 0 0 0 8 1V0a8 8 0 0 1 .589.022l-.074.997zm2.004.45a7.003 7.003 0 0 0-.985-.299l.219-.976c.383.086.76.2 1.126.342l-.36.933zm1.37.71a7.01 7.01 0 0 0-.439-.27l.493-.87a8.025 8.025 0 0 1 .979.654l-.615.789a6.996 6.996 0 0 0-.418-.302zm1.834 1.79a6.99 6.99 0 0 0-.653-.796l.724-.69c.27.285.52.59.747.91l-.818.576zm.744 1.352a7.08 7.08 0 0 0-.214-.468l.893-.45a7.976 7.976 0 0 1 .45 1.088l-.95.313a7.023 7.023 0 0 0-.179-.483zm.53 2.507a6.991 6.991 0 0 0-.1-1.025l.985-.17c.067.386.106.778.116 1.17l-1 .025zm-.131 1.538c.033-.17.06-.339.081-.51l.993.123a7.957 7.957 0 0 1-.23 1.155l-.964-.267c.046-.165.086-.332.12-.501zm-.952 2.379c.184-.29.346-.594.486-.908l.914.405c-.16.36-.345.706-.555 1.038l-.845-.535zm-.964 1.205c.122-.122.239-.248.35-.378l.758.653a8.073 8.073 0 0 1-.401.432l-.707-.707z"/>
+              <path d="M8 1a7 7 0 1 0 4.95 11.95l.707.707A8.001 8.001 0 1 1 8 0v1z"/>
+              <path d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5z"/>
+            </svg>
+          </span>
+          Frequency: every
+          <input type="text"
+                 id="rdf-md-nst-deposit"
+                 size="6"
+                 value="20"
+                 class="d-param">
+          steps
+        </div>
+
+      </div> <!-- .panel -->
+    </div> <!-- .column 1 -->
+
+    <div class="column">
+      <div class="panel simul-method-param md-param">
+        <div class="panel-title">Velocity Auto-correlation Function</div>
+
+        <div class="input-group">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-grip-horizontal" viewBox="0 0 16 16">
+              <path d="M2 8a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm3 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm3 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm3 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm3 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+            </svg>
+          </span>
+          Number of particles:
+          <input type="text"
+                 id="vacf-np"
+                 size="5"
+                 value="5"
+                 class="d-param">
+          <div class="help-text">
+            Increasing the number of particles for computing the VACF
+            speeds up the data accumulation, but slows down the simulation.
+          </div>
+        </div>
+
+        <div class="input-group">
+          <span class="my-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-hr" viewBox="0 0 16 16">
+              <path d="M2 9.5h1V12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V9.5h1V12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9.5zm-1.5-2a.5.5"/>
+            </svg>
+          </span>
+          Maximum interval:
+          <input type="text"
+                 id="vacf-tmax"
+                 size="6"
+                 value="2.0"
+                 class="d-param">
+          <div class="help-text">
+            Increasing the maximum interval would slow down the simulation.
+          </div>
+        </div>
+
+      </div> <!-- .panel -->
+
+    </div> <!-- column 2 -->
+  </div> <!-- .row 2 -->
 
 
   <div class="center">
-    <input type="button" value="Start simulation"
-      id="start" class="largebtn" onclick="startsimul()">
+    <button type="button"
+            id="start"
+            class="large-btn">
 
-    <input type="button" value="Pause"
-      id="pause" class="largebtn" onclick="pausesimul()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16">
+        <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+      </svg>
+    </button>
 
-    <input type="button" value="Stop"
-      id="stop" class="largebtn" onclick="stopsimul()">
+    <button type="button"
+            id="pause"
+            class="large-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause-fill" viewBox="0 0 16 16">
+        <path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/>
+      </svg>
+    </button>
 
-    <input type="button" value="Reset"
-      id="reset" class="largebtn" onclick="resetdata()">
+    <button type="button"
+            id="resume"
+            class="large-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-play-circle-fill" viewBox="0 0 16 16">
+        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.79 5.093A.5.5 0 0 0 6 5.5v5a.5.5 0 0 0 .79.407l3.5-2.5a.5.5 0 0 0 0-.814l-3.5-2.5z"/>
+      </svg>
+    </button>
+
+    <button type="button"
+            id="stop"
+            class="large-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-stop-fill" viewBox="0 0 16 16">
+        <path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/>
+      </svg>
+    </button>
+
+    <button type="button"
+            id="reset-data"
+            class="large-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+        <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/>
+        <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/>
+      </svg>
+    </button>
+
+    <div class="help-text">
+      <p style="padding: 0px 2em">
+        Data collected during equilibration are unreliable.
+        By clicking the
+        <span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2v1z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466z"/>
+          </svg>
+        </span>
+        button,
+        you can discard statistical data collected so far
+        without restarting the simulation.
+      </p>
+    </div>
   </div>
 
-  <hr>
-
-  <div class="center">
-    <div style="width:520px; display:inline-block; float:left;">
-      <canvas id="ljbox" width="480px" height="480"></canvas>
-      <br>
-      Zoom: <input id="ljscale" type="range" value="1.0"
-        min="0.05" max="3.0" step="0.01" style="width: 480px"
-        onchange="changescale()">
-      <br>
+  <div class="canvas-container">
+    <div class="canvas-wrapper">
+      <canvas id="ljbox"
+              class="canvas"></canvas>
     </div>
 
-    <div style="width:400px; display:inline-block; float:left; margin:10px">
-      <div id="histplot"></div>
-      <div id="sinfo" style="margin-top:30px; text-align:left"></div>
-      <div id="corrplot"></div>
+    <div class="scale-changer-wrapper">
+
+      <span class="scale-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-zoom-out" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/>
+          <path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/>
+          <path fill-rule="evenodd" d="M3 6.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5z"/>
+        </svg>
+      </span>
+
+      <input id="ljscale"
+             class="scale-changer"
+             type="range"
+             value="1.0"
+             min="0.2"
+             max="3.0"
+             step="0.01">
+
+      <span class="scale-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-zoom-in" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M6.5 12a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM13 6.5a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0z"/>
+          <path d="M10.344 11.742c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1 6.538 6.538 0 0 1-1.398 1.4z"/>
+          <path fill-rule="evenodd" d="M6.5 3a.5.5 0 0 1 .5.5V6h2.5a.5.5 0 0 1 0 1H7v2.5a.5.5 0 0 1-1 0V7H3.5a.5.5 0 0 1 0-1H6V3.5a.5.5 0 0 1 .5-.5z"/>
+        </svg>
+      </span>
+
+    </div>
+
+    <div>
+      <div id="msg-info"
+           class="status"></div>
+    </div>
+
+  </div>
+
+  <div class="plot-container">
+    <div class="plot-item">
+      <div id="rdf-plot"
+           class="dygraph-plot"></div>
+    </div>
+
+    <div class="plot-item">
+      <div id="vacf-plot"
+           class="dygraph-plot"></div>
     </div>
   </div>
-</form>
+
+</div> <!-- .content -->
+
+
+<!-- https://dygraphs.com/download.html -->
+<script type="text/javascript" src="./js/dygraph-combined.js"></script>
+<script type="text/javascript" src="./js/util.js"></script>
+<script type="text/javascript" src="./js/averager.js"></script>
+<script type="text/javascript" src="./js/mtrand.js"></script>
+<script type="text/javascript" src="./js/draw.js"></script>
+<script type="text/javascript" src="./js/mouse3d.js"></script>
+<script type="text/javascript" src="./js/vct.js"></script>
+<script type="text/javascript" src="./js/mat.js"></script>
+<script type="text/javascript" src="./js/mdutil.js"></script>
+<script type="text/javascript" src="./js/ljeos.js"></script>
+<script type="text/javascript" src="./js/ljcore.js"></script>
+<script type="text/javascript" src="./js/ljdraw.js"></script>
+<script type="text/javascript" src="./js/ljdata.js"></script>
+<script type="text/javascript" src="./js/ljthermostat.js"></script>
+<script type="text/javascript" src="./js/ljui.js"></script>
+<script type="text/javascript" src="./js/ljrdf.js"></script>
+<script type="text/javascript" src="./js/ljvacf.js"></script>
+<script type="text/javascript" src="./js/ljsimulation.js"></script>
+<script type="text/javascript" src="./js/ljsimulationcontroller.js"></script>
+<script type="text/javascript" src="./js/ljmain.js"></script>
 
 </body>
 </html>

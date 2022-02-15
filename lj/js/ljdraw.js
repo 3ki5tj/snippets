@@ -6,9 +6,8 @@
 
 
 /* draw all atoms in the box */
-function ljdraw2d(lj, target, userscale)
+function ljdraw2d(lj, c, userscale)
 {
-  var c = grab(target);
   var ctx = c.getContext("2d");
   var width = c.width;
   var height = c.height;
@@ -35,8 +34,8 @@ function ljdraw2d(lj, target, userscale)
   for (var i = 0; i < lj.n; i++) {
     var x = Math.floor(  (lj.x[i][0] - lj.l * 0.5) * scale + width  * 0.5 );
     var y = Math.floor( -(lj.x[i][1] - lj.l * 0.5) * scale + height * 0.5 );
-    var spotcolor = "#a0a0e0";
-    var color = "#2040a0";
+    var spotcolor = "#abd";
+    var color = "#27c";
     paintBall(ctx, x, y, radius, color, spotcolor);
   }
 }
@@ -44,7 +43,7 @@ function ljdraw2d(lj, target, userscale)
 
 
 /* apply the view matrix */
-function transform(x, l)
+function transform(x, l, viewmat)
 {
   var n = x.length;
   var xyz = newarr2d(n, 3), xc = [l * 0.5, l * 0.5, l * 0.5], xi = [0, 0, 0];
@@ -89,9 +88,8 @@ function sortbyz(x)
 
 
 /* draw all atoms in the box */
-function ljdraw3d(lj, target, userscale)
+function ljdraw3d(lj, c, userscale, viewmat)
 {
-  var c = grab(target);
   var ctx = c.getContext("2d");
   var width = c.width;
   var height = c.height;
@@ -103,7 +101,7 @@ function ljdraw3d(lj, target, userscale)
   // the system dimension is L + two radii
   var scale = userscale * Math.min(width, height) / (lj.l + 1.0);
 
-  var xyz = transform(lj.x, lj.l); // apply the rotation matrix
+  var xyz = transform(lj.x, lj.l, viewmat); // apply the rotation matrix
   xyz = sortbyz(xyz); // sort particles by the z order
 
   // draw each particle
@@ -115,8 +113,8 @@ function ljdraw3d(lj, target, userscale)
     var scl = scale * (0.7 + 0.3 * zf);
     var x = Math.floor(  (xyz[i][0] - lj.l * 0.5) * scl + width  * 0.5 );
     var y = Math.floor( -(xyz[i][1] - lj.l * 0.5) * scl + height * 0.5 );
-    var spotcolor = rgb2str(100 + 100 * zf, 100 + 100 * zf, 120 + 100 * zf);
-    var color = rgb2str(20, 32, 80 + 160 * zf);
+    var spotcolor = rgb2str(100 + 100 * zf, 120 + 100 * zf, 150 + 105 * zf);
+    var color = rgb2str(10, 60 + 60*zf, 90 + 120 * zf);
     var rz = Math.floor( 0.5 * scl );
     paintBall(ctx, x, y, rz, color, spotcolor);
   }

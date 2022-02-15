@@ -1,1 +1,1 @@
-../../js/mouse3d.js
+../../common/js/mouse3d.js

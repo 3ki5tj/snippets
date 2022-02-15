@@ -1,1 +1,1 @@
-../../js/util.js
+../../common/js/util.js
