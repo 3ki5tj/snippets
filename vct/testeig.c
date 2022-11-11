@@ -16,7 +16,8 @@ static void testeig(double a[2][2])
   printf("vec 1: %14.8f %14.8f\n", v[0][0], v[0][1]);
   printf("vec 2: %14.8f %14.8f\n\n", v[1][0], v[1][1]);
 }
-#else
+
+#else // D == 3
 
 /* for the following matrix, the tolerance must be
  * increased significantly for a solution */

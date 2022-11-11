@@ -413,20 +413,28 @@ __inline static int meigvecs_(double (*vecs)[D], double mat[D][D],
   double max = 0, m[D][D];
   int i, j;
 
-  /* compute the largest element */
-  for ( i = 0; i < D; i++ )
+  /* initialize the matrix for the characteristic equation */
+  for ( i = 0; i < D; i++ ) {
     for ( j = 0; j < D; j++ ) {
       m[i][j] = mat[i][j] - (i == j ? val : 0);
+    }
+  }
+
+  /* compute the largest element */
+  for ( i = 0; i < D; i++ ) {
+    for ( j = 0; j < D; j++ ) {
       if ( fabs(mat[i][j]) > max )
         max = mat[i][j];
     }
+  }
 
   return msolvezero_(m, vecs, reltol * max, 1, maxsol);
 }
 
 
 
-/* sort `s' to descending order, order `u' and `v' correspondingly */
+/* sort `s' to descending order in terms of the absolute value,
+   order `u' and `v' correspondingly */
 __inline static void msort2(double s[D],
     double (*u)[D], double (*v)[D], int absval)
 {
@@ -619,58 +627,69 @@ __inline static double maxisrot(double z[D], double rot[D][D])
  * by solving a cubic equation */
 __inline static double *meigval(double v[3], double a[3][3])
 {
-  double m, p, q, pr, pr3, a00, a11, a22, t, del;
-  const double tol = 1e-7;
+  double m = (a[0][0] + a[1][1] + a[2][2])/3;
+  double a00 = a[0][0] - m;
+  double a11 = a[1][1] - m;
+  double a22 = a[2][2] - m;
 
-  m = (a[0][0] + a[1][1] + a[2][2])/3;
-  a00 = a[0][0] - m;
-  a11 = a[1][1] - m;
-  a22 = a[2][2] - m;
-  q = ( a00 * (a11*a22 - a[1][2]*a[2][1])
+  /* q = half of the determinant */
+  double q = ( a00 * (a11*a22 - a[1][2]*a[2][1])
       + a[0][1] * (a[1][2]*a[2][0] - a[1][0]*a22)
       + a[0][2] * (a[1][0]*a[2][1] - a11*a[2][0]) ) / 2.0;
-  p = (a00*a00 + a11*a11 + a22*a22) / 6.0
+
+  /* The first term of p should be
+   *     (a01*a10 + a02*a20 + a12*a21)/3
+   * but we have
+   * 0 = (a00+a11+a22)^2
+   *   = (a00^2 + a11^2 + a22^2) + 2(a01*a10+a02*a20+a12*a21) */
+  double p = (a00*a00 + a11*a11 + a22*a22) / 6.0
     + (a[0][1]*a[1][0] + a[1][2]*a[2][1] + a[2][0]*a[0][2]) / 3.0;
-  /* solve x^3 - 3 p x - 2 q = 0 */
-  if ( p >= 0 ) {
-    /* with x = 2 sqrt(p) cos(t)
+
+  /* solve the eigenvalue equation: x^3 - 3 p x - 2 q = 0 */
+  double discr = q*q - p*p*p;
+
+  if (discr <= 0 || p <= 0) { /* the p <= 0 case means p == q == 0; */
+    /* try to solve the equation with
+     * x = 2 sqrt(p) cos(t)
+     *
      * 4 cos^3(t) - 3 cos(t) = q/p^(3/2) = cos(3 t)
-     * or, with x = 2 sqrt(p) sin(t)
-     * 3 sin(t) - 4 sin^3(t) = -q/p^(3/2) = sin(3 t)
-     * this solution holds if |q/p^(3/2)| <= 1, or if |p|^3 >= q^2 */
-    pr = sqrt(p);
-    pr3 = p * pr;
-    t = q / pr3;
-    /* allow some error to include degenerate cases
-     * such as x^3 - 3 x + 2 = (x + 2) (x - 1)^2 = 0
-     * or x^3 - 3 x - 2 = (x - 2) (x + 1)^2 = 0 */
-    if ( t > 1 && t < 1 + tol ) t = 1;
-    else if ( t < -1 && t > -1 - tol ) t = -1;
-    if ( fabs(t) <= 1 ) {
-      t = acos(t) / 3; /* 0 < t < pi/3 */
-      v[0] = m + 2.0 * pr * cos(t);  /* largest */
-      v[1] = m + 2.0 * pr * cos(t - 2*M_PI/3); /* second largest */
-      v[2] = m + 2.0 * pr * cos(t + 2*M_PI/3); /* smallest */
-    } else {
-      /* Cardano's formula */
-      del = sqrt(q*q - p*p*p);
-      v[2] = m + pow(q + del, 1./3);
-      v[2] += pow(q - del, 1./3);
-      v[0] = v[1] = v[2];
-    }
+     *
+     * This solution holds if |q/p^(3/2)| <= 1, or if |p|^3 >= q^2 */
+    double pr = sqrt(p);
+    double cos3t = q / (pr * p);
+    double t;
+
+    /* currently, t holds the value of cos(3 t)
+     * Its absolute value should not exceed 1.0,
+     * but we allow some margin of error that is typical
+     * in degenerate cases
+     *
+     * For example:
+     *    x^3 - 3 x + 2 = (x + 2) (x - 1)^2 = 0
+     * or
+     *    x^3 - 3 x - 2 = (x - 2) (x + 1)^2 = 0
+     * */
+    if (cos3t > 1) cos3t = 1;
+    else if (cos3t < -1) cos3t = -1;
+
+    t = acos(cos3t) / 3; /* 0 < t < pi/3 */
+    v[0] = m + 2.0 * pr * cos(t);  /* largest */
+    v[1] = m + 2.0 * pr * cos(t - 2*M_PI/3); /* second largest */
+    v[2] = m + 2.0 * pr * cos(t + 2*M_PI/3); /* smallest */
+
   } else {
-    p = -p;
-    pr = sqrt(p);
-    pr3 = p * pr;
-    t = q / pr3;
-    /* only a single real root exists
-     * solve x^3 + 3 p x = 2 q
-     * with x = 2 sqrt(p) sinh(t)
-     * 4 sinh^3(t) + 3 sinh(t) = q/p^(3/2) = sinh(3 t) */
-    t = log( sqrt(1 + t*t) + t ) / 3;
-    t = exp(t);
-    v[0] = v[1] = v[2] = m + (t - 1/t)/2;
+
+    /* Cardano's formula */
+    double del = sqrt(discr);
+
+    // use cbrt(z) instead of pow(z, 1.0/3) as
+    // the latter would fail for a negative z
+    v[2] = m + cbrt(q + del);
+    v[2] += cbrt(q - del);
+    v[0] = v[1] = v[2];
+
   }
+
   return v;
 }
 
@@ -810,8 +829,12 @@ __inline static void msvd(double a[D][D],
 
 
 /* Fit x to y by rotation and translation of the `x'
- * If `refl', reflection can also be used.
- * The best-fit structure is saved to `xf', if not NULL */
+ * If `refl', reflection is allowed.
+ * The best-fit structure is saved to `xf', if not NULL
+ *
+ * 2022-11-23
+ * This routine is not rigorous, please consider improvement
+ * */
 __inline static double vrmsd(double (*x)[D], double (*xf)[D],
     double (*y)[D], const double *w, int n, int refl,
     double r[D][D], double *t)
@@ -837,7 +860,8 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
   vsmul(yc, 1.0/wtot);
   vdiff(t, yc, xc); /* t = yc - xc */
 
-  /* 2. compute the asymmetric covariance matrix S = (x-xc) (y-yc)^T */
+  /* 2. compute the asymmetric covariance matrix S = (x-xc) (y-yc)^T
+        which is a 3x3 matrix */
   for ( i = 0; i < n; i++ ) {
     wi = ( w != NULL ) ? w[i] : 1.0;
 
@@ -867,16 +891,20 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
     mtrans(u);
     vneg(u[D - 1]); /* flip the last eigenvector */
     mmxm(r, v, u);
-    dev -= 2 * (ssig - 2 * sig[1]);
+    /* this line may be faulty:
+     * ssig -= 2 * sig[1];
+     * */
+    ssig -= 2 * sig[D - 1];
     detm = mdet(r);
-  } else {
-    dev -= 2 * ssig; /* -2 Tr(R x y^T) */
   }
+
+  dev -= 2 * ssig; /* -2 Tr(R x y^T) */
   if ( dev < 0 ) {
     dev = 0;
   }
 
   /* 5. compute the rotated structure */
+  /* 2022-11-23: note the `dev < dev0 * 0.01 part is not rigorous */
   if ( xf || dev < dev0 * 0.01 ) { /* if there's a large cancellation recompute the deviation */
     for ( dev = 0, i = 0; i < n; i++ ) {
       vdiff(xs, x[i], xc);
@@ -887,7 +915,8 @@ __inline static double vrmsd(double (*x)[D], double (*xf)[D],
       dev +=  (w ? w[i] * sq : sq); /* recompute the deviation */
     }
   }
-  return sqrt(dev/wtot);
+
+  return sqrt(dev/wtot); /* weighted average square deviation */
 }
 
 
