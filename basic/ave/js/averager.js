@@ -1,1 +1,0 @@
-../../../snippets1/lj/js/averager.js

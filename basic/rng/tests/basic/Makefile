@@ -3,17 +3,14 @@ LM = -lm
 
 srcs = $(wildcard *.c)
 bins = $(patsubst %.c,%, $(srcs))
-deps = $(wildcard *.h)
+deps = $(wildcard *.h) $(wildcard ../../*.h) Makefile
+includes = -I../.. -I../../..
 
 all: $(bins)
 
 $(bins): % : %.c $(deps)
-	$(CC) $< -o $@ $(LM)
+	$(CC) $(includes) $< -o $@ $(LM)
 
 clean:
 	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~ *.dat
 	rstrip.py -Rlv
-
-Dropbox: clean
-	rsync -avzL --exclude="*~" * ~/Dropbox/code/mtrand/
-

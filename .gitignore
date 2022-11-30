@@ -4,3 +4,4 @@ a.out
 .*.un~
 *.eps
 *.pdf
+*_pack.h

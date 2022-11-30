@@ -1,5 +1,5 @@
 #include "mtrand.h"
-#include "../hist/hist.h"
+#include "hist/hist.h"
 
 
 

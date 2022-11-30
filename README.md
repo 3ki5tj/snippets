@@ -27,6 +27,7 @@ This is a collection of small code pieces.
 * [basic](basic) Basic modules
 * [molsimul](molsimul) Molecular simulations
 * [misc](misc) Miscellaneous codes and applications
+* [web](web) JavaScript translations
 
 ## Source code
 
