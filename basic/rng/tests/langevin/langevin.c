@@ -1,7 +1,9 @@
 #include "rng.h"
 
 
-const double move_size = 0.1;
+double rel_move_size = 0.01; /* square root of dt */
+int nsteps = 100000000;
+int apply_correction = 0;
 
 
 #define HIST_N 100
@@ -47,7 +49,12 @@ void sample(int nsteps, int apply_correction)
 
   for (t = 0; t < nsteps; t++) {
     r = rng_randgaus(rng);
-    nx = x + x * r * move_size;
+    /* with the noise size proportional to x
+     * the Fokker-Planck equation predicts that
+     * B(x) ~ x^2
+     * the stationary distribution is proportional
+     * to 1/x^2 */
+    nx = x + x * rel_move_size * r;
     if ( nx >= xmin && nx < xmax ) {
 
       if (apply_correction) {
@@ -77,9 +84,6 @@ void sample(int nsteps, int apply_correction)
 
 int main(int argc, char** argv)
 {
-  int nsteps = 100000000;
-  int apply_correction = 0;
-
   if (argc > 1) {
     apply_correction = atoi(argv[1]);
   }
