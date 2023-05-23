@@ -111,3 +111,29 @@ function cparr2d(x, y, m, n)
 
 
 
+function qSel(sel)
+{
+  let x = document.querySelector(sel);
+  if ( x === null ) {
+    console.log("cannot select element ", sel);
+  }
+  return x;
+}
+
+
+function getFloat(sel, def)
+{
+  var x = parseFloat( qSel(sel).value );
+  return !isNaN(x) && isFinite(x) ? x : def;
+}
+
+
+
+function getInt(sel, def)
+{
+  var x = parseInt( qSel(sel).value, 10 );
+  return !isNaN(x) && isFinite(x) ? x : def;
+}
+
+
+

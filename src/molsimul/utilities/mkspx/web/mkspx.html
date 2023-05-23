@@ -1,25 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title> Generate a PDB structure from an amino acid sequence </title>
   <link rel="stylesheet" href="external/bootstrap/3.4.1/css/bootstrap.min.css">
   <link rel="stylesheet" href="css/mkspx.css">
-  <script src="modules/clib/vct/vct.js"></script>
-  <script src="modules/clib/vct/mat.js"></script>
-  <script src="modules/utils/draw.js"></script>
-  <script src="modules/utils/mouse3d.js"></script>
-  <script src="js/pdbdraw.js"></script>
-  <script src="modules/utils/download.js"></script>
 </head>
-<body onload="init()">
+<body>
 
-<h2 style="text-align:center; font-size:170%">
+<div class="container">
+
+<h2>
   Generating extended PDB structures from amino acid sequences
 </h2>
 
-<form style="width:800px; margin:auto;">
-  <div class="col-xs-12">
+<form>
+  <div class="form-item col-xs-12">
 <!--
     <label for="aainput" title='e.g. "MET LEU SER..." or "MLS..."'
       style="border-bottom:1px dotted #808080">
@@ -34,7 +33,7 @@
 LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
   </div>
 
-    <div class="col-xs-3">
+    <div class="form-item col-xs-12 col-sm-6 col-lg-3">
       <label for="rotate">Rotation angle (&deg;):</label>
       <input type="range" size="3" value="15.0" id="rotate_slider"
         min="0" max="50.0" step="0.1" class="form-control"
@@ -44,7 +43,7 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
         onchange="mapchange('rotate', 'rotate_slider')">
     </div>
 
-    <div class="col-xs-3">
+    <div class="form-item col-xs-12 col-sm-6 col-lg-3">
       <label for="swing">Crumpling angle (&deg;):</label>
       <input type="range" size="3" value="50.0" id="swing_slider"
         min="0" max="90.0" step="0.1" class="form-control"
@@ -54,7 +53,7 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
         onchange="mapchange('swing', 'swing_slider')">
     </div>
 
-    <div class="col-xs-3">
+    <div class="form-item col-xs-12 col-sm-6 col-lg-3">
       <label for="rise">Rising angle (&deg;):</label>
       <input type="range" size="3" value="12.0" id="rise_slider"
         min="0" max="40.0" step="0.1" class="form-control"
@@ -64,7 +63,7 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
         onchange="mapchange('rise', 'rise_slider')">
     </div>
 
-  <div class="col-xs-3">
+  <div class="form-item col-xs-12 col-sm-6 col-lg-3">
     <label for="boxsize">Cubic box size (&#8491;):
       <span style="background-color:#2060a0;color:white;font-size:90%;font-weight:bold;padding:0px 5px;border: 2px solid #2060a0;border-radius:10px;"
         title="If the value is positive, an explicit-solvent simulation will be set up; otherwise, an implicit-solvent one.">
@@ -79,17 +78,17 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
       onchange="mapchange('boxsize', 'boxsize_slider')">
   </div>
 
-  <div class="col-xs-4">
+  <div class="form-item col-xs-12 col-sm-6 col-lg-3">
     <label for="format">Output format</label>
     <select id="format" class="form-control" onchange="mkspx(true)">
       <option value="CHARMM">CHARMM for psfgen of VMD</option>
       <option value="AMBER">AMBER for LEaP of AmberTools</option>
-      <option value="CHARMM-GMX">CHARMM for gmx2pdb of GROMACS</option>
-      <option value="AMBER-GMX">AMBER for gmx2pdb of GROMACS</option>
+      <option value="CHARMM-GMX">CHARMM for pdb2gmx of GROMACS</option>
+      <option value="AMBER-GMX">AMBER for pdb2gmx of GROMACS</option>
     </select>
   </div>
 
-  <div class="col-xs-3">
+  <div class="form-item col-xs-12 col-sm-6 col-lg-3">
     <label for="n-caps">N-terminal cap:</label>
     <select id="n-caps" class="form-control" onchange="mkspx(true)">
       <option value="">None</option>
@@ -97,7 +96,7 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
     </select>
   </div>
 
-  <div class="col-xs-3">
+  <div class="form-item col-xs-12 col-sm-6 col-lg-3">
     <label for="c-caps">C-terminal cap:</label>
     <select id="c-caps" class="form-control" onchange="mkspx(true)">
       <option value="">None</option>
@@ -106,48 +105,62 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
     </select>
   </div>
 
-  <div class="col-xs-2">
+  <div class="form-item col-xs-12 col-sm-6 col-lg-3">
+    <label for="res-id-start">ID of residue 1:</label>
+    <input id="res-id-start"
+           class="form-control"
+           value="1"
+           onchange="mkspx(true)">
+  </div>
+
+  <div class="form-item col-xs-12">
     <input type="button" value="Generate"
       style="margin-top: 15px; font-size: 130%; font-weight: bold"
-      class="btn btn-primary" onclick="mkspx(true);">
+      class="btn btn-primary btn-block" onclick="mkspx(true);">
   </div>
 
 </form>
 
-<!-- container -->
-<div id="container">
 
-  <div id="simulbox" style="text-align:center">
-    <canvas id="animationbox" width="580" height="580"
-      style="border: 1px solid #cccccc; margin: 10px;"
-      onclick="paint()"></canvas>
+<div class="canvas-box">
+
+  <div id="simulbox"
+       style="text-align:center">
+    <canvas id="animation-box"
+            class="animation-box"
+            width="580"
+            height="580"
+            onclick="paint()"></canvas>
   </div>
 
-  <div class="col-xs-5">
-    <label for="scaleinput">Scale:</label>
-    <input type="range" id="scaleinput" value="1.0"
-      min="0.01" step="0.01" max="3.0"
-      style="border: solid 1px #f0f0f0"
-      onchange="paint()">
+  <div class="canvas-toolbar">
+
+    <div class="col-xs-5">
+      <label for="scaleinput">Scale:</label>
+      <input type="range" id="scaleinput" value="1.0"
+        min="0.01" step="0.01" max="3.0"
+        style="border: solid 1px #f0f0f0"
+        onchange="paint()">
+    </div>
+
+    <div class="col-xs-4">
+      <label for="ballScaleInput">Ball scale:</label>
+      <input type="range" id="ballScaleInput" value="0.7"
+        min="0.01" step="0.01" max="2.0"
+        style="border: solid 1px #f0f0f0" onchange="paint()">
+    </div>
+
+    <div class="col-xs-3">
+      <label><input type="checkbox" id="orthographic" checked
+        onchange="paint()"> Orthographic.</label>
+    </div>
+
+    <span class="col-xs-12"
+      id="info" style="font: 130% Times New Roman,serif; margin: 10px 20px">
+      &nbsp;
+    </span>
+
   </div>
-
-  <div class="col-xs-4">
-    <label for="ballScaleInput">Ball scale:</label>
-    <input type="range" id="ballScaleInput" value="0.7"
-      min="0.01" step="0.01" max="2.0"
-      style="border: solid 1px #f0f0f0" onchange="paint()">
-  </div>
-
-  <div class="col-xs-3">
-    <label><input type="checkbox" id="orthographic" checked
-      onchange="paint()"> Orthographic.</label>
-  </div>
-
-  <span class="col-xs-12"
-    id="info" style="font: 130% Times New Roman,serif; margin: 10px 20px">
-    &nbsp;
-  </span>
-
 
 </div>
 
@@ -249,6 +262,12 @@ LEU PRO LEU TRP LYS GLN GLN ASN LEU LYS LYS GLU LYS GLY LEU PHE</textarea>
 
 </div>
 
+<script src="modules/clib/vct/vct.js"></script>
+<script src="modules/clib/vct/mat.js"></script>
+<script src="modules/utils/draw.js"></script>
+<script src="modules/utils/mouse3d.js"></script>
+<script src="js/pdbdraw.js"></script>
+<script src="modules/utils/download.js"></script>
 <script src="js/mkspx.js"></script>
 
 </body>

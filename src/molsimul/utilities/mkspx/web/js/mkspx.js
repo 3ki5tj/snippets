@@ -172,6 +172,7 @@ function mkpdb(seq)
   var nter = document.getElementById("n-caps").value;
   var cter = document.getElementById("c-caps").value;
   var format = document.getElementById("format").value;
+  var resId0 = parseInt(document.getElementById("res-id-start").value);
 
   var nres = seq.length;
   if ( nter === "ACE" ) {
@@ -236,7 +237,8 @@ function mkpdb(seq)
   console.log("angles", rotang, swgang, risang, "res", nres,
       "theta+:", thp, "theta-", thm, "vang", vang, "q", q);
 
-  var resid = 0, resnm = "";
+  var resid = 0;
+  var resnm = "";
   var n = seq.length;
   var xyang = 0;
   var os = [0, 0, 0];
@@ -638,8 +640,13 @@ function mkpdb(seq)
   var boxsize = parseFloat( document.getElementById("boxsize").value );
   var src = "";
   resid = 0;
-  var offset = 0;
-  if ( nter !== "" ) offset = 1;
+
+  var resIdOffset = 0;
+  if ( nter !== "" ) {
+    resIdOffset = 1;
+  }
+  resIdOffset += resId0 - 1;
+
   var nn = atomls.length;
   var xyz = [], x = [];
   for ( var k = 0; k < nn; k++ ) {
@@ -649,14 +656,14 @@ function mkpdb(seq)
     if ( resid === 0 && nter !== "" && format === "CHARMM" ) {
       resnm = seq[1];
     }
-    resid += offset;
+    resid += resIdOffset;
     var x0 = trio[2];
     for ( var d = 0; d < 3; d++ )
       x[d] = x0[d] + boxsize * 0.5;
     src += mkatom(k + 1, trio[0], resnm, resid, x);
     xyz.push( x0 );
   }
-  src += mkter(k + 1, resnm, resid + offset);
+  src += mkter(k + 1, resnm, resid + resIdOffset);
 
   // write script
   var script = "", runem = "", runequil = "", emname = "", equilname = "";
@@ -913,9 +920,11 @@ function mkpdb(seq)
 function mkspx(refresh)
 {
   var format = document.getElementById("format").value;
+
   //document.getElementById("amberver").disabled = ( format.slice(0, 5) !== "AMBER" );
   document.getElementById("amberver_wrapper").style.visibility
     = ( format === "AMBER-GMX" ) ? "visible" : "hidden";
+
   if ( format.slice(-3) === "GMX" ) {
     document.getElementById("scriptname").innerHTML = "input.sh";
     document.getElementById("andpart").style.visibility = "visible";
@@ -947,12 +956,16 @@ function mkspx(refresh)
     var sz = ret[2];
     length_g = 0.5 * Math.max(sz[0], sz[1], sz[2]);
   }
+
   mousescale = parseFloat( document.getElementById("scaleinput").value );
+
   var ballscale = parseFloat( document.getElementById("ballScaleInput").value );
   console.log(m2str(viewmat), "scale", mousescale, "ball scale", ballscale, "length", length_g);
+
   var boxsize = parseFloat( document.getElementById("boxsize").value );
+
   pdbdraw(seq_g, atomls_g, length_g, boxsize,
-      "animationbox", mousescale, ballscale, false, false);
+      "animation-box", mousescale, ballscale, false, false);
 }
 
 function paint()
@@ -973,7 +986,7 @@ function init()
   viewmat = [[-0.6211501273837585,0.7805304954451938,-0.07031831149299674],
              [-0.4395286768639746,-0.2726761673313212,0.8558400843520434],
              [ 0.6488351573900389,0.5625120918252239,0.512438371987373]];
-  installmouse("animationbox", "scaleinput");
+  installmouse("animation-box", "scaleinput");
   mkspx(true);
 }
 

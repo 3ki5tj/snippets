@@ -1,4 +1,8 @@
-CC = gcc -O3 -Wall -Wextra
+INCLUDES = -I../../../common/c/vct \
+           -I../../../common/c/rand \
+           -I../../basic/md/c
+
+CC = gcc -O3 -Wall -Wextra $(INCLUDES)
 LM = -lm
 
 srcs = $(wildcard *.c)
@@ -13,6 +17,3 @@ $(bins): % : %.c $(deps)
 clean:
 	rm -rf $(bins) a.out *~ .*.un~ */*~ */.*.un~
 	rstrip.py -Rlv
-
-Dropbox: clean
-	rsync -avzL --exclude="*~" * ~/Dropbox/code/pca/

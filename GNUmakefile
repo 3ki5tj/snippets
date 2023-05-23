@@ -6,6 +6,3 @@ clean:
 	rstrip.py -Rlv
 
 exclude = --exclude=".*" --exclude="*~"
-
-Dropbox: clean
-	rsync -avzL $(exclude) * ~/Dropbox/code/

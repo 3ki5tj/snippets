@@ -1,6 +1,24 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
-  width:800px;
-  margin:auto;
+  width: 1200px;
+  max-width: 100%;
+  margin: auto;
+}
+
+h2 {
+  text-align: center;
+  font-size: 170%;
+}
+
+form {
+  width: 100%;
+}
+
+.form-item {
+  padding: 0.5em 0.5em;
 }
 
 textarea {
@@ -9,9 +27,15 @@ textarea {
   white-space: pre;
   overflow-wrap: normal;
   overflow-x: scroll;
+  min-height: 300px;
 }
 
 .downloadln {
   color: #4060a0;
 }
 
+.animation-box {
+  border: 1px solid #cccccc;
+  margin: 10px auto;
+  max-width: 100%;
+}

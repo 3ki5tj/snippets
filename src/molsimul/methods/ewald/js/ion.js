@@ -456,7 +456,7 @@ function paint()
     return;
   }
   mousescale = parseFloat( document.getElementById("scaleinput").value );
-  drawbox(mat, "animationbox", mousescale);
+  drawbox(mat, "animation-box", mousescale);
 
   // find the default ewaldcoef
   var cutoff = parseFloat( document.getElementById("cutoff").value );
@@ -610,7 +610,7 @@ function init()
   viewmat = [[-0.6211501273837585,  0.7805304954451938, -0.07031831149299674],
              [-0.4395286768639746, -0.2726761673313212,  0.8558400843520434],
              [ 0.6488351573900389,  0.5625120918252239,  0.512438371987373]];
-  installmouse("animationbox", "scaleinput");
+  installmouse("animation-box", "scaleinput");
   paint();
 }
 

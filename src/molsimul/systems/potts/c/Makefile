@@ -1,6 +1,5 @@
-INCLUDES = -I../../../common/c/vct \
-           -I../../../common/c/rand \
-           -I../../systems/ising2d
+INCLUDES = -I../../../../common/c/ave \
+           -I../../../../common/c/rand
 
 CC = gcc -O3 -Wall -Wextra $(INCLUDES)
 LM = -lm

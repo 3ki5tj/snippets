@@ -9,3 +9,4 @@ a.out
 __pycache__
 .vscode
 out.pdb
+data*
