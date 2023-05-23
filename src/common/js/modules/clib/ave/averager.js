@@ -4,16 +4,19 @@ function Averager()
 {
   this.count = 0.0;
   this.sum = 0.0;
-  this.sqr = 0.0;
+  this.sum2 = 0.0;
 }
 
-Averager.prototype.add = function(x) {
+Averager.prototype.add = function(x)
+{
   this.count += 1;
   this.sum += x;
-  this.sqr += x * x;
+  this.sum2 += x * x;
 };
 
-Averager.prototype.getMean = function(x) {
+
+Averager.prototype.getMean = function()
+{
   if (this.count > 0) {
     return this.sum / this.count;
   } else {
@@ -22,12 +25,20 @@ Averager.prototype.getMean = function(x) {
 };
 
 
-Averager.prototype.getVar = function(x) {
+Averager.prototype.getVar = function()
+{
   if (this.count > 0) {
-    var xx = this.sqr / this.count;
     var mean = this.getMean();
-    return xx  - mean * mean;
+    var x2 = this.sum2 / this.count;
+    return x2  - mean * mean;
   } else {
     return 0.0;
   }
 };
+
+
+Averager.prototype.getStd = function()
+{
+  return Math.sqrt(this.getVar());
+};
+
