@@ -1,0 +1,17 @@
+body {
+  width:800px;
+  margin:auto;
+}
+
+textarea {
+  font-size: 90%;
+  font-family: Lucida Console, FreeMono, Courier, monospace;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: scroll;
+}
+
+.downloadln {
+  color: #4060a0;
+}
+

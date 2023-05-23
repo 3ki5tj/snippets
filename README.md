@@ -22,13 +22,6 @@ This is a collection of small code pieces.
 
     * Stick to double, unable to use template to shift between floating point types.
 
-## Contents
-
-* [basic](basic) Basic modules
-* [molsimul](molsimul) Molecular simulations
-* [misc](misc) Miscellaneous codes and applications
-* [web](web) JavaScript translations
-
 ## Source code
 
 [Github link](https://github.com/3ki5tj/snippets)

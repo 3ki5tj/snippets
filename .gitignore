@@ -5,3 +5,7 @@ a.out
 *.eps
 *.pdf
 *_pack.h
+*.zip
+__pycache__
+.vscode
+out.pdb
