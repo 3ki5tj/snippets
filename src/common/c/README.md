@@ -6,8 +6,7 @@ Modules     |  Description
 ------------|-------------------------------------
 cfg         | read and write configuration file
 hist        | histogram
-md          | molecular dynamics routines
-mtrand      | Mersenne-Twister random number generator (deprecated)
-rng         | OO-style random number generator
+mtrand      | (old) Mersenne-Twister random number generator (deprecated)
+rng         | (new) OO-style random number generator
 util        | utility routines
 linalge     | linear algebra routines

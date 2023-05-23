@@ -1,6 +1,7 @@
 prj = vct
 
-CC = gcc -O3 -Wall -Wextra
+INCLUDES = -I..
+CC = gcc -O3 -Wall -Wextra $(INCLUDES)
 LM = -lm
 
 srcs = $(wildcard *.c)

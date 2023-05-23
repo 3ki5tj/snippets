@@ -1,8 +1,9 @@
-CC = gcc -O3 -Wall -Wextra
+INCLUDES = -I..
+CC = gcc -O3 -g -Wall -Wextra $(INCLUDES)
 LM = -lm
 
-CX = icc -Wall -Wremarks
-LMX =
+CC_DBG = gcc -O0 -g -pg -Wall -Wextra $(INCLUDES)
+LM_DBG = -lm
 
 srcs = $(wildcard test*.c)
 bins = $(patsubst %.c,%, $(srcs))
@@ -10,13 +11,13 @@ bins_d = $(patsubst %.c,%_d, $(srcs))
 
 deps = $(wildcard *.h) Makefile
 
-all: $(bins_d) $(bins)
+all: $(bins)
 
 $(bins_d) : %_d : %.c $(deps)
-	$(CC) -o $@ $< $(LM)
+	$(CC_DBG) -o $@ $< $(LM_DBG)
 
 $(bins) : % : %.c $(deps)
-	$(CX) -o $@ $< $(LMX)
+	$(CC) -o $@ $< $(LM)
 
 clean:
 	rm -rf $(prog) a.out *~ .*.un~ */*~ */.*.un~ *.dat $(bins) $(bins_d)

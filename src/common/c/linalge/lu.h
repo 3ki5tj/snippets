@@ -1,4 +1,5 @@
 #include <float.h>
+#include <math.h>
 
 /* solve A x = b by L U decomposition
  * on return, matrix `a' is destroyed, and vector `b' becomes `x' */
