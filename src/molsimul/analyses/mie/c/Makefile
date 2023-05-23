@@ -1,4 +1,9 @@
-CC = gcc -O3 -Wall -Wextra
+INCLUDES = -I../../../../common/c/util \
+           -I../../../../common/c/rand \
+           -I../../../../common/c/ave \
+           -I../../../../common/c/argopt
+
+CC = gcc -O3 -Wall -Wextra $(INCLUDES)
 LM = -lm
 
 srcs = $(wildcard *.c)

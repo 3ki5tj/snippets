@@ -73,7 +73,7 @@ void settle_water_prepare_v(settle_water_t *sw)
   x[2][1] = -sw->dist_hn;
 
   int ipr, jpr;
-  int i0, i1, j0, j1;
+  int i0, i1, j0;
   double dxpr[SETTLE_NPAIR][3];
 
   // compute the pairwise displacement vectors
@@ -92,8 +92,8 @@ void settle_water_prepare_v(settle_water_t *sw)
       if (ipr == jpr) {
         imass = -(sw->invmass[i0] + sw->invmass[i1]);
       } else {
+        //int j1 = settle_pair_ids_[jpr][1];
         j0 = settle_pair_ids_[jpr][0];
-        j1 = settle_pair_ids_[jpr][1];
         if (i1 == j0) {
           imass = sw->invmass[i1];
         } else { // i0 == j1
@@ -185,7 +185,7 @@ void settle_water_apply_coordinates(settle_water_t *sw,
     printf("xab %g %g %g\n", xab0[0], xab0[1], xab0[2]);
     printf("xabpara %g %g %g\n", xab0para[0], xab0para[1], xab0para[2]);
     printf("xabperp %g %g %g\n", xab0perp[0], xab0perp[1], xab0perp[2]);
- 
+
     // vz0*zab
     vlincomb(dxab0, xab0perp, z0, -one_minus_costh, zab);
     vadd(xab4, xab0, dxab0);
@@ -224,7 +224,7 @@ void settle_water_apply_coordinates(settle_water_t *sw,
   // NOTE: perhaps casting to the x-y plane would accelerate the computation
   vdiff(dxab, xab1, xab4);
   vcross(vx1, xbo0, dxab);
-  vdiff(dxac, xac1, xac4); 
+  vdiff(dxac, xac1, xac4);
   vcross(vx2, xco0, dxac);
   //printf("%g %g %g\n", vx1[0], vx1[1], vx1[2]);
   //printf("%g %g %g\n", vx2[0], vx2[1], vx2[2]);
@@ -243,7 +243,7 @@ void settle_water_apply_coordinates(settle_water_t *sw,
   sinth = (b*gam - a*sqrt(a2b2-gam*gam))/a2b2;
   sinth2 = sinth*sinth;
   one_minus_costh = sinth2/(1+sqrt(1-sinth2));
-  
+
   // apply the rotation to xab and xac
   double xab4para[3], xab4perp[3], dxab4[3], uab4[3], xab5[3];
   vsmul2(xab4para, z0, vdot(z0, xab4));
@@ -252,7 +252,7 @@ void settle_water_apply_coordinates(settle_water_t *sw,
   vlincomb(dxab4, xab4perp, uab4, -one_minus_costh, sinth);
   vadd(xab5, xab4, dxab4);
   //printf("xab5 %+8.5f %+8.5f %+8.5f; %g\n", xab5[0], xab5[1], xab5[2], vnorm(xab5));
-  
+
   double xac4para[3], xac4perp[3], dxac4[3], uac4[3], xac5[3];
   vsmul2(xac4para, z0, vdot(z0, xac4));
   vdiff(xac4perp, xac4, xac4para);

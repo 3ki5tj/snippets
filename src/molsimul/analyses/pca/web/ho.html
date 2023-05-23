@@ -4,12 +4,7 @@
   <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
   <title> Harmonic Oscillator </title>
   <link rel="stylesheet" type="text/css" href="./css/default.css" />
-  <script src="http://cdnjs.cloudflare.com/ajax/libs/dygraph/1.1.1/dygraph-combined.js"></script>
-  <script type="text/javascript" src="./js/util.js"></script>
-  <script type="text/javascript" src="./js/mtrand.js"></script>
-  <script type="text/javascript" src="./js/lu.js"></script>
-  <script type="text/javascript" src="./js/eig.js"></script>
-  <script type="text/javascript" src="./js/ho.js"></script>
+
 </head>
 <body>
 
@@ -20,8 +15,8 @@
 <div class="float_right">
   <h4>Notes</h4>
   <ul>
-    <li><a href="doc/hochain.pdf">The analytic solution of a uniform chain</a>.</li>
-    <li><a href="doc/vrescale.pdf">Velocity-rescaling thermostat</a>.</li>
+    <li><a href="../doc/hochain.pdf">The analytic solution of a uniform chain</a>.</li>
+    <li><a href="../doc/vrescale.pdf">Velocity-rescaling thermostat</a>.</li>
   </ul>
 </div>
 
@@ -192,17 +187,20 @@
   <div class="panel">
     <div class="panel-title">Source code</div>
 
-  <div>
-  The equivalent C code: <a href="ho.c">ho.c</a>.
-  </div>
+    <div>
+    The equivalent C code: <a href="../c/ho.c">ho.c</a>.
+    </div>
 
-  <div>
-    <a href="https://www.dropbox.com/sh/onk84wg8typmwa4/AAC9yedXDUt7DmrfBYBzOYGHa?dl=0">Link</a>
-    to the full source code.
-  </div>
   </div>
 
 </form>
+
+<script src="../../../../common/js/external/dygraph/1.1.1/js/dygraph-combined.js"></script>
+<script type="text/javascript" src="../../../../common/js/modules/utils/util.js"></script>
+<script type="text/javascript" src="../../../../common/js/modules/clib/rand/mtrand.js"></script>
+<script type="text/javascript" src="../../../../common/js/modules/clib/linalge/lu.js"></script>
+<script type="text/javascript" src="../../../../common/js/modules/clib/linalge/eig.js"></script>
+<script type="text/javascript" src="./js/ho.js"></script>
 
 </body>
 </html>

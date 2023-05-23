@@ -33,7 +33,7 @@ void test_single(settle_water_t *sw, double x1[3][3], double v0[3][3], double v[
   };
   double xout[3][3];
 
-  printf("BEFORE: %g %g %g\n", vdist(x1[0], x1[1]), vdist(x1[0], x1[2]), vdist(x1[1], x1[2])); 
+  printf("BEFORE: %g %g %g\n", vdist(x1[0], x1[1]), vdist(x1[0], x1[2]), vdist(x1[1], x1[2]));
   settle_print_vec_(x1[0], "x0");
   settle_print_vec_(x1[1], "x1");
   settle_print_vec_(x1[2], "x2");
@@ -63,7 +63,7 @@ void test_singles()
 {
   settle_water_t *sw = settle_water_open(&spc_water_param);
   double x1[][3][3] = {
-    // symmetric model, the second rotation is not necessary 
+    // symmetric model, the second rotation is not necessary
     {{0.02, -0.0, 0.},
      {-sw->dist_on+0.02,  sw->dist_hh/2+0.05, 0.03},
      {-sw->dist_on+0.02, -sw->dist_hh/2-0.05, 0.03}},
@@ -96,7 +96,7 @@ void test_singles()
 
 void apply_rotation(double *x, double *dx, double *u, double theta)
 {
-  double dot, x1[3], xpara[3], xperp[3], xcross[3], y[3], z[3];
+  double dot, x1[3], xpara[3], xperp[3], xcross[3], y[3];
 
   vdiff(x1, x, dx);
   //vcopy(x1, x);
