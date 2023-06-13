@@ -1,7 +1,7 @@
 /* compute the electric energy of a spherical ion
  * in a uniform negative background by Ewald sum
  * To compile and run
- *    gcc ion.c -lm && ./a.out
+ *    gcc df.c -lm && ./a.out
  * */
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,6 +52,9 @@ static double ewald(int type, double rB, int km, int xm)
     /* kappa / pi (theta + sin(2*theta)/2)|_{theta_C}^{pi/2} */
     x = atan(x*r);
     etail = 1/rB/PI*(PI-2*x-sin(2*x));
+  } else {
+    r = 0;
+    rr = 0;
   }
 
   /* reciprocal-space sum */
@@ -71,6 +74,7 @@ static double ewald(int type, double rB, int km, int xm)
           mul = 8;
         }
         x = sqrt(k2) * 2 * PI * r;
+
         if ( type == HOLLOW_SPHERE ) {
           rhok = sin(x) / x;
           // approximately exp(-x*x/6)
@@ -81,7 +85,10 @@ static double ewald(int type, double rB, int km, int xm)
           rhok = exp(-x*x/4);
         } else if ( type == EXPONENTIAL ) {
           rhok = 1/(1 + x*x);
+        } else {
+          rhok = 0;
         }
+
         erecip += mul * rhok * rhok / k2;
       }
     }
@@ -98,7 +105,10 @@ static double ewald(int type, double rB, int km, int xm)
     for ( j = 0; j <= xm; j++ ) {
       for ( l = 0; l <= xm; l++ ) {
         k2 = i*i + j*j + l*l;
-        if ( k2 > km * km ) continue;
+        if ( k2 > km * km ) {
+          continue;
+        }
+
         nz = (i == 0) + (j == 0) + (l == 0);
         if ( nz == 3 ) {
           continue;
@@ -111,6 +121,7 @@ static double ewald(int type, double rB, int km, int xm)
         }
         dis = sqrt(k2);
         x = dis / r;
+
         if ( type == HOLLOW_SPHERE ) {
           if ( dis > 2*r ) {
             y = 0;
@@ -132,7 +143,10 @@ static double ewald(int type, double rB, int km, int xm)
           y = erfc(x / sqrt(2));
         } else if ( type == EXPONENTIAL ) {
           y = (1 + 0.5*x) * exp(-x);
+        } else {
+          y = 0;
         }
+
         ereal += mul * y / dis;
       }
     }

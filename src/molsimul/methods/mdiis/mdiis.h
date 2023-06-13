@@ -12,7 +12,7 @@
 #include <math.h>
 #include <float.h>
 #include <time.h>
-#include "lu.h"
+#include "linalge/lu.h"
 
 
 

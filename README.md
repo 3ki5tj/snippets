@@ -1,27 +1,43 @@
-# Snippets: small code pieces
-
-This is a collection of small code pieces.
+# Snippets: a collection of independent modules relevant to molecular simulations
 
 ## Overview
 
-### Design principles
+This project contains several modules mainly relevant to molecular simulations.
 
-1. Being self-contained
+The modules within this project tend to be independent
+with little or none interdependency on other modules.
 
-    The module contains self-contained code.
-    Basic modules are self-contained than those in zcom.h (common).
-    The code is written in such a way that you can copy and paste
-    some of the routines to a new project.
+The modules are usually written in C or JavaScript (for building static web pages).
 
-2. Written in C
+The codes are not polished too much, as we want to expose
+the essential parts of the algorithms as much as possible.
+Each module often contains only a handleful files, and the reader can
+readily locate the essential parts of the methods in a few
+functions, and use them in their own projects.
+The downside of this is that the codes may are not fully optimized
+and may contain errors (sorry about that).
 
-    Aimed for rapid prototyping.
-    C++ is not suitable, too much to take care of the language features.
+## Featured modules
 
-    Cons:
+* [basic modules in C](src/common/c) and [their JavaScript translations](src/js/modules/clib),
+  such as [random number generators](src/common/c/rand),
+  [solving the eigenvalues and eigenvetors of a real symmetric matrix](src/common/c/linalge/eig.h).
+  [solving a set of linear equations](src/common/c/linalge/linsolve.h).
 
-    * Stick to double, unable to use template to shift between floating point types.
+* [modules relevant to molecular simulations](src/molsimul).
 
-## Source code
+  * Utility: building an extended spiral configuration
+    from an amino-acid sequence
+    and save it as a PDB file,
+    in [C](src/molsimul/utilities/mkspx/c/mkspx.c),
+    in [Python](src/molsimul/utilities/mkspx/python/mkspx.py),
+    or as [a web app](src/molsimul/utilities/mkspx/web/mkspx.html).
+
+  * Algorithms in molecular dynamics,
+    including an implementation for
+    [SETTLE: constraint algorithm for 3-point water molecule](src/molsimul/methods/settle/c),
+    [calculating the Madelung constant for NaCl-like cubic lattices using Ewald sum](src/molsimul/methods/ewald/c/madelung.c).
+
+## Github link
 
 [Github link](https://github.com/3ki5tj/snippets)

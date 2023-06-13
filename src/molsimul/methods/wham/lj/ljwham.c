@@ -44,7 +44,7 @@ int main(int argc, char **argv)
   xnew(lnz, ntp);
   xnew(epot, ntp);
   for ( itp = 0; itp < ntp; itp++ ) {
-    lj[itp] = lj_open(n, rho, rcdef);
+    lj[itp] = lj_open(n, rho, rcdef, 1);
     beta[itp] = 1./(0.8 + .3 * itp);
     lnz[itp] = epot[itp] = 0;
   }

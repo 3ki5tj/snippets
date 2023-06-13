@@ -9,7 +9,7 @@
 
 
 #include <time.h>
-#include "hist.h"
+#include "hist/hist.h"
 
 
 
@@ -640,7 +640,7 @@ static double umbint(const hist_t *hist, const double *beta, double *lnz,
 
 #ifdef ENABLE_MDIIS
 /* MDIIS method */
-#include "mdiis.h"
+#include "mdiis/mdiis.h"
 
 
 

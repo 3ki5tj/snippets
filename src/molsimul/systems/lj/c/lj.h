@@ -8,9 +8,9 @@
 
 
 
-#include "mtrand.h"
-#include "vct.h"
-#include "mat.h"
+#include "rand/mtrand.h"
+#include "vct/vct.h"
+#include "vct/mat.h"
 #include "mdutil.h"
 
 

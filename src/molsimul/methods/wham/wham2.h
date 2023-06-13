@@ -9,7 +9,7 @@
 
 
 #include <time.h>
-#include "hist2.h"
+#include "hist/hist2.h"
 
 
 
@@ -467,7 +467,7 @@ static double wham2(hist2_t *hist,
 
 #ifdef ENABLE_MDIIS
 /* MDIIS method */
-#include "mdiis.h"
+#include "mdiis/mdiis.h"
 
 
 

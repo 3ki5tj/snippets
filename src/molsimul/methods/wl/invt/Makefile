@@ -11,7 +11,7 @@ bins = $(patsubst %.c, %, $(srcs))
 bins_clang = $(patsubst %.c, %_clang, $(srcs))
 bins_dbg = $(patsubst %.c, %_d, $(srcs))
 deps = Makefile
-includes =
+includes = -I../../../../common/c
 
 bins: $(bins)
 

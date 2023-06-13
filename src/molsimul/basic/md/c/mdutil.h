@@ -3,8 +3,8 @@
 
 
 
-#include "mtrand.h"
-#include "mat.h"
+#include "rand/mtrand.h"
+#include "vct/mat.h"
 
 
 

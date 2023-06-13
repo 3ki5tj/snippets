@@ -1,9 +1,9 @@
-#include "mtrand.h"
-#include "util.h"
+#include "rand/mtrand.h"
+#include "util/util.h"
 
 
 
-/* return the root squared error of the inverse time scheme
+/* return the root-mean-squared error of the inverse time scheme
  *
  * the updating magnitude is `c/t` for t > `nequil`, or `a0` otherwise
  * `n` is the number of bins

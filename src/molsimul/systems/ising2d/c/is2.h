@@ -10,7 +10,7 @@
 #include <stdarg.h>
 #include <limits.h>
 #include <float.h>
-#include "mtrand.h"
+#include "rand/mtrand.h"
 
 
 

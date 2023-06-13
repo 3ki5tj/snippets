@@ -44,7 +44,7 @@ static double getmindim(double mat[3][3])
   return x;
 }
 
-static double inverse(double invmat[3][3], double mat[3][3])
+static void inverse(double invmat[3][3], double mat[3][3])
 {
   double invvol = 1. / getvol(mat);
   vscale( vcross(invmat[0], mat[1], mat[2]), invvol );

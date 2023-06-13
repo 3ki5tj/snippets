@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     T = 1.0 + 0.1 * it;
     for ( ip = 0; ip < np; ip++ ) {
       p = 1.0 + 0.1 * ip;
-      lj[itp] = lj_open(n, rho, rcdef);
+      lj[itp] = lj_open(n, rho, rcdef, 1);
       beta[itp] = 1./T;
       pres[itp] = p;
       bp[itp] = beta[itp] * pres[itp];
